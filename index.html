@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#FFFFFF" />
+  <title>JiuJiu生财</title>
+  <link rel="icon" type="image/png" href="avatar.png" />
+  <link rel="apple-touch-icon" href="avatar.png" />
+  <script>
+    (() => {
+      const savedTheme = localStorage.getItem('retirement-calculator-theme');
+      const theme = savedTheme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.colorScheme = theme;
+      document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#1C1C1C' : '#FFFFFF';
+    })();
+  </script>
+  <link rel="preconnect" href="https://rsms.me" />
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <link rel="stylesheet" href="styles.css?v=17" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="header-identity">
+      <a class="brand-mark" href="#" aria-label="JiuJiu生财首页"><img src="avatar.png" alt="" /></a>
+      <h1 class="brand-heading"><a class="brand-title" href="#">JiuJiu生财</a></h1>
+    </div>
+    <div class="btc-ticker" title="实时行情" aria-live="off">
+      <div class="market-content" id="market-content">
+        <img class="btc-icon" id="market-icon" src="btc-icon.svg" alt="" />
+        <div class="btc-copy">
+          <span class="btc-name" id="market-name">Bitcoin</span>
+          <div class="btc-quote"><strong id="market-price">$—</strong><small id="market-change">获取中</small></div>
+        </div>
+      </div>
+    </div>
+    <button class="icon-btn theme-toggle" id="theme-toggle" type="button" aria-label="切换到深色模式">
+      <img class="theme-icon theme-icon-dark" src="mode-dark.svg" alt="" />
+      <img class="theme-icon theme-icon-light" src="mode-light.svg" alt="" />
+    </button>
+  </header>
+
+  <main class="shell">
+    <div class="workspace" id="panel-retirement" role="tabpanel" aria-labelledby="tab-retirement">
+      <section class="calculator card" aria-label="投资计划">
+        <form id="calculator-form">
+          <div class="field">
+            <label class="field-label" for="principal">总投资</label>
+            <div class="money-input input-shell">
+              <span class="prefix">$</span>
+              <input id="principal" name="principal" type="text" inputmode="decimal" value="10000" />
+              <span class="suffix">USD</span>
+            </div>
+            <div class="quick-amounts" aria-label="快捷投资金额">
+              <button type="button" data-amount="100000" aria-pressed="false">10万</button>
+              <button type="button" data-amount="200000" aria-pressed="false">20万</button>
+              <button type="button" data-amount="300000" aria-pressed="false">30万</button>
+              <button type="button" data-amount="500000" aria-pressed="false">50万</button>
+              <button type="button" data-amount="800000" aria-pressed="false">80万</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="rate">年化收益率</label>
+            <div class="rate-row">
+              <input id="rate-slider" type="range" min="0.01" max="30" step="0.01" value="8" aria-label="年化收益率滑杆" />
+              <div class="input-shell rate-input"><input id="rate" name="rate" type="number" min="0.01" max="100" step="0.01" value="8.00" /><span>%</span></div>
+            </div>
+          </div>
+
+          <fieldset>
+            <legend class="field-label">计息方式</legend>
+            <div class="segmented" role="radiogroup">
+              <label><input type="radio" name="interest" value="compound" checked /><span>复利</span></label>
+              <label><input type="radio" name="interest" value="simple" /><span>单利</span></label>
+            </div>
+          </fieldset>
+
+          <button class="calculate-btn" type="submit">计算收益</button>
+        </form>
+      </section>
+
+      <section class="results card" aria-labelledby="result-title">
+        <div class="results-meta">
+          <h2 id="result-title">收益预估</h2>
+          <p class="fx-line" id="fx-rate" aria-live="polite">正在获取 USD/CNY 实时汇率…</p>
+        </div>
+
+        <div class="metric-grid" aria-live="polite">
+          <article class="metric"><span>日收益</span><strong id="daily-profit">$2.11</strong><b class="cny-value" id="daily-profit-cny">¥—</b></article>
+          <article class="metric"><span>月收益</span><strong id="monthly-profit">$64.34</strong><b class="cny-value" id="monthly-profit-cny">¥—</b></article>
+          <article class="metric"><span>年收益</span><strong id="yearly-profit">$800.00</strong><b class="cny-value" id="yearly-profit-cny">¥—</b></article>
+        </div>
+
+        <div class="chart-block">
+          <div class="chart-header">
+            <p class="chart-label">总资产变化</p>
+            <div class="period-tabs" role="group" aria-label="图表周期">
+              <button type="button" data-period="day" aria-pressed="false">日</button>
+              <button type="button" data-period="month" aria-pressed="false">月</button>
+              <button type="button" data-period="year" aria-pressed="true">年</button>
+            </div>
+          </div>
+
+          <div class="chart-figures">
+            <div class="chart-value">
+              <strong id="chart-total">$10,800.00</strong>
+              <span class="chart-cny" id="chart-total-cny">≈¥—</span>
+            </div>
+            <p class="chart-sub" id="chart-change">
+              <span id="chart-delta">+$800.00</span>
+              <span id="chart-percent">+8.00%</span>
+            </p>
+          </div>
+
+          <div class="chart-wrap">
+            <canvas id="growth-chart" role="img" aria-label="总资产变化折线图"></canvas>
+            <div class="chart-tooltip" id="chart-tooltip" hidden></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="workspace fx-workspace" id="panel-portfolio" role="tabpanel" aria-labelledby="tab-portfolio" hidden>
+      <section class="card placeholder-card" aria-label="投资组合">
+        <p class="placeholder-title">投资组合</p>
+        <p class="placeholder-body">这里会汇总你的持仓与收益分布。</p>
+      </section>
+    </div>
+
+    <div class="workspace fx-workspace" id="panel-fx" role="tabpanel" aria-labelledby="tab-fx" hidden>
+      <section class="card fx-card" aria-label="汇率换算">
+        <div class="field">
+          <label class="field-label" for="fx-amount">输入金额</label>
+          <div class="input-shell fx-input-shell">
+            <img class="fx-flag" id="fx-base-flag" src="flags/CN.svg" alt="" width="28" height="20" />
+            <input id="fx-amount" type="text" inputmode="decimal" value="1000" aria-describedby="fx-base-code" />
+            <span class="suffix" id="fx-base-code">CNY</span>
+          </div>
+        </div>
+
+        <div class="fx-results" id="fx-results" aria-live="polite"></div>
+
+        <p class="fx-updated" id="fx-updated">正在获取实时汇率…</p>
+      </section>
+    </div>
+  </main>
+
+  <footer><span>JiuJiu是我的猫</span><span>© Designed by Long</span></footer>
+
+  <nav class="tabbar" role="tablist" aria-label="主导航">
+    <span class="tabbar-beam" aria-hidden="true"></span>
+    <button class="tabbar-item" id="tab-retirement" type="button" role="tab" aria-selected="true" aria-controls="panel-retirement" data-tab="retirement">
+      <svg class="tabbar-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12.0049 22.0028C6.48204 22.0028 2.00488 17.5257 2.00488 12.0028C2.00488 6.47996 6.48204 2.00281 12.0049 2.00281C17.5277 2.00281 22.0049 6.47996 22.0049 12.0028C22.0049 17.5257 17.5277 22.0028 12.0049 22.0028ZM12.0049 20.0028C16.4232 20.0028 20.0049 16.4211 20.0049 12.0028C20.0049 7.58453 16.4232 4.00281 12.0049 4.00281C7.5866 4.00281 4.00488 7.58453 4.00488 12.0028C4.00488 16.4211 7.5866 20.0028 12.0049 20.0028ZM11.0049 16.0028H8.00488V8.00281H11.0049V6.00281H13.0049V8.00281H14.0049C15.3856 8.00281 16.5049 9.1221 16.5049 10.5028C16.5049 11.0656 16.3189 11.585 16.0051 12.0028C16.3189 12.4206 16.5049 12.94 16.5049 13.5028C16.5049 14.8835 15.3856 16.0028 14.0049 16.0028H13.0049V18.0028H11.0049V16.0028ZM10.0049 13.0028V14.0028H14.0049C14.281 14.0028 14.5049 13.7789 14.5049 13.5028C14.5049 13.2267 14.281 13.0028 14.0049 13.0028H10.0049ZM10.0049 10.0028V11.0028H14.0049C14.281 11.0028 14.5049 10.7789 14.5049 10.5028C14.5049 10.2267 14.281 10.0028 14.0049 10.0028H10.0049Z" />
+      </svg>
+      <span>理财</span>
+    </button>
+    <button class="tabbar-item" id="tab-portfolio" type="button" role="tab" aria-selected="false" aria-controls="panel-portfolio" data-tab="portfolio">
+      <svg class="tabbar-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12.0049 22.0028C6.48204 22.0028 2.00488 17.5257 2.00488 12.0028C2.00488 6.47996 6.48204 2.00281 12.0049 2.00281C17.5277 2.00281 22.0049 6.47996 22.0049 12.0028C22.0049 17.5257 17.5277 22.0028 12.0049 22.0028ZM12.0049 20.0028C16.4232 20.0028 20.0049 16.4211 20.0049 12.0028C20.0049 7.58453 16.4232 4.00281 12.0049 4.00281C7.5866 4.00281 4.00488 7.58453 4.00488 12.0028C4.00488 16.4211 7.5866 20.0028 12.0049 20.0028Z" />
+        <path d="M13.0049 6.07281C15.5349 6.51281 17.4949 8.47281 17.9349 11.0028H13.0049V6.07281Z" />
+        <path d="M11.0049 6.07281V13.0028H17.9349C17.4549 15.8428 14.9849 18.0028 12.0049 18.0028C8.69488 18.0028 6.00488 15.3128 6.00488 12.0028C6.00488 9.02281 8.16488 6.55281 11.0049 6.07281Z" />
+      </svg>
+      <span>投资组合</span>
+    </button>
+    <button class="tabbar-item" id="tab-fx" type="button" role="tab" aria-selected="false" aria-controls="panel-fx" data-tab="fx">
+      <svg class="tabbar-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12.0049 22.0027C6.48204 22.0027 2.00488 17.5256 2.00488 12.0027C2.00488 6.4799 6.48204 2.00275 12.0049 2.00275C17.5277 2.00275 22.0049 6.4799 22.0049 12.0027C22.0049 17.5256 17.5277 22.0027 12.0049 22.0027ZM12.0049 20.0027C16.4232 20.0027 20.0049 16.421 20.0049 12.0027C20.0049 7.58447 16.4232 4.00275 12.0049 4.00275C7.5866 4.00275 4.00488 7.58447 4.00488 12.0027C4.00488 16.421 7.5866 20.0027 12.0049 20.0027ZM7.00488 9.00275L10.0049 5.50275L13.0049 9.00275H11.0049V13.0027H9.00488V9.00275H7.00488ZM17.0049 15.0027L14.0049 18.5027L11.0049 15.0027H13.0049V11.0027H15.0049V15.0027H17.0049Z" />
+      </svg>
+      <span>汇率</span>
+    </button>
+  </nav>
+
+  <script src="app.js?v=10"></script>
+</body>
+</html>

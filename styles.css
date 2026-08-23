@@ -1,0 +1,540 @@
+/* SnowUI — near-monochrome dashboard system.
+   Black alpha ramps instead of a gray palette; separation by fill, not borders. */
+
+:root {
+  --bg-1: #ffffff;
+  --bg-2: #f9f9fa;
+  --surface-1: rgba(255, 255, 255, .8);
+  --ink: #000000;
+  --ink-80: rgba(0, 0, 0, .8);
+  --ink-40: rgba(0, 0, 0, .4);
+  --ink-20: rgba(0, 0, 0, .2);
+  --ink-10: rgba(0, 0, 0, .1);
+  --ink-4: rgba(0, 0, 0, .04);
+  --tint-blue: #e6f1fd;
+  --tint-purple: #edeefc;
+  --series-blue: #7dbbff;
+  --series-cyan: #a0bce8;
+  --series-mint: #6be6d3;
+  --series-purple: #b899eb;
+  --series-green: #71dd8c;
+  --radius-block: 20px;
+  --radius-card: 16px;
+  --gap-grid: 28px;
+  --thumb-ring: #ffffff;
+  /* White read as invisible against the near-identical #f9f9fa Block (1.05:1
+     luminance ratio, measured). ink-20 is the alpha-ramp step that actually
+     separates from both the Block and the ink-4 track (1.61:1 light, 1.91:1
+     dark) — one step darker than the hairline color, still within the ramp. */
+  --segment-active: var(--ink-20);
+  --gain: #5856D6;
+  --loss: #c0392b;
+  --ticker-down: #AF52DE;
+  --glow-pink: #FF2D55;
+  --glow-teal: #30B0C7;
+  --glass-bg: rgba(255, 255, 255, .42);
+  --glass-filter: blur(28px) saturate(200%) brightness(1.08);
+  --glass-edge: linear-gradient(to bottom, rgba(255, 255, 255, 1), rgba(0, 0, 0, .06));
+  --glass-shadow: 0 2px 8px -3px rgba(20, 21, 26, .08), 0 14px 36px -18px rgba(20, 21, 26, .16);
+}
+
+/* Derived dark surfaces (documented derivation in the skill, not read from the
+   Figma frame — the source file is light-theme only). Tints keep black text. */
+:root[data-theme="dark"] {
+  --bg-1: #1c1c1c;
+  --bg-2: rgba(255, 255, 255, .05);
+  --surface-1: rgba(255, 255, 255, .06);
+  --ink: #ffffff;
+  --ink-80: rgba(255, 255, 255, .8);
+  --ink-40: rgba(255, 255, 255, .4);
+  --ink-20: rgba(255, 255, 255, .2);
+  --ink-10: rgba(255, 255, 255, .1);
+  --ink-4: rgba(255, 255, 255, .04);
+  --thumb-ring: #1c1c1c;
+  /* #5856D6 sits at ~2.7:1 on the dark Block — same hue, lifted 30% toward white
+     (#8a89e2) to clear AA 4.5:1. */
+  --gain: #8a89e2;
+  --loss: #f87171;
+  --glow-pink: #FF5C7C;
+  --glow-teal: #5AC8DE;
+  --glass-bg: rgba(40, 40, 40, .34);
+  --glass-filter: blur(28px) saturate(200%) brightness(1.25);
+  --glass-edge: linear-gradient(to bottom, rgba(255, 255, 255, .55), rgba(255, 255, 255, .08));
+  --glass-shadow: 0 2px 8px -3px rgba(0, 0, 0, .28), 0 14px 36px -18px rgba(0, 0, 0, .42);
+}
+
+* { box-sizing: border-box; }
+
+html {
+  font-family: Inter, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  font-feature-settings: "ss01" 1, "cv01" 1;
+  letter-spacing: 0;
+  background: var(--bg-1);
+  color: var(--ink);
+}
+body { margin: 0; min-width: 320px; background: var(--bg-1); overflow-x: hidden; }
+button, input { font: inherit; letter-spacing: 0; }
+button { -webkit-tap-highlight-color: transparent; }
+img { max-width: 100%; }
+
+/* ── Header ─────────────────────────────────────────────── */
+/* Three sibling groups on one 68px row: identity leads, ticker + toggle trail.
+   Intra-group gap 8, inter-group gap 20 — the 2x rule that keeps them readable
+   as separate groups. */
+/* With no border under the header, its bottom padding *is* the gap to the first
+   Block — so it carries the module-gap value and .shell adds no top padding.
+   Stacking both produced 38px here against 16/28px between modules. */
+.topbar {
+  padding: 20px 28px 28px;
+  display: flex; align-items: center; gap: 8px 20px;
+}
+.header-identity { min-width: 0; flex: 1 1 auto; display: flex; align-items: center; gap: 8px; }
+.brand-mark { width: 24px; height: 24px; flex: 0 0 24px; display: block; overflow: hidden; border-radius: 50%; }
+.brand-mark img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.brand-heading { min-width: 0; margin: 0; font-size: 14px; line-height: 20px; font-weight: 400; }
+.brand-title { display: block; overflow: hidden; color: var(--ink); text-decoration: none; white-space: nowrap; text-overflow: ellipsis; }
+
+/* Ticker — direction reads from the arrow glyph, never from color (SnowUI) */
+.btc-ticker { min-width: 0; flex: 0 1 auto; overflow: hidden; }
+.market-content {
+  min-width: 0; display: flex; align-items: center; gap: 8px;
+  padding: 4px 8px; border-radius: 12px; background: var(--ink-4);
+  opacity: 1; translate: 0 0;
+  transition-property: opacity, translate; transition-duration: 150ms; transition-timing-function: ease-out;
+}
+.market-content.is-leaving { opacity: 0; translate: 0 -6px; }
+.market-content.is-entering { opacity: 0; translate: 0 6px; }
+.market-content.is-resetting { transition-duration: 0ms; }
+.btc-icon { width: 16px; height: 16px; flex: 0 0 auto; display: block; }
+.btc-copy { min-width: 0; display: flex; align-items: center; gap: 8px; }
+.btc-name { overflow: hidden; max-width: 88px; color: var(--ink); font-size: 12px; line-height: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.btc-quote { min-width: 0; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.btc-ticker strong { color: var(--ink); font-size: 12px; line-height: 16px; font-weight: 400; }
+.btc-ticker small { color: var(--ink-40); font-size: 12px; line-height: 16px; }
+.btc-ticker small.positive { color: var(--gain); }
+.btc-ticker small.negative { color: var(--ticker-down); }
+
+.icon-btn {
+  position: relative; width: 24px; height: 24px; flex: 0 0 24px;
+  display: grid; place-items: center; padding: 4px;
+  border: 0; border-radius: 12px; color: var(--ink); background: transparent; cursor: pointer;
+  transition-property: background-color; transition-duration: 150ms;
+}
+.icon-btn::after { content: ""; position: absolute; top: 50%; left: 50%; translate: -50% -50%; width: 44px; height: 44px; }
+@media (hover: hover) { .icon-btn:hover { background: var(--ink-4); } }
+.icon-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.theme-icon { position: absolute; width: 16px; height: 16px; transition-property: opacity, scale; transition-duration: 180ms; transition-timing-function: cubic-bezier(.2,0,0,1); }
+.theme-icon-dark { opacity: 1; scale: 1; }
+.theme-icon-light { opacity: 0; scale: .25; }
+:root[data-theme="dark"] .theme-icon-dark { opacity: 0; scale: .25; }
+:root[data-theme="dark"] .theme-icon-light { opacity: 1; scale: 1; filter: invert(1); }
+
+/* ── Page grid — 28px gutters throughout ────────────────── */
+.shell { padding: 0 28px 28px; }
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--gap-grid); }
+/* `display: grid` outranks the [hidden] UA rule, so inactive panels need this. */
+.workspace[hidden] { display: none; }
+
+/* ── Block — the section panel. No border, no shadow. ───── */
+.card {
+  min-width: 0; display: flex; flex-direction: column; gap: 16px;
+  overflow: clip; padding: 24px; border-radius: var(--radius-block); background: var(--bg-2);
+}
+h2 { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; }
+
+/* Spacing scale (SnowUI: 4 8 12 16 20 24 28)
+   28 between Blocks · 24 Block padding · 16 between field groups
+   ·  8 label→control and option→option ·  4 label→value inside a Card */
+form { display: flex; flex-direction: column; gap: 16px; }
+.field { display: flex; flex-direction: column; gap: 8px; }
+.field-label { font-size: 12px; line-height: 16px; color: var(--ink-40); }
+/* <legend> renders outside the fieldset's flex box, so `gap` never reaches it —
+   the label→control step has to be a margin here. */
+legend.field-label { margin-bottom: 8px; }
+
+.input-shell {
+  height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 16px;
+  border-radius: var(--radius-card); background: var(--ink-4);
+  transition-property: background-color; transition-duration: 150ms;
+}
+.input-shell:focus-within { background: var(--surface-1); outline: 2px solid var(--ink); outline-offset: -2px; }
+.money-input { min-width: 0; }
+.money-input .prefix { flex: 0 0 auto; color: var(--ink-40); font-size: 14px; }
+.money-input input {
+  min-width: 0; width: 100%; flex: 1; border: 0; outline: 0; background: transparent; padding: 0;
+  color: var(--ink); font-size: 24px; line-height: 32px; font-weight: 600;
+}
+.suffix { flex: 0 0 auto; color: var(--ink-40); font-size: 12px; line-height: 16px; }
+
+.quick-amounts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.quick-amounts button {
+  position: relative; min-width: 0; height: 36px; padding: 0 4px;
+  border: 0; border-radius: 8px; color: var(--ink); background: var(--ink-4);
+  font-size: 12px; line-height: 16px; cursor: pointer;
+  transition-property: color, background-color; transition-duration: 150ms;
+}
+.quick-amounts button::after { content: ""; position: absolute; inset: -4px 0; }
+@media (hover: hover) { .quick-amounts button:hover { background: var(--ink-10); } }
+.quick-amounts button[aria-pressed="true"] { color: var(--bg-1); background: var(--ink); }
+:root[data-theme="dark"] .quick-amounts button[aria-pressed="true"] { color: #1c1c1c; }
+.quick-amounts button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* 112px holds "100.00" plus the % suffix without clipping. */
+.rate-row { display: grid; grid-template-columns: minmax(0, 1fr) 112px; align-items: center; gap: 16px; }
+input[type="range"] {
+  width: 100%; height: 2px; appearance: none; border-radius: 999px;
+  background: linear-gradient(to right, var(--ink) var(--progress, 26.4%), var(--ink-10) var(--progress, 26.4%));
+}
+input[type="range"]::-webkit-slider-thumb {
+  width: 16px; height: 16px; appearance: none; border: 3px solid var(--thumb-ring);
+  border-radius: 50%; background: var(--ink); cursor: grab;
+}
+input[type="range"]:active::-webkit-slider-thumb { cursor: grabbing; }
+input[type="range"]:focus { outline: none; }
+input[type="range"]:focus-visible { outline: 2px solid var(--ink); outline-offset: 6px; }
+.rate-input { height: 40px; padding: 0 12px; }
+.rate-input input { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 14px; line-height: 20px; font-weight: 600; }
+.rate-input span { flex: 0 0 auto; color: var(--ink-40); font-size: 12px; line-height: 16px; }
+
+fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+/* SnowUI's active-nav language: idle is transparent, active is a quiet ink-4 fill
+   with a 4x16 indicator. No heavy filled pill. */
+/* Needs its own track, like .period-tabs — without it the checked pill
+   (--segment-active, near-white in light) sits directly on the Block's
+   near-identical #f9f9fa and reads as invisible. 12/8 with 4px padding
+   keeps the radii concentric (8 + 4 = 12). */
+.segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px; border-radius: 12px; background: var(--ink-4); }
+.segmented input { position: absolute; opacity: 0; pointer-events: none; }
+.segmented span {
+  position: relative; min-width: 0; height: 36px; display: grid; place-items: center;
+  border-radius: 8px; color: var(--ink-40); background: transparent;
+  font-size: 14px; line-height: 20px; cursor: pointer;
+  transition-property: color, background-color; transition-duration: 150ms;
+}
+.segmented span::after { content: ""; position: absolute; inset: -4px 0; }
+@media (hover: hover) { .segmented input:not(:checked) + span:hover { color: var(--ink); } }
+.segmented input:checked + span { color: var(--ink); background: var(--segment-active); }
+.segmented input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+.calculate-btn {
+  position: relative; width: 100%; height: 40px; margin-top: 8px;
+  display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 12px; color: var(--bg-1); background: var(--ink);
+  font-size: 14px; line-height: 20px; font-weight: 600; cursor: pointer;
+  transition-property: opacity; transition-duration: 150ms;
+}
+:root[data-theme="dark"] .calculate-btn { color: #1c1c1c; }
+.calculate-btn::after { content: ""; position: absolute; inset: -2px 0; }
+@media (hover: hover) { .calculate-btn:hover { opacity: .8; } }
+.calculate-btn:active { opacity: .7; }
+.calculate-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ── Results ────────────────────────────────────────────── */
+.results-meta { min-width: 0; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.fx-line { margin: 0; color: var(--ink-40); font-size: 12px; line-height: 16px; }
+
+/* Card — inside a Block, so Surface/1; diagonal tints echo the reference 2×2 */
+.metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.metric { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; border-radius: var(--radius-card); background: var(--tint-blue); }
+/* Tints don't invert — text on them stays black in both themes (SnowUI). */
+:root[data-theme="dark"] .metric { color: #000000; }
+.metric > span { color: inherit; opacity: .6; font-size: 12px; line-height: 16px; }
+.metric strong { display: block; overflow: hidden; max-width: 100%; font-size: 24px; line-height: 32px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.metric .cny-value { display: block; overflow: hidden; max-width: 100%; opacity: .4; font-size: 12px; line-height: 16px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Chart block — stacked, so the value leads and the supporting figures demote
+   to one quiet line instead of competing on the title row. */
+.chart-block { display: flex; flex-direction: column; gap: 16px; }
+.chart-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.chart-label { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; }
+.chart-figures { display: flex; flex-direction: column; gap: 4px; }
+.chart-value { min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.chart-value strong { font-size: 24px; line-height: 32px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chart-cny { color: var(--ink-40); font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; }
+/* Gain/loss is colored per the brief — SnowUI keeps deltas black, so this is a
+   deliberate override. The +/- sign carries the same meaning without color. */
+.chart-sub { margin: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; color: var(--gain); font-size: 12px; line-height: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chart-sub.is-loss { color: var(--loss); }
+
+.period-tabs { flex: 0 0 auto; display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--ink-4); }
+.period-tabs button {
+  position: relative; min-width: 32px; height: 28px; padding: 0 8px;
+  border: 0; border-radius: 8px; color: var(--ink-40); background: transparent;
+  font-size: 12px; line-height: 16px; cursor: pointer;
+  transition-property: color, background-color; transition-duration: 150ms;
+}
+.period-tabs button::after { content: ""; position: absolute; inset: -8px 0; }
+.period-tabs button[aria-pressed="true"] { color: var(--ink); background: var(--segment-active); }
+.period-tabs button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+.chart-wrap { position: relative; width: 100%; height: 234px; margin-top: 8px; }
+#growth-chart { display: block; width: 100%; height: 100%; touch-action: none; }
+.chart-tooltip {
+  position: absolute; z-index: 2; width: max-content; max-width: calc(100% - 8px); pointer-events: none;
+  padding: 4px 8px; border-radius: 12px; color: #ffffff; background: var(--ink-80);
+  backdrop-filter: blur(10px); font-size: 12px; line-height: 16px; text-align: center;
+  white-space: pre-line; overflow-wrap: anywhere; transform: translate(-50%, calc(-100% - 8px));
+}
+:root[data-theme="dark"] .chart-tooltip { color: #1c1c1c; }
+
+/* ── Currency converter ─────────────────────────────────── */
+.fx-workspace { grid-template-columns: minmax(0, 1fr); }
+.fx-card { max-width: 480px; }
+.fx-input-shell { gap: 12px; }
+.fx-flag { flex: 0 0 auto; display: block; width: 28px; height: 20px; border-radius: 3px; }
+.fx-input-shell input {
+  min-width: 0; width: 100%; flex: 1; border: 0; outline: 0; background: transparent; padding: 0;
+  color: var(--ink); font-size: 24px; line-height: 32px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.fx-results { display: flex; flex-direction: column; gap: 8px; }
+.fx-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: start;
+  padding: 12px 16px; border: 0; border-radius: var(--radius-card);
+  background: var(--tint-blue); color: #000000; cursor: pointer;
+  transition-property: opacity, scale; transition-duration: 150ms;
+}
+@media (hover: hover) { .fx-row:hover { opacity: .82; } }
+.fx-row:active { scale: .99; }
+.fx-row:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.fx-row-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.fx-row-value { overflow: hidden; font-size: 20px; line-height: 28px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fx-row-rate { overflow: hidden; opacity: .5; font-size: 12px; line-height: 16px; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fx-row-code { flex: 0 0 auto; opacity: .5; font-size: 12px; line-height: 16px; font-weight: 600; }
+.fx-updated { margin: 0; color: var(--ink-40); font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; }
+
+.placeholder-card { max-width: 480px; gap: 4px; }
+.placeholder-title { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; }
+.placeholder-body { margin: 0; color: var(--ink-40); font-size: 12px; line-height: 16px; }
+
+/* ── Bottom tab bar — floating glassmorphic pill ─────────
+   Detached rounded bar over blurred content, with a top-lit gradient hairline
+   for the reflection edge and a soft accent glow behind the active tab. */
+.tabbar {
+  position: fixed; z-index: 10;
+  inset-inline: 0; bottom: calc(24px + env(safe-area-inset-bottom));
+  width: min(400px, calc(100% - 40px)); height: 64px; margin-inline: auto;
+  display: flex; align-items: stretch;
+  padding: 6px; border-radius: 999px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: var(--glass-shadow);
+  /* Contains the light: the beams overshoot the bottom rim so that blur's
+     edge falloff lands outside, and this clip ends them on the glass. */
+  overflow: hidden;
+  /* Animated HERE, not on the pseudo, so .tabbar::after and .tabbar-beam both
+     inherit an already-interpolating value and cannot drift apart. */
+  transition: --beam-x 320ms cubic-bezier(.2,0,0,1), --beam-color 320ms cubic-bezier(.2,0,0,1);
+}
+/* Two stacked rings, both painted as masked borders so the pill stays round.
+   ::before is the static reflection — bright top edge fading down.
+   ::after is the beam: light from the active tab spilling onto the rim beside
+   it, so the glass reads as lit from within rather than merely tinted. */
+@property --beam-x { syntax: '<length-percentage>'; inherits: true; initial-value: 50%; }
+@property --beam-color { syntax: '<color>'; inherits: true; initial-value: transparent; }
+
+.tabbar::before,
+.tabbar::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
+  pointer-events: none;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude;
+}
+.tabbar::before { background: var(--glass-edge); }
+/* Anchored to the bottom edge (y = 100%) with a short vertical radius, so the
+   light reaches the lower rim only — the top keeps its plain white reflection.
+   Pill is 64px tall; a 30px radius dies out well before the top edge. */
+.tabbar::after {
+  padding: 2px;
+  background: radial-gradient(84px 34px at var(--beam-x) 100%,
+    color-mix(in srgb, var(--beam-color) 94%, transparent) 0%,
+    color-mix(in srgb, var(--beam-color) 86%, transparent) 34%,
+    color-mix(in srgb, var(--beam-color) 60%, transparent) 58%,
+    color-mix(in srgb, var(--beam-color) 20%, transparent) 78%,
+    transparent 100%);
+}
+/* Beam sits at each tab's centre: 1/6, 3/6, 5/6 across three equal tabs. */
+.tabbar:has(.tabbar-item[data-tab="retirement"][aria-selected="true"]) { --beam-x: calc(6px + (100% - 12px) / 6); --beam-color: var(--gain); }
+.tabbar:has(.tabbar-item[data-tab="portfolio"][aria-selected="true"]) { --beam-x: 50%; --beam-color: var(--glow-teal); }
+.tabbar:has(.tabbar-item[data-tab="fx"][aria-selected="true"]) { --beam-x: calc(100% - 6px - (100% - 12px) / 6); --beam-color: var(--glow-pink); }
+/* Without backdrop-filter a 60% wash just leaks content through unblurred. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tabbar { background: var(--bg-1); }
+}
+.tabbar-item {
+  position: relative; flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 0; border-radius: 999px; background: transparent; color: var(--ink-40);
+  font-size: 12px; line-height: 16px; cursor: pointer;
+  opacity: .55; scale: .98;
+  transition-property: color, opacity, scale; transition-duration: 220ms; transition-timing-function: cubic-bezier(.2,0,0,1);
+}
+/* Cone of light from the active tab — a physically-modelled floodlight.
+
+   ONE LAMP THAT MOVES. This used to be a pseudo-element per tab, cross-fading
+   between three fixed cones — but a lamp does not blink out here and reappear
+   there. It is a single element that slides, positioned at left: var(--beam-x)
+   and coloured with var(--beam-color): the exact two variables that drive the
+   rim reflection below it. Neither is transitioned here; both are interpolated
+   on .tabbar and inherited, so the beam and its own reflection travel as one
+   thing and cannot drift out of step.
+
+   GEOMETRY — a TRAPEZOID flush with the pill's top edge: 33px wide where it
+   enters, 112px where it lands, over the full 64px height. That base is sized
+   to the rim reflection it feeds, which runs 97px across its bright core and
+   131px to the edge of visibility. Both cones are struck from one VIRTUAL APEX
+   27px above the bar (half-angle 31.6°), so they agree on where the lamp is.
+
+   NO clip-path. Clipping is applied after filter: blur(), so a polygon keeps
+   razor-sharp sides however hard you blur it. The silhouette is gradients only:
+     · conic-gradient  → angular spread; soft shoulders are the lateral falloff
+     · radial mask     → distance falloff, struck from the same virtual apex
+     · two layers      → penumbra that WIDENS with distance
+
+   That last one is what a single blur() cannot fake. Real shadow edges sharpen
+   near the source and soften downstream, so the beam is an umbra (narrow,
+   bright, lightly blurred) inside a penumbra (wide, dim, heavily blurred).
+
+   REACHING THE FLOOR — the mask never fades out. The apex sits only 27px up, so
+   the direct term is down to 0.30 at the rim; the floor bounce makes up the
+   difference. Light striking the bottom scatters back up into the glass, which
+   is why the beam reads as landing on a surface instead of dissolving in
+   mid-air. The layers run 96px, well past the rim, so blur's own edge falloff
+   happens outside the pill and the beam is still at strength where it lands;
+   .tabbar's overflow clip then ends it exactly on the glass. */
+.tabbar-beam {
+  position: absolute; z-index: -1; pointer-events: none;
+  top: 0; left: var(--beam-x); translate: -50% 0;
+  width: 0; height: 96px;
+}
+/* Zero-width parent: the layers centre on its left edge, so --beam-x alone
+   places them and the two cones stay concentric while travelling. */
+.tabbar-beam::before,
+.tabbar-beam::after {
+  content: ""; position: absolute; top: 0; left: 0; translate: -50% 0; height: 100%;
+}
+
+/* Shared falloff — one lamp, one curve: direct 1/d from the apex plus a floor
+   bounce rising as (depth/64)^2.5. Stops are r/150 from the apex, so 18% is the
+   pill's top edge and 61% the bottom rim. The two terms very nearly cancel over
+   the lower third, which is what keeps the base of the beam evenly lit. */
+@supports (mask-image: radial-gradient(#000, #000)) or (-webkit-mask-image: radial-gradient(#000, #000)) {
+  .tabbar-beam::before, .tabbar-beam::after {
+    --beam-falloff: radial-gradient(150px 150px at 50% -27px,
+      #000 0%, #000 18%,      /* pill top edge — full aperture strength */
+      rgba(0,0,0,.63) 29%,
+      rgba(0,0,0,.48) 39%,
+      rgba(0,0,0,.43) 50%,
+      rgba(0,0,0,.44) 61%,    /* bottom rim — bounce has overtaken the falloff */
+      rgba(0,0,0,.36) 72%,
+      rgba(0,0,0,.26) 82%,
+      transparent 100%);
+    -webkit-mask-image: var(--beam-falloff);
+    mask-image: var(--beam-falloff);
+  }
+}
+
+/* ── Umbra — carries the trapezoid silhouette ────────────
+   Flat-topped angular profile: full intensity across the middle 17° of the
+   63.2° spread, soft only in the shoulders. A bell curve here would dissolve
+   the shape into a wash — the trapezoid has to survive every edge being soft. */
+.tabbar-beam::before {
+  width: 210px;
+  background:
+    /* faint brightening where the beam enters the glass — kept low, since the
+       emitter is off-screen above the bar rather than sitting on the top edge */
+    radial-gradient(34px 16px at 50% 0,
+      color-mix(in srgb, var(--beam-color) 40%, transparent) 0%,
+      color-mix(in srgb, var(--beam-color) 17%, transparent) 55%,
+      transparent 82%),
+    conic-gradient(from 148.4deg at 50% -27px,
+      transparent 0deg,
+      color-mix(in srgb, var(--beam-color) 26%, transparent) 7deg,
+      color-mix(in srgb, var(--beam-color) 80%, transparent) 14deg,
+      var(--beam-color) 23deg,
+      var(--beam-color) 40deg,
+      color-mix(in srgb, var(--beam-color) 80%, transparent) 49deg,
+      color-mix(in srgb, var(--beam-color) 26%, transparent) 56deg,
+      transparent 63.2deg);
+  opacity: .69;
+  filter: blur(17px);
+}
+
+/* ── Penumbra — the far field ────────────────────────────
+   Same apex, wider half-angle (37°) and >2× the blur, so the soft halo outruns
+   the core and the edge reads softer the further it travels. */
+.tabbar-beam::after {
+  width: 240px;
+  background: conic-gradient(from 143deg at 50% -27px,
+    transparent 0deg,
+    color-mix(in srgb, var(--beam-color) 18%, transparent) 13deg,
+    color-mix(in srgb, var(--beam-color) 50%, transparent) 26deg,
+    color-mix(in srgb, var(--beam-color) 64%, transparent) 37deg,
+    color-mix(in srgb, var(--beam-color) 50%, transparent) 48deg,
+    color-mix(in srgb, var(--beam-color) 18%, transparent) 61deg,
+    transparent 74deg);
+  opacity: .41;
+  filter: blur(38px);
+}
+/* On a dark ground light is additive, so the two cones should SUM where they
+   overlap instead of painting over one another — which also means they need
+   materially less input than the light theme's normal blend. Dark only: on the
+   light glass the same blend would clip to white and erase the hue. */
+:root[data-theme="dark"] .tabbar-beam::before,
+:root[data-theme="dark"] .tabbar-beam::after { mix-blend-mode: plus-lighter; }
+:root[data-theme="dark"] .tabbar-beam::before { opacity: .37; }
+:root[data-theme="dark"] .tabbar-beam::after { opacity: .27; }
+
+.tabbar-item[aria-selected="true"] { color: var(--ink); font-weight: 500; opacity: 1; scale: 1; }
+.tabbar-item:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
+.tabbar-icon { width: 22px; height: 22px; display: block; }
+
+footer { padding: 0 28px 28px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; color: var(--ink-40); font-size: 12px; line-height: 16px; }
+/* Clear the floating bar (64px pill + 24px lift + breathing room). */
+body { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
+
+/* ── Responsive — 28px gutter down to md, then 16 ───────── */
+@media (min-width: 1000px) {
+  .workspace { grid-template-columns: 380px minmax(0, 1fr); }
+}
+
+@media (max-width: 767px) {
+  .topbar { padding: 16px; gap: 8px 12px; }
+  .shell { padding: 0 16px 16px; }
+  .workspace { gap: 16px; }
+  .card { padding: 16px; }
+  .metric { padding: 10px 12px; }
+  .metric strong { font-size: 20px; line-height: 28px; }
+  footer { padding: 0 16px 16px; }
+}
+
+/* Hold three across down to 390px — the metric type steps down instead of the
+   grid collapsing, so the three periods stay comparable at a glance. */
+@media (max-width: 560px) {
+  .metric { padding: 10px; }
+  .metric strong { font-size: 17px; line-height: 24px; }
+  .metric > span, .metric .cny-value { font-size: 11px; line-height: 15px; }
+  .chart-wrap { height: 200px; }
+}
+
+@media (max-width: 389px) {
+  .metric-grid { grid-template-columns: 1fr; }
+  .metric { padding: 10px 12px; }
+  .metric strong { font-size: 20px; line-height: 28px; }
+}
+
+/* Shed the ticker by importance rather than wrapping the header — the asset icon
+   already identifies the series. Thresholds measured from worst-case content
+   ("Bitcoin · $102,395.29 · ▲ 12.34%"), not from device presets. */
+@media (max-width: 485px) { .btc-name { display: none; } }
+@media (max-width: 415px) { .btc-ticker small { display: none; } }
+@media (max-width: 347px) { .btc-ticker { display: none; } }
+
+@media (max-width: 380px) {
+  .quick-amounts { gap: 4px; }
+  .money-input input { font-size: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
