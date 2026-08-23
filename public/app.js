@@ -168,10 +168,13 @@ async function fetchBeijingQuote(symbol) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=5m&range=2d`;
-    const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(yahooUrl)}`;
-    const response = await fetch(proxyUrl, { signal: controller.signal, cache: 'no-store' });
-    if (!response.ok) throw new Error(`${symbol} proxy request failed`);
+    // 同源代理（见 src/index.js）。原来借道 corsproxy.io，但那个公共代理在公网域名
+    // 下被 Yahoo 稳定 403，害得涨跌基准一直降级成「较前收盘」。走自己的 Worker 就
+    // 没有 CORS 问题，也不看第三方限流的脸色。
+    // 注：本地用 http.server 预览时没有这个端点，会 404 → 抛错 → 自动走下面的
+    // TradingView 备用链路，所以本地开发依然能显示报价，只是基准是「较前收盘」。
+    const response = await fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`, { signal: controller.signal, cache: 'no-store' });
+    if (!response.ok) throw new Error(`${symbol} quote request failed`);
     const data = await response.json();
     const result = data?.chart?.result?.[0];
     const price = Number(result?.meta?.regularMarketPrice);

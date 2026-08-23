@@ -1,12 +1,14 @@
 {
-  // 仅含静态资产的 Worker：没有 main 入口，Cloudflare 直接从边缘分发 public/ 里的文件。
-  // 名字要和 Cloudflare 上的 Worker 对应；先用新名字部署验证，确认没问题再把
-  // jiujiucat.win 从旧的 noisy-smoke-a25e 切过来。
+  // 静态资产 + 一个轻量 Worker 入口（src/index.js 只处理 /api/quote 行情代理）。
+  // 静态资源命中时 Cloudflare 直接分发，不会执行 Worker，所以首屏没有额外开销。
   "name": "jiujiucat",
+  "main": "src/index.js",
   "compatibility_date": "2026-08-01",
   "assets": {
     // 站点文件单独收在 public/，这样 wrangler.jsonc、.gitignore、.claude/
     // 这些仓库自身的东西不会被当成静态资源公开出去。
-    "directory": "./public"
+    "directory": "./public",
+    // 绑定后 Worker 里才能用 env.ASSETS.fetch() 把请求交回静态资源。
+    "binding": "ASSETS"
   }
 }
