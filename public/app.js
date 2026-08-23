@@ -24,8 +24,8 @@ const metricMoney = value => (Math.abs(value) >= 10000 ? moneyWhole : money).for
 const metricCny = value => (Math.abs(value) >= 10000 ? cnyWhole : cnyMoney).format(value);
 const marketAssets = [
   { symbol: 'BTC', name: 'Bitcoin', icon: 'btc-icon.svg', basis: '北京时间今日', price: null, change: null, cached: false, status: '获取中' },
-  { symbol: 'MSTR', name: 'MSTR', icon: 'mstr-icon.svg', basis: '北京时间今日', price: null, change: null, cached: false, status: '获取中' },
-  { symbol: 'QQQ', name: 'QQQ', icon: 'qqq-icon.svg', basis: '北京时间今日', price: null, change: null, cached: false, status: '获取中' }
+  { symbol: 'MSTR', name: 'MSTR', icon: 'mstr-icon.svg', basis: '北京时间今日', price: null, change: null, cached: false, status: '获取中', equity: true },
+  { symbol: 'QQQ', name: 'QQQ', icon: 'qqq-icon.svg', basis: '北京时间今日', price: null, change: null, cached: false, status: '获取中', equity: true }
 ];
 let currentMarketIndex = 0;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -55,6 +55,74 @@ function initializeTheme() {
   });
 }
 
+// ── 美股交易时段 ─────────────────────────────────────────
+// 美东时间：04:00 盘前 → 09:30 主盘 → 16:00 盘后 → 20:00 夜盘。
+// 夜盘从周日 20:00 一路滚到周五 20:00，周末整体休市。
+// BTC 不参与这套判定 —— 加密货币没有时段可言。
+
+// 全天休市日。每年得更新一次；表过期不会崩，只是当天会被误判成正常时段。
+const MARKET_HOLIDAYS = new Set([
+  '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25',
+  '2026-06-19', '2026-07-03', '2026-09-07', '2026-11-26', '2026-12-25',
+  '2027-01-01', '2027-01-18', '2027-02-15', '2027-03-26', '2027-05-31',
+  '2027-06-18', '2027-07-05', '2027-09-06', '2027-11-25', '2027-12-24'
+]);
+// 提前收盘日：美东 13:00 就收，之后直接进盘后。
+const MARKET_HALF_DAYS = new Set(['2026-11-27', '2026-12-24', '2027-11-26']);
+
+const MARKET_SESSIONS = {
+  pre:    { label: '盘前', full: '盘前交易' },
+  open:   { label: '交易中', full: '常规交易时段' },
+  after:  { label: '盘后', full: '盘后交易' },
+  night:  { label: '夜间', full: '夜间交易' },
+  closed: { label: '休市', full: '休市' }
+};
+
+// 交给 Intl 做时区换算，别自己算偏移 —— 美国夏令时一年切两次，手算必错。
+const etClock = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/New_York', hour12: false,
+  year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', weekday: 'short'
+});
+const ET_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function etSnapshot(date) {
+  const parts = {};
+  for (const part of etClock.formatToParts(date)) parts[part.type] = part.value;
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    // hour12:false 在部分实现里把午夜报成 '24'，取模归零。
+    minutes: (Number(parts.hour) % 24) * 60 + Number(parts.minute),
+    dow: ET_WEEKDAYS.indexOf(parts.weekday)
+  };
+}
+
+function marketSessionKey(now = new Date()) {
+  const t = etSnapshot(now);
+  if (t.dow === 6) return 'closed';                                  // 周六：周五 20:00 就收了
+  if (t.dow === 0) return t.minutes >= 1200 ? 'night' : 'closed';    // 周日 20:00 夜盘开市
+  if (MARKET_HOLIDAYS.has(t.date)) return 'closed';
+  if (t.minutes < 240) {
+    // 00:00–04:00 是前一晚夜盘的延续，所以要看「昨天」开没开。
+    const prev = etSnapshot(new Date(now.getTime() - 864e5));
+    return (prev.dow === 6 || MARKET_HOLIDAYS.has(prev.date)) ? 'closed' : 'night';
+  }
+  if (t.minutes < 570) return 'pre';                                 // 04:00–09:30
+  if (t.minutes < (MARKET_HALF_DAYS.has(t.date) ? 780 : 960)) return 'open';
+  if (t.minutes < 1200) return 'after';                              // 收盘–20:00
+  return t.dow === 5 ? 'closed' : 'night';                           // 周五 20:00 进入周末
+}
+
+function renderMarketSession(asset) {
+  const badge = document.querySelector('#market-session');
+  if (!asset || !asset.equity) { badge.hidden = true; return null; }
+  const key = marketSessionKey();
+  badge.hidden = false;
+  badge.textContent = MARKET_SESSIONS[key].label;
+  badge.dataset.state = key;
+  return MARKET_SESSIONS[key];
+}
+
 function renderMarketTicker(asset) {
   document.querySelector('#market-icon').src = asset.icon;
   document.querySelector('#market-name').textContent = asset.name;
@@ -68,9 +136,11 @@ function renderMarketTicker(asset) {
     changeLabel.textContent = asset.cached ? '最近价格' : asset.status;
     changeLabel.className = '';
   }
+  const session = renderMarketSession(asset);
+  const sessionText = session ? `，美股${session.full}` : '';
   const priceText = Number.isFinite(asset.price) ? btcMoney.format(asset.price) : '价格暂不可用';
-  document.querySelector('.btc-ticker').setAttribute('aria-label', `${asset.name} ${priceText}，${asset.basis}涨跌 ${changeLabel.textContent}`);
-  document.querySelector('.btc-ticker').title = `${asset.name}/USD 实时行情；${asset.basis}涨跌幅`;
+  document.querySelector('.btc-ticker').setAttribute('aria-label', `${asset.name} ${priceText}，${asset.basis}涨跌 ${changeLabel.textContent}${sessionText}`);
+  document.querySelector('.btc-ticker').title = `${asset.name}/USD 实时行情；${asset.basis}涨跌幅${session ? `；美股${session.full}` : ''}`;
 }
 
 function setMarketData(symbol, price, change, cached = false, status = '暂不可用', basis) {
@@ -377,12 +447,11 @@ function readFxAmount() {
 // Swapping carries the converted value across, so the money keeps its worth and
 // only its denomination changes.
 function swapFxBase(code) {
-  const carried = fxConvert(fxState.amount, fxState.base, code);
+  // 换基只换单位，不换数字。原来会把金额折算过去以保持总价值不变（1000 CNY 点
+  // USD 变成 148.30 USD），但那等于把用户刚敲进去的数字冲掉了 —— 在这个页面上
+  // 点另一张卡片的意图是「用同一个数换种货币再算一遍」，不是「换个单位表示同
+  // 一笔钱」。所以 fxState.amount 和输入框都原样保留。
   fxState.base = code;
-  if (Number.isFinite(carried)) {
-    fxState.amount = carried;
-    fxAmountInput.value = fxAmountFormat.format(carried);
-  }
   document.querySelector('#fx-base-flag').src = FX_FLAGS[code];
   document.querySelector('#fx-base-code').textContent = code;
   renderFxRows();
@@ -439,26 +508,77 @@ function monotoneTangents(points) {
   return m;
 }
 
-function niceTicks(min, max, count) {
-  const raw = (max - min) / count;
-  if (!Number.isFinite(raw) || raw <= 0) return [];
-  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
-  const norm = raw / mag;
-  // Round the step DOWN to the nearest nice value — rounding up can halve the
-  // tick count and leave the axis with a single label.
-  const step = (norm <= 1.5 ? 1 : norm <= 3 ? 2 : norm <= 7 ? 5 : 10) * mag;
+// 轴域对齐到刻度，而不是让刻度去迁就数据极值。
+//
+// 原来定义域取 [数据min, 数据max]，刻度只能取这个区间「之内」的整数，于是最高
+// 刻度永远悬在半空 —— 数据到 12,682 时顶格只有 12K，上方白白空掉一大截，整根
+// 轴看起来是沉在底部的。
+//
+// 现在反过来：先选步长，再把定义域向外扩到整刻度。首尾刻度正好落在绘图区的上下
+// 边缘，标签自然均匀铺满纵向空间，最高刻度与图表顶部对齐。
+//
+// 单纯向外取整的代价是留白可能过大（步长 5000 时 25,182 会被顶到 30,000）。所以
+// 在候选步长里挑「刻度数合理且留白最少」的那个，兼顾整数和贴合度。
+function niceScale(min, max, target = 4) {
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+    return { min, max: min + 1, step: 1, ticks: [] };
+  }
+  const range = max - min;
+  const mag = Math.pow(10, Math.floor(Math.log10(range / target)));
+  let best = null;
+  // 步长候选给得密一些。只有 1/2/5/10 的话，25,182 这种数只能被顶到 30,000，
+  // 白白空掉四分之一高度；补上 3 和 4 之后就能落在 27,000。
+  for (const m of [1, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10]) {
+    const step = m * mag;
+    const lo = Math.floor(min / step) * step;
+    const hi = Math.ceil(max / step) * step;
+    const count = Math.round((hi - lo) / step) + 1;
+    // 少于 3 条读不出趋势；多于 7 条在这个高度上会挤成一片。
+    if (count < 3 || count > 7) continue;
+    // 标签必须两两可区分。步长细到低于显示精度时，相邻刻度会被格式化成同一串
+    // 字（10,000 与 10,050 都是 "10K"），那种候选一律淘汰。
+    const format = tickFormatter(step, Math.max(Math.abs(lo), Math.abs(hi)));
+    const labels = [];
+    for (let k = 0; k < count; k++) labels.push(format(lo + k * step));
+    if (new Set(labels).size !== count) continue;
+    // 留白按占比算（跨量级可比），再对刻度数加一点惩罚：留白相当时取标签更少的
+    // 那个，否则会为了省几个像素塞一堆标签。
+    const score = ((min - lo) + (hi - max)) / range + count * 0.02;
+    if (!best || score < best.score) best = { step, lo, hi, score };
+  }
+  // 候选都不合适时退回等分，宁可刻度不整也不能不画。
+  if (!best) best = { step: range / target, lo: min, hi: max };
   const ticks = [];
-  for (let v = Math.ceil(min / step) * step; v <= max + step * 0.001; v += step) ticks.push(v);
-  return ticks;
+  for (let v = best.lo; v <= best.hi + best.step * 0.001; v += best.step) ticks.push(v);
+  return { min: best.lo, max: best.hi, step: best.step, ticks };
 }
 
-function compactMoney(value) {
-  const abs = Math.abs(value);
-  if (abs >= 1e9) return `${Math.round(value / 1e8) / 10}B`;
-  if (abs >= 1e6) return `${Math.round(value / 1e5) / 10}M`;
-  if (abs >= 1e3) return `${Math.round(value / 1e2) / 10}K`;
-  return String(Math.round(value));
+
+// 一根轴共用一个单位和一个小数位数，由「最大刻度」定单位、「步长」定精度。
+//
+// 两个都不能省。单位若按每个值各自的量级选，轴上会混出 [5K 6K … 1M 1.1M]；
+// 精度若只看量级，10,000 和 10,050 会双双变成 "10K"，并排出现两个一样的标签。
+function tickFormatter(step, maxAbs) {
+  const UNITS = [[1e9, 'B'], [1e6, 'M'], [1e3, 'K'], [1, '']];
+  let index = UNITS.findIndex(([size]) => maxAbs >= size);
+  if (index < 0) index = UNITS.length - 1;
+  // 先按最大刻度选紧凑单位，再往下退到步长在该单位里至少有两位有效精度为止。
+  // 不退的话，步长细过显示精度时 10,000 和 10,002 会双双变成 "10K" —— 而且
+  // 更糟的是，唯一性检查会把所有细步长全毙掉，逼着轴去用最粗的那档，白白空出
+  // 四成高度。单位降级同时解决重复标签和留白两件事。
+  while (index < UNITS.length - 1 && Math.abs(step) / UNITS[index][0] < 0.01) index++;
+  const [unit, suffix] = UNITS[index];
+  const stepInUnit = Math.abs(step) / unit;
+  const decimals = stepInUnit >= 1 ? 0 : stepInUnit >= 0.1 ? 1 : 2;
+  return value => {
+    if (value === 0) return '0';   // "0M" 读着别扭，零就是零
+    const text = (value / unit).toFixed(decimals);
+    // 只在有小数点时去尾随零，否则 "10" 会被削成 "1"、"800" 削成 "8"。
+    return (text.includes('.') ? text.replace(/\.?0+$/, '') : text) + suffix;
+  };
 }
+
+
 
 function amountAt(years) {
   const r = state.rate / 100;
@@ -563,10 +683,12 @@ function drawChart() {
   const pad = { top: 8, right: 8, bottom: 24, left: 44 };
   const config = chartConfig();
   const data = Array.from({ length: config.count }, (_, i) => amountAt(config.years(i)));
-  const min = Math.min(...data), max = Math.max(...data);
-  const spread = Math.max(max - min, 1);
+  const scale = niceScale(Math.min(...data), Math.max(...data));
+  const spread = Math.max(scale.max - scale.min, 1);
   const x = i => pad.left + i / (data.length - 1) * (w - pad.left - pad.right);
-  const y = v => pad.top + (1 - (v - min) / spread) * (h - pad.top - pad.bottom - 8);
+  // 定义域来自 scale 而非数据极值，所以 y(scale.max) 正好等于 pad.top，
+  // 最高刻度贴着绘图区顶部。
+  const y = v => pad.top + (1 - (v - scale.min) / spread) * (h - pad.top - pad.bottom - 8);
   chartPoints = data.map((value, i) => ({ x: x(i), y: y(value), value, label: i === 0 ? '现在' : state.period === 'day' ? `第 ${i} 天` : state.period === 'month' ? `第 ${i} 月` : `第 ${i} 年` }));
 
   // SnowUI charts: no gridlines, no axis lines, no tick marks, no area fill.
@@ -592,7 +714,8 @@ function drawChart() {
   });
 
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  niceTicks(min, max, 3).forEach(value => ctx.fillText(compactMoney(value), 0, y(value)));
+  const formatTick = tickFormatter(scale.step, Math.max(Math.abs(scale.min), Math.abs(scale.max)));
+  scale.ticks.forEach(value => ctx.fillText(formatTick(value), 0, y(value)));
 
   const final = data.at(-1), profit = final - state.principal;
   const changePercent = state.principal ? (profit / state.principal) * 100 : 0;
@@ -683,3 +806,6 @@ function syncMarketRotation() {
 }
 syncMarketRotation();
 reducedMotion.addEventListener('change', syncMarketRotation);
+
+// 时段边界（04:00 / 09:30 / 16:00 / 20:00）不会等行情刷新才到来，每分钟自己对一次表。
+setInterval(() => renderMarketSession(marketAssets[currentMarketIndex]), 60000);

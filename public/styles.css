@@ -57,8 +57,12 @@
   --loss: #f87171;
   --glow-pink: #FF5C7C;
   --glow-teal: #5AC8DE;
-  --glass-bg: rgba(40, 40, 40, .34);
-  --glass-filter: blur(28px) saturate(200%) brightness(1.25);
+  /* 深色玻璃要压暗背景，不能提亮。原来是 brightness(1.25)：意图是把暗背景提起来
+     做出磨砂感，但底部导航浮在「日/月/年收益」那三张卡片上方，而那些卡片在深色
+     模式下依然是近白色的 —— 1.25 倍一乘直接削顶成纯白，整条栏变成一块白板。
+     改为压暗并提高自身不透明度，观感就不再取决于背后恰好是什么颜色。 */
+  --glass-bg: rgba(30, 30, 32, .62);
+  --glass-filter: blur(28px) saturate(180%) brightness(.85);
   --glass-edge: linear-gradient(to bottom, rgba(255, 255, 255, .55), rgba(255, 255, 255, .08));
   --glass-shadow: 0 2px 8px -3px rgba(0, 0, 0, .28), 0 14px 36px -18px rgba(0, 0, 0, .42);
 }
@@ -113,6 +117,22 @@ img { max-width: 100%; }
 .btc-ticker small { color: var(--ink-40); font-size: 12px; line-height: 16px; }
 .btc-ticker small.positive { color: var(--gain); }
 .btc-ticker small.negative { color: var(--ticker-down); }
+/* 交易时段徽标。SnowUI 靠字形而非颜色区分状态，所以这里也只让「主盘进行中」
+   一种状态亮起来 —— 盘前/盘后/夜间都是流动性稀薄的时段，不该和主盘一样醒目，
+   休市则再压一档。圆点是给色觉障碍用户的第二重信号，不依赖颜色本身。 */
+.market-session {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px;
+  height: 16px; padding: 0 6px; border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink-40); font-size: 11px; line-height: 16px; white-space: nowrap;
+}
+.market-session::before {
+  content: ""; width: 5px; height: 5px; border-radius: 50%;
+  background: currentColor; opacity: .4;
+}
+.market-session[data-state="open"] { color: var(--gain); }
+.market-session[data-state="open"]::before { opacity: 1; }
+.market-session[data-state="closed"] { opacity: .65; }
 
 .icon-btn {
   position: relative; width: 24px; height: 24px; flex: 0 0 24px;
