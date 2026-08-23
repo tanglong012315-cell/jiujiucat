@@ -4,7 +4,13 @@
     {
       "name": "jiujiucat-static",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "4178"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4178",
+        "--directory",
+        "public"
+      ],
       "port": 4178
     }
   ]
