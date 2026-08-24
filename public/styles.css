@@ -133,6 +133,10 @@ img { max-width: 100%; }
 .market-session[data-state="open"] { color: var(--gain); }
 .market-session[data-state="open"]::before { opacity: 1; }
 .market-session[data-state="closed"] { opacity: .65; }
+/* 同 .workspace[hidden]：上面的 display 压过了 [hidden] 的浏览器默认规则，
+   不补这条的话 badge.hidden = true 只改了属性、画面照旧 —— BTC 是 24 小时
+   交易，本就不该挂美股时段，却一直显示着「夜间」。 */
+.market-session[hidden] { display: none; }
 
 .icon-btn {
   position: relative; width: 24px; height: 24px; flex: 0 0 24px;
