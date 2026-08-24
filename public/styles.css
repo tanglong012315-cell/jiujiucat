@@ -567,7 +567,13 @@ img.recommend-icon { display: block; background: none; }
   background: var(--ink-10); color: inherit;
   font-size: 11px; font-weight: 700; letter-spacing: .01em;
 }
-.holding-meta { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+/* min-width 是这行能不能折的关键：flex-basis 为 0 时左栏永远只拿"剩下的"，
+   右栏按 max-content 占满、压根轮不到收缩，盈亏那串再长也不会折行，被牺牲的
+   总是左边的「份数 · 成本」。
+   下限取 min-content（即左栏自身内容的完整宽度）而不是某个百分比：百分比是
+   拍脑袋的固定值，会让「+$37.83 (+1.83%)」这种明明放得下的短数值也被迫折行。
+   min-content 表达的才是真实意图 —— 左栏不许截断，右栏按需折。 */
+.holding-meta { min-width: min-content; flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .holding-title-line { min-width: 0; display: flex; align-items: center; gap: 4px; }
 .holding-symbol { min-width: 0; overflow: hidden; font-size: 14px; line-height: 20px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .holding-type-tag {
@@ -591,13 +597,18 @@ img.recommend-icon { display: block; background: none; }
 }
 .holding-right { min-width: 0; flex: 0 1 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .holding-value { font-size: 14px; line-height: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* 整行 nowrap 时，一笔十倍仓位的「+$30,236.00 (+3023.60%)」会强占整行宽度，
+   把左边的「100 份 · 成本 $1.00」挤成省略号 —— 被截掉的恰恰是成本，而盈亏
+   百分比本身已经说明了倍数。改成允许折行：空间不够时百分比掉到第二行，
+   左右两边都保持完整。各段自身仍不折，避免金额从中间断开。 */
 .holding-pl {
-  max-width: 100%; display: flex; align-items: baseline; justify-content: flex-end; gap: 4px;
-  overflow: hidden; font-size: 11px; line-height: 16px; font-weight: 600;
-  white-space: nowrap; font-variant-numeric: tabular-nums;
+  max-width: 100%; display: flex; flex-wrap: wrap; align-items: baseline;
+  justify-content: flex-end; gap: 0 4px;
+  font-size: 11px; line-height: 16px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .holding-pl-label { color: var(--ink-40); font-weight: 400; }
-.holding-pl-value, .holding-pl-pct { overflow: hidden; text-overflow: ellipsis; }
+.holding-pl-value, .holding-pl-pct { white-space: nowrap; }
 .holding-pl.is-gain { color: var(--gain); }
 .holding-pl.is-loss { color: var(--loss); }
 .holding-pl.is-flat { color: var(--flat); }

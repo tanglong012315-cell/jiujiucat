@@ -2632,11 +2632,26 @@ function setSyncStatus(text) {
   document.querySelector('#account-sync').textContent = text;
 }
 
+// 账号条会出现在截图和录屏里，完整邮箱没必要露出来。头尾各留几位是为了让本人
+// 一眼认出是哪个账号，中间和域名后缀遮掉。本地部分短于 6 位时不留尾巴 ——
+// 那种长度下"前三后二"几乎等于把整个地址原样显示。
+function maskEmail(email) {
+  const at = email.lastIndexOf('@');
+  if (at < 1) return email;
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1).split('.')[0];
+  const masked = local.length > 5
+    ? `${local.slice(0, 3)}***${local.slice(-2)}`
+    : `${local.slice(0, 1)}***`;
+  return `${masked}@${domain}`;
+}
+
 function renderAccountBar() {
   const bar = document.querySelector('#account-bar');
   bar.hidden = !currentUser;
   if (currentUser) {
-    document.querySelector('#account-email').textContent = currentUser.email || '已登录';
+    document.querySelector('#account-email').textContent =
+      currentUser.email ? maskEmail(currentUser.email) : '已登录';
   }
 }
 
