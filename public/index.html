@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=59" />
+  <link rel="stylesheet" href="styles.css?v=60" />
 </head>
 <body>
   <header class="topbar">
@@ -124,8 +124,6 @@
     </div>
 
     <div class="workspace fx-workspace" id="panel-portfolio" role="tabpanel" aria-labelledby="tab-portfolio" hidden>
-      <!-- 账号系统尚未接入（需要先建 Supabase 项目），这道门先作为 UI 占位。
-           当前入口解锁本地仓位管理；接入账号后再换成真实登录与云端同步。 -->
       <section class="card gate-card" id="portfolio-gate" aria-label="投资组合登录提示">
         <div class="gate-icon">
           <i class="ri-lock-2-line" aria-hidden="true"></i>
@@ -133,13 +131,26 @@
         <h2 class="gate-title">登录后管理你的持仓</h2>
         <p class="gate-body">随时随地，查看盈利</p>
         <ul class="gate-perks">
-          <li><i class="ri-check-line perk-tick" aria-hidden="true"></i>在本地管理每一笔仓位</li>
+          <li><i class="ri-check-line perk-tick" aria-hidden="true"></i>持仓同步到你的账号，换设备也在</li>
           <li><i class="ri-check-line perk-tick" aria-hidden="true"></i>随时查看每日盈亏</li>
         </ul>
-        <button type="button" class="calculate-btn" id="portfolio-login-btn">登录 / 注册</button>
+        <button type="button" class="calculate-btn google-signin-btn" id="portfolio-login-btn">
+          <svg class="google-mark" viewBox="0 0 18 18" aria-hidden="true">
+            <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/>
+            <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/>
+            <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/>
+            <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/>
+          </svg>
+          使用 Google 登录
+        </button>
       </section>
 
       <div id="portfolio-app" hidden>
+        <div class="account-bar" id="account-bar" hidden>
+          <span class="account-identity"><i class="ri-user-line" aria-hidden="true"></i><span id="account-email">—</span></span>
+          <span class="account-sync" id="account-sync" aria-live="polite"></span>
+          <button type="button" class="account-signout" id="account-signout-btn">退出</button>
+        </div>
         <section class="card portfolio-summary" aria-label="持仓概览">
           <div class="portfolio-overview">
             <div class="portfolio-overview-copy">
@@ -547,6 +558,7 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-  <script src="app.js?v=54"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
+  <script src="app.js?v=55"></script>
 </body>
 </html>

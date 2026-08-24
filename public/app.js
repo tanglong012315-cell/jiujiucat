@@ -908,6 +908,7 @@ const FALLBACK_ASSETS = [
   ['MSTR', 'Strategy Inc.', 'EQUITY', 'NASDAQ'],
   ['QQQ', 'Invesco QQQ Trust', 'ETF', 'NASDAQ'],
   ['SPY', 'SPDR S&P 500 ETF Trust', 'ETF', 'NYSEArca'],
+  ['VOO', 'Vanguard S&P 500 ETF', 'ETF', 'NYSEArca'],
   ['BTC-USD', 'Bitcoin USD', 'CRYPTOCURRENCY', 'CCC'],
   ['ETH-USD', 'Ethereum USD', 'CRYPTOCURRENCY', 'CCC'],
   ['SOL-USD', 'Solana USD', 'CRYPTOCURRENCY', 'CCC'],
@@ -994,11 +995,31 @@ function loadHoldings() {
     return [];
   }
 }
+// updatedAt 是跨设备冲突的唯一裁判，所以只给「内容真的变了」的那几条盖章。
+// 每次保存都全量盖章的话，A 设备上一条没碰过的持仓也会显得比 B 设备上刚编辑过
+// 的同一条更新，回头就把真实修改覆盖掉了。
+function holdingFingerprint(item) {
+  return JSON.stringify({ ...item, updatedAt: null });
+}
+
+let holdingFingerprints = new Map();
+function resetHoldingFingerprints() {
+  holdingFingerprints = new Map(holdings.map(item => [item.id, holdingFingerprint(item)]));
+}
+
 function saveHoldings() {
+  const now = Date.now();
+  for (const item of holdings) {
+    const print = holdingFingerprint(item);
+    if (holdingFingerprints.get(item.id) !== print) item.updatedAt = now;
+    holdingFingerprints.set(item.id, print);
+  }
   localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(holdings));
+  queueCloudPush();
 }
 
 let holdings = loadHoldings();
+resetHoldingFingerprints();
 let editingHoldingId = null;
 let holdingSheetTrigger = null;
 let holdingSheetCloseTimer = null;
@@ -2589,7 +2610,126 @@ function showToast(message) {
   }, 2400);
 }
 
-// ── 登录门 ───────────────────────────────────────────────────────────
+// ── 账号与云端同步 ───────────────────────────────────────────────────
+//
+// anon key 明文出现在这个文件里，这是设计如此：它只代表「一个匿名访客」，
+// 真正的隔离在 Postgres 的行级安全策略上（见 supabase/schema.sql）。策略没建
+// 好之前别上线，否则拿到 key 就等于拿到所有人的持仓。
+//
+// 同步是单向镜像而不是双向实时：localStorage 始终是即时读取源，云端只在登录
+// 时拉一次、之后每次改动异步推上去。这样 renderHoldings 这些同步计算路径一行
+// 都不用改。
+const SUPABASE_URL = '';
+const SUPABASE_ANON_KEY = '';
+const cloud = SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+const PENDING_LOGIN_KEY = 'jiujiucat-pending-login';
+let currentUser = null;
+let cloudPushTimer = null;
+
+function setSyncStatus(text) {
+  document.querySelector('#account-sync').textContent = text;
+}
+
+function renderAccountBar() {
+  const bar = document.querySelector('#account-bar');
+  bar.hidden = !currentUser;
+  if (currentUser) {
+    document.querySelector('#account-email').textContent = currentUser.email || '已登录';
+  }
+}
+
+async function pullCloudHoldings() {
+  const { data, error } = await cloud.from('holdings').select('payload').eq('user_id', currentUser.id);
+  if (error) throw error;
+  return (data || []).map(row => row.payload).filter(item => item?.id);
+}
+
+async function pushCloudHoldings() {
+  const rows = holdings.map(item => ({
+    id: item.id,
+    user_id: currentUser.id,
+    payload: item,
+    updated_at: new Date(Number(item.updatedAt) || Date.now()).toISOString()
+  }));
+  if (rows.length) {
+    const { error } = await cloud.from('holdings').upsert(rows);
+    if (error) throw error;
+  }
+  // 本地删掉的那些，云端也得跟着消失。id 是本地生成的 h_<时间戳>_<随机>，
+  // 这道字符校验只是防止意外内容拼进 PostgREST 的 in(...) 列表。
+  const keep = holdings.map(item => item.id).filter(id => /^[A-Za-z0-9_-]+$/.test(id));
+  let query = cloud.from('holdings').delete().eq('user_id', currentUser.id);
+  if (keep.length) query = query.not('id', 'in', `(${keep.join(',')})`);
+  const { error: deleteError } = await query;
+  if (deleteError) throw deleteError;
+}
+
+function queueCloudPush() {
+  if (!cloud || !currentUser) return;
+  clearTimeout(cloudPushTimer);
+  cloudPushTimer = setTimeout(async () => {
+    setSyncStatus('同步中…');
+    try {
+      await pushCloudHoldings();
+      setSyncStatus('已同步');
+    } catch {
+      setSyncStatus('同步失败');
+    }
+  }, 800);
+}
+
+// 同一条持仓两边都改过时，updatedAt 新的赢；只在一边存在的直接收下。
+function mergeHoldings(local, remote) {
+  const stamp = item => Number(item.updatedAt) || Number(item.createdAt) || 0;
+  const byId = new Map();
+  for (const item of [...remote, ...local]) {
+    if (!item?.id) continue;
+    const existing = byId.get(item.id);
+    if (!existing || stamp(item) >= stamp(existing)) byId.set(item.id, item);
+  }
+  return [...byId.values()];
+}
+
+async function handleSignedIn(user) {
+  currentUser = user;
+  renderAccountBar();
+  unlockPortfolio();
+  if (sessionStorage.getItem(PENDING_LOGIN_KEY)) {
+    sessionStorage.removeItem(PENDING_LOGIN_KEY);
+    document.querySelector('#tab-portfolio').click();
+  }
+  setSyncStatus('同步中…');
+  try {
+    holdings = mergeHoldings(holdings, await pullCloudHoldings());
+    // 合并结果直接落盘：走 saveHoldings 会把刚拉下来的远端行当成「刚改过」
+    // 重新盖章，冲突裁判就失效了。
+    resetHoldingFingerprints();
+    localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(holdings));
+    renderHoldings();
+    refreshHoldingPrices();
+    await pushCloudHoldings();
+    setSyncStatus('已同步');
+  } catch {
+    setSyncStatus('同步失败，本地数据仍可用');
+  }
+}
+
+// 退出时清掉本地副本：这台设备换个 Google 账号登进来，不该继承上一个人的持仓。
+// 数据在云端，登回来就有。
+function handleSignedOut() {
+  currentUser = null;
+  holdings = [];
+  resetHoldingFingerprints();
+  localStorage.removeItem(PORTFOLIO_KEY);
+  localStorage.removeItem(PORTFOLIO_UNLOCKED_KEY);
+  renderAccountBar();
+  renderHoldings();
+  document.querySelector('#portfolio-gate').hidden = false;
+  document.querySelector('#portfolio-app').hidden = true;
+}
+
 function unlockPortfolio() {
   localStorage.setItem(PORTFOLIO_UNLOCKED_KEY, '1');
   document.querySelector('#portfolio-gate').hidden = true;
@@ -2599,12 +2739,37 @@ function unlockPortfolio() {
   refreshRecommendationPrices();
 }
 
-document.querySelector('#portfolio-login-btn').addEventListener('click', () => {
-  // 真实登录需要接入账号系统（下一步），先解锁本地版体验，数据留在这台
-  // 设备上；接入后同一个入口会换成真的 Google/邮箱登录。
-  showToast('账号登录即将上线，先用本地版体验');
-  unlockPortfolio();
+document.querySelector('#portfolio-login-btn').addEventListener('click', async () => {
+  if (!cloud) {
+    // Supabase 还没配好时不要把人挡在门外，先给本地版；配好后同一个按钮就是
+    // 真登录，本地这批数据会在首次登录时并进账号。
+    showToast('账号登录尚未开放，先用本地版体验');
+    unlockPortfolio();
+    return;
+  }
+  sessionStorage.setItem(PENDING_LOGIN_KEY, '1');
+  const { error } = await cloud.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: `${location.origin}/` }
+  });
+  if (error) {
+    sessionStorage.removeItem(PENDING_LOGIN_KEY);
+    showToast('登录失败，请稍后重试');
+  }
 });
+
+document.querySelector('#account-signout-btn').addEventListener('click', async () => {
+  await cloud?.auth.signOut();
+});
+
+if (cloud) {
+  cloud.auth.onAuthStateChange((event, session) => {
+    // 只认显式的 SIGNED_OUT。首次加载会先来一个 session 为 null 的
+    // INITIAL_SESSION，当成登出处理会把从没登录过的人的本地持仓清空。
+    if (event === 'SIGNED_OUT') return handleSignedOut();
+    if (session?.user && currentUser?.id !== session.user.id) handleSignedIn(session.user);
+  });
+}
 
 if (localStorage.getItem(PORTFOLIO_UNLOCKED_KEY) === '1') {
   document.querySelector('#portfolio-gate').hidden = true;

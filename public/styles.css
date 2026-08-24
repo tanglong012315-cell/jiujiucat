@@ -392,9 +392,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .fx-row-code { flex: 0 0 auto; opacity: .5; font-size: 12px; line-height: 16px; font-weight: 600; }
 .fx-updated { margin: 0; color: var(--ink-40); font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; }
 
-/* ── Portfolio — login gate ───────────────────────────────
-   账号系统还没接（要先建 Supabase 项目），这张卡先说明本地仓位功能；账号
-   接入后同一入口再切换成真实登录与云端同步。 */
+/* ── Portfolio — login gate ─────────────────────────────── */
 .gate-card { max-width: 480px; align-items: center; gap: 16px; padding: 32px 24px; text-align: center; }
 /* `.card` 给它的 display:flex 会盖过浏览器给 [hidden] 的默认 display:none——
    两条规则特异度打平时，源码顺序在后的作者样式赢，UA 默认样式必输。
@@ -413,6 +411,29 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .gate-perks li { display: flex; align-items: center; gap: 10px; color: var(--ink-80); font-size: 13px; line-height: 1.4; text-align: left; }
 .perk-tick { flex: 0 0 16px; width: 16px; height: 16px; color: var(--accent); font-size: 16px; line-height: 1; }
 .gate-card .calculate-btn { margin-top: 6px; }
+.google-signin-btn { gap: 10px; }
+/* Google 的品牌规范要求这个 mark 保持原色，所以它不跟随主题反色。 */
+.google-mark { flex: 0 0 18px; width: 18px; height: 18px; background: #fff; border-radius: 50%; }
+
+.account-bar {
+  display: flex; align-items: center; gap: 10px;
+  /* #portfolio-app 是 32px gap 的 grid，这行只是条元信息，不需要卡片之间那么
+     宽的间距，用负 margin 把它拉回紧贴概览卡。 */
+  margin-bottom: -18px; padding: 0 4px;
+  color: var(--ink-40); font-size: 12px; line-height: 16px;
+}
+.account-bar[hidden] { display: none; }
+.account-identity { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.account-identity > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-sync { margin-left: auto; flex: 0 0 auto; opacity: .8; }
+.account-signout {
+  flex: 0 0 auto; padding: 4px 10px; border: 0; border-radius: 8px;
+  color: var(--ink-80); background: var(--ink-4);
+  font-size: 12px; line-height: 16px; cursor: pointer;
+  transition-property: opacity; transition-duration: 150ms;
+}
+@media (hover: hover) { .account-signout:hover { opacity: .7; } }
+.account-signout:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 /* ── Portfolio — holdings ─────────────────────────────────
    概览采用单块账本式布局；持仓行的视觉抄 .fx-row（同款 tint 背景、
