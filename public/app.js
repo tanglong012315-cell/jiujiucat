@@ -2619,8 +2619,8 @@ function showToast(message) {
 // 同步是单向镜像而不是双向实时：localStorage 始终是即时读取源，云端只在登录
 // 时拉一次、之后每次改动异步推上去。这样 renderHoldings 这些同步计算路径一行
 // 都不用改。
-const SUPABASE_URL = '';
-const SUPABASE_ANON_KEY = '';
+const SUPABASE_URL = 'https://iwtitkgzaxwvpzviypue.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_jZC7mTKs8dbX78jQwo-BEg_JeJ3pAYh';
 const cloud = SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
