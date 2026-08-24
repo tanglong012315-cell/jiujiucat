@@ -43,6 +43,8 @@
   --glass-bg: rgba(255, 255, 255, .42);
   --glass-filter: blur(28px) saturate(200%) brightness(1.08);
   --glass-edge: linear-gradient(to bottom, rgba(255, 255, 255, 1), rgba(0, 0, 0, .06));
+  /* 浅色玻璃本身已是 42% 白，表面高光只需要很轻一层，重了就糊成一片白。 */
+  --glass-sheen: linear-gradient(to bottom, rgba(255, 255, 255, .5) 0%, rgba(255, 255, 255, .14) 34%, transparent 62%);
   --glass-shadow: 0 2px 8px -3px rgba(20, 21, 26, .08), 0 14px 36px -18px rgba(20, 21, 26, .16);
 }
 
@@ -78,6 +80,8 @@
   --glass-bg: rgba(30, 30, 32, .62);
   --glass-filter: blur(28px) saturate(180%) brightness(.85);
   --glass-edge: linear-gradient(to bottom, rgba(255, 255, 255, .55), rgba(255, 255, 255, .08));
+  /* 深色玻璃是 62% 暗底，高光有对比空间，可以给得比浅色实一点。 */
+  --glass-sheen: linear-gradient(to bottom, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, .05) 34%, transparent 62%);
   --glass-shadow: 0 2px 8px -3px rgba(0, 0, 0, .28), 0 14px 36px -18px rgba(0, 0, 0, .42);
 }
 
@@ -409,6 +413,25 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 /* Without backdrop-filter a 60% wash just leaks content through unblurred. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .tabbar { background: var(--bg-1); }
+}
+/* ── Sheen：玻璃表面的镜面高光 ─────────────────────────
+   实验层（分支 glass-figma）。现有实现已经有 Frost（backdrop-filter）和
+   Rim（::before 的描边环），缺的是玻璃"表面"这层反射光。
+
+   为什么要单独一个元素：::before / ::after 都被 mask-composite 削成了 1px
+   的描边环，只能画边不能铺面。
+
+   层序靠 DOM 位置 + z-index 定：光锥是 z-index:-1，本层是 0，两者都在
+   .tabbar 的层叠上下文里；本层在 DOM 里排在按钮之前，所以画在光锥之上、
+   文字之下 —— 表面反射盖住玻璃内部的光，但不冲淡标签。
+
+   刻意没做折射（feDisplacementMap）：那个只有 Chromium 支持，iOS Safari
+   看不到；而且导航栏浮在近白/近黑的页面上，背后没有可折射的内容，投入
+   产出比太低。 */
+.tabbar-sheen {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  border-radius: inherit;
+  background: var(--glass-sheen);
 }
 .tabbar-item {
   position: relative; flex: 1; min-width: 0;
