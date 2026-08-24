@@ -18,7 +18,7 @@
   </script>
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
-  <link rel="stylesheet" href="styles.css?v=21" />
+  <link rel="stylesheet" href="styles.css?v=23" />
 </head>
 <body>
   <header class="topbar">
@@ -26,7 +26,7 @@
       <a class="brand-mark" href="#" aria-label="JiuJiu生财首页"><img src="avatar.png" alt="" /></a>
       <h1 class="brand-heading"><a class="brand-title" href="#">JiuJiu生财</a></h1>
     </div>
-    <div class="btc-ticker" title="实时行情" aria-live="off">
+    <button type="button" class="btc-ticker" title="实时行情" aria-live="off">
       <div class="market-content" id="market-content">
         <img class="btc-icon" id="market-icon" src="btc-icon.svg" alt="" />
         <div class="btc-copy">
@@ -34,7 +34,7 @@
           <div class="btc-quote"><strong id="market-price">$—</strong><small id="market-change">获取中</small><span class="market-session" id="market-session" hidden></span></div>
         </div>
       </div>
-    </div>
+    </button>
     <button class="icon-btn theme-toggle" id="theme-toggle" type="button" aria-label="切换到深色模式">
       <img class="theme-icon theme-icon-dark" src="mode-dark.svg" alt="" />
       <img class="theme-icon theme-icon-light" src="mode-light.svg" alt="" />
@@ -173,6 +173,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=21"></script>
+  <script src="app.js?v=23"></script>
 </body>
 </html>

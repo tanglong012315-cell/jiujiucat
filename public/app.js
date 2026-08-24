@@ -139,7 +139,7 @@ function renderMarketTicker(asset) {
   const session = renderMarketSession(asset);
   const sessionText = session ? `，美股${session.full}` : '';
   const priceText = Number.isFinite(asset.price) ? btcMoney.format(asset.price) : '价格暂不可用';
-  document.querySelector('.btc-ticker').setAttribute('aria-label', `${asset.name} ${priceText}，${asset.basis}涨跌 ${changeLabel.textContent}${sessionText}`);
+  document.querySelector('.btc-ticker').setAttribute('aria-label', `${asset.name} ${priceText}，${asset.basis}涨跌 ${changeLabel.textContent}${sessionText}，点击查看下一个标的`);
   document.querySelector('.btc-ticker').title = `${asset.name}/USD 实时行情；${asset.basis}涨跌幅${session ? `；美股${session.full}` : ''}`;
 }
 
@@ -154,7 +154,13 @@ function setMarketData(symbol, price, change, cached = false, status = '暂不�
   if (marketAssets[currentMarketIndex] === asset) renderMarketTicker(asset);
 }
 
+// 切换动画有 150ms 的淡出等待。连点时若不拦，多个 setTimeout 会叠在一起，
+// 索引连跳、动画互相打断。150ms 短到不会让人觉得按钮没反应。
+let marketTransitioning = false;
+
 function showNextMarket() {
+  if (marketTransitioning) return;
+  marketTransitioning = true;
   const content = document.querySelector('#market-content');
   content.classList.add('is-leaving');
   setTimeout(() => {
@@ -165,6 +171,7 @@ function showNextMarket() {
     void content.offsetHeight;
     content.classList.remove('is-resetting');
     requestAnimationFrame(() => content.classList.remove('is-entering'));
+    marketTransitioning = false;
   }, 150);
 }
 
@@ -806,6 +813,19 @@ function syncMarketRotation() {
 }
 syncMarketRotation();
 reducedMotion.addEventListener('change', syncMarketRotation);
+
+// 点击行情区切到下一个标的。
+// 对开启了「减弱动态效果」的用户尤其有用 —— 自动轮播对他们是关闭的，
+// 手动点击是他们看到 MSTR/QQQ 的唯一途径。
+document.querySelector('.btc-ticker').addEventListener('click', () => {
+  showNextMarket();
+  // 重置计时：手动切换后应当有完整的 5 秒停留，而不是被残余的定时器
+  // 立刻又推走。轮播关闭时（marketRotationId 为 null）不要顺手打开。
+  if (marketRotationId !== null) {
+    clearInterval(marketRotationId);
+    marketRotationId = setInterval(showNextMarket, 5 * 1000);
+  }
+});
 
 // 时段边界（04:00 / 09:30 / 16:00 / 20:00）不会等行情刷新才到来，每分钟自己对一次表。
 setInterval(() => renderMarketSession(marketAssets[currentMarketIndex]), 60000);
