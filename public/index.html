@@ -18,7 +18,8 @@
   </script>
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
-  <link rel="stylesheet" href="styles.css?v=24" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
+  <link rel="stylesheet" href="styles.css?v=59" />
 </head>
 <body>
   <header class="topbar">
@@ -36,8 +37,8 @@
       </div>
     </button>
     <button class="icon-btn theme-toggle" id="theme-toggle" type="button" aria-label="切换到深色模式">
-      <img class="theme-icon theme-icon-dark" src="mode-dark.svg" alt="" />
-      <img class="theme-icon theme-icon-light" src="mode-light.svg" alt="" />
+      <i class="ri-moon-line theme-icon theme-icon-dark" aria-hidden="true"></i>
+      <i class="ri-sun-line theme-icon theme-icon-light" aria-hidden="true"></i>
     </button>
   </header>
 
@@ -123,10 +124,69 @@
     </div>
 
     <div class="workspace fx-workspace" id="panel-portfolio" role="tabpanel" aria-labelledby="tab-portfolio" hidden>
-      <section class="card placeholder-card" aria-label="投资组合">
-        <p class="placeholder-title">投资组合</p>
-        <p class="placeholder-body">这里会汇总你的持仓与收益分布。</p>
+      <!-- 账号系统尚未接入（需要先建 Supabase 项目），这道门先作为 UI 占位。
+           当前入口解锁本地仓位管理；接入账号后再换成真实登录与云端同步。 -->
+      <section class="card gate-card" id="portfolio-gate" aria-label="投资组合登录提示">
+        <div class="gate-icon">
+          <i class="ri-lock-2-line" aria-hidden="true"></i>
+        </div>
+        <h2 class="gate-title">登录后管理你的持仓</h2>
+        <p class="gate-body">随时随地，查看盈利</p>
+        <ul class="gate-perks">
+          <li><i class="ri-check-line perk-tick" aria-hidden="true"></i>在本地管理每一笔仓位</li>
+          <li><i class="ri-check-line perk-tick" aria-hidden="true"></i>随时查看每日盈亏</li>
+        </ul>
+        <button type="button" class="calculate-btn" id="portfolio-login-btn">登录 / 注册</button>
       </section>
+
+      <div id="portfolio-app" hidden>
+        <section class="card portfolio-summary" aria-label="持仓概览">
+          <div class="portfolio-overview">
+            <div class="portfolio-overview-copy">
+              <span class="portfolio-overview-label">总资产</span>
+              <strong id="pf-total-value">$—</strong>
+              <div class="portfolio-overview-change is-flat" id="pf-total-performance">
+                <span>总盈亏</span>
+                <strong id="pf-total-pl">$0.00</strong>
+                <b id="pf-total-pl-pct">(0.00%)</b>
+              </div>
+            </div>
+            <svg class="portfolio-sparkline is-flat" id="portfolio-sparkline" viewBox="0 0 160 72" preserveAspectRatio="none" role="img" aria-label="近一周总盈亏走势暂无历史数据">
+              <path id="portfolio-sparkline-path" d="M4 36 L156 36" vector-effect="non-scaling-stroke"></path>
+            </svg>
+          </div>
+        </section>
+
+        <section class="card portfolio-recommend-card" id="portfolio-recommend" aria-label="快捷添加">
+          <div class="results-meta portfolio-recommend-head">
+            <h2>快捷添加</h2>
+            <button type="button" class="recommend-close-btn" id="recommend-close-btn" aria-label="关闭快捷添加">
+              <i class="ri-close-line" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="recommend-grid" id="recommend-grid"></div>
+        </section>
+
+        <section class="card portfolio-list-card" aria-label="持仓明细">
+          <div class="results-meta portfolio-list-head">
+            <h2>持仓明细</h2>
+            <label class="merge-holdings-control" for="merge-holdings">
+              <input id="merge-holdings" type="checkbox" />
+              <span class="remix-checkbox-icon" aria-hidden="true">
+                <i class="ri-checkbox-blank-line"></i>
+                <i class="ri-checkbox-fill"></i>
+              </span>
+              <span>合并同类</span>
+            </label>
+          </div>
+          <div class="holdings-list" id="holdings-list"></div>
+          <p class="holdings-empty" id="holdings-empty" hidden>还没有持仓记录，点下面添加第一笔</p>
+          <button type="button" class="add-holding-btn" id="add-holding-btn">
+            <i class="ri-add-line" aria-hidden="true"></i>
+            添加持仓
+          </button>
+        </section>
+      </div>
     </div>
 
     <div class="workspace fx-workspace" id="panel-fx" role="tabpanel" aria-labelledby="tab-fx" hidden>
@@ -153,27 +213,340 @@
     <span class="tabbar-beam" aria-hidden="true"></span>
     <span class="tabbar-sheen" aria-hidden="true"></span>
     <button class="tabbar-item" id="tab-retirement" type="button" role="tab" aria-selected="true" aria-controls="panel-retirement" data-tab="retirement">
-      <svg class="tabbar-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M12.0049 22.0028C6.48204 22.0028 2.00488 17.5257 2.00488 12.0028C2.00488 6.47996 6.48204 2.00281 12.0049 2.00281C17.5277 2.00281 22.0049 6.47996 22.0049 12.0028C22.0049 17.5257 17.5277 22.0028 12.0049 22.0028ZM12.0049 20.0028C16.4232 20.0028 20.0049 16.4211 20.0049 12.0028C20.0049 7.58453 16.4232 4.00281 12.0049 4.00281C7.5866 4.00281 4.00488 7.58453 4.00488 12.0028C4.00488 16.4211 7.5866 20.0028 12.0049 20.0028ZM11.0049 16.0028H8.00488V8.00281H11.0049V6.00281H13.0049V8.00281H14.0049C15.3856 8.00281 16.5049 9.1221 16.5049 10.5028C16.5049 11.0656 16.3189 11.585 16.0051 12.0028C16.3189 12.4206 16.5049 12.94 16.5049 13.5028C16.5049 14.8835 15.3856 16.0028 14.0049 16.0028H13.0049V18.0028H11.0049V16.0028ZM10.0049 13.0028V14.0028H14.0049C14.281 14.0028 14.5049 13.7789 14.5049 13.5028C14.5049 13.2267 14.281 13.0028 14.0049 13.0028H10.0049ZM10.0049 10.0028V11.0028H14.0049C14.281 11.0028 14.5049 10.7789 14.5049 10.5028C14.5049 10.2267 14.281 10.0028 14.0049 10.0028H10.0049Z" />
-      </svg>
-      <span>理财</span>
+      <i class="ri-increase-decrease-line tabbar-icon" aria-hidden="true"></i>
+      <span>计算</span>
     </button>
     <button class="tabbar-item" id="tab-portfolio" type="button" role="tab" aria-selected="false" aria-controls="panel-portfolio" data-tab="portfolio">
-      <svg class="tabbar-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M12.0049 22.0028C6.48204 22.0028 2.00488 17.5257 2.00488 12.0028C2.00488 6.47996 6.48204 2.00281 12.0049 2.00281C17.5277 2.00281 22.0049 6.47996 22.0049 12.0028C22.0049 17.5257 17.5277 22.0028 12.0049 22.0028ZM12.0049 20.0028C16.4232 20.0028 20.0049 16.4211 20.0049 12.0028C20.0049 7.58453 16.4232 4.00281 12.0049 4.00281C7.5866 4.00281 4.00488 7.58453 4.00488 12.0028C4.00488 16.4211 7.5866 20.0028 12.0049 20.0028Z" />
-        <path d="M13.0049 6.07281C15.5349 6.51281 17.4949 8.47281 17.9349 11.0028H13.0049V6.07281Z" />
-        <path d="M11.0049 6.07281V13.0028H17.9349C17.4549 15.8428 14.9849 18.0028 12.0049 18.0028C8.69488 18.0028 6.00488 15.3128 6.00488 12.0028C6.00488 9.02281 8.16488 6.55281 11.0049 6.07281Z" />
-      </svg>
+      <i class="ri-coin-line tabbar-icon" aria-hidden="true"></i>
       <span>投资组合</span>
     </button>
     <button class="tabbar-item" id="tab-fx" type="button" role="tab" aria-selected="false" aria-controls="panel-fx" data-tab="fx">
-      <svg class="tabbar-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M12.0049 22.0027C6.48204 22.0027 2.00488 17.5256 2.00488 12.0027C2.00488 6.4799 6.48204 2.00275 12.0049 2.00275C17.5277 2.00275 22.0049 6.4799 22.0049 12.0027C22.0049 17.5256 17.5277 22.0027 12.0049 22.0027ZM12.0049 20.0027C16.4232 20.0027 20.0049 16.421 20.0049 12.0027C20.0049 7.58447 16.4232 4.00275 12.0049 4.00275C7.5866 4.00275 4.00488 7.58447 4.00488 12.0027C4.00488 16.421 7.5866 20.0027 12.0049 20.0027ZM7.00488 9.00275L10.0049 5.50275L13.0049 9.00275H11.0049V13.0027H9.00488V9.00275H7.00488ZM17.0049 15.0027L14.0049 18.5027L11.0049 15.0027H13.0049V11.0027H15.0049V15.0027H17.0049Z" />
-      </svg>
+      <i class="ri-money-dollar-circle-line tabbar-icon" aria-hidden="true"></i>
       <span>汇率</span>
     </button>
   </nav>
 
-  <script src="app.js?v=23"></script>
+  <div class="sheet-overlay" id="holding-sheet-overlay" hidden>
+    <div class="sheet-scrim" data-close-sheet></div>
+    <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="holding-sheet-title">
+      <div class="sheet-grabber"></div>
+      <div class="sheet-head">
+        <button type="button" class="sheet-close-btn" id="holding-close-btn" aria-label="关闭添加持仓">
+          <i class="ri-close-line" aria-hidden="true"></i>
+        </button>
+        <h2 class="sheet-title" id="holding-sheet-title">添加持仓</h2>
+        <button type="button" class="sheet-delete-btn" id="holding-delete-btn" hidden aria-label="删除持仓">
+          <i class="ri-delete-bin-line" aria-hidden="true"></i>
+        </button>
+      </div>
+      <form id="holding-form">
+        <div class="sheet-body holding-sheet-body" data-dialog-scroll>
+        <fieldset class="holding-kind-field">
+          <legend class="field-label">资产类型</legend>
+          <div class="segmented holding-kind-segmented">
+            <label><input type="radio" name="holding-kind" value="market" checked /><span>市价</span></label>
+            <label><input type="radio" name="holding-kind" value="interest" /><span>稳定生息</span></label>
+          </div>
+        </fieldset>
+        <div class="field holding-conditional" data-holding-market>
+          <label class="field-label" id="holding-symbol-label">标的代码</label>
+          <button class="input-shell asset-select" id="holding-symbol-select" type="button" aria-labelledby="holding-symbol-label holding-symbol-value" aria-haspopup="dialog" aria-controls="asset-search-overlay" aria-required="true">
+            <i class="ri-search-line" aria-hidden="true"></i>
+            <span class="asset-select-value is-placeholder" id="holding-symbol-value">例如 AAPL、BTC</span>
+            <i class="ri-arrow-right-s-line asset-select-chevron" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div class="field holding-conditional" data-holding-stable hidden>
+          <label class="field-label" for="holding-symbol-manual">资产名称</label>
+          <div class="input-shell">
+            <input id="holding-symbol-manual" type="text" inputmode="text" autocapitalize="characters" autocomplete="off" spellcheck="false" maxlength="24" placeholder="例如 USDT、USD" />
+          </div>
+        </div>
+        <div class="field holding-conditional" data-holding-market>
+          <label class="field-label" for="holding-qty">持有数量</label>
+          <div class="input-shell">
+            <input id="holding-qty" type="text" inputmode="decimal" placeholder="0" />
+          </div>
+          <p class="field-hint" id="holding-qty-hint" hidden>通过下方加仓或减仓调整数量</p>
+        </div>
+        <div class="field holding-conditional" data-holding-market>
+          <label class="field-label" for="holding-cost">单位成本价（可选）</label>
+          <div class="input-shell money-input">
+            <span class="prefix">$</span>
+            <input id="holding-cost" type="text" inputmode="decimal" placeholder="0.00" />
+          </div>
+          <p class="field-hint">不填写时，将使用保存时的最新价格作为成本价</p>
+        </div>
+        <section class="holding-adjustment holding-conditional" id="holding-adjustment" data-holding-market hidden aria-label="调整持仓">
+          <div class="holding-settings-head">
+            <strong>调整持仓</strong>
+          </div>
+          <div class="segmented holding-adjustment-segmented" role="group" aria-label="调整方式">
+            <button type="button" class="is-active" id="holding-add-mode" aria-pressed="true">加仓</button>
+            <button type="button" id="holding-reduce-mode" aria-pressed="false">减仓</button>
+          </div>
+          <div class="holding-adjustment-grid">
+            <div class="field">
+              <label class="field-label" for="holding-adjustment-qty">调整数量</label>
+              <div class="input-shell">
+                <input id="holding-adjustment-qty" type="text" inputmode="decimal" placeholder="0" />
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="holding-adjustment-price">成交价格</label>
+              <div class="input-shell money-input">
+                <span class="prefix">$</span>
+                <input id="holding-adjustment-price" type="text" inputmode="decimal" placeholder="市场价" />
+              </div>
+            </div>
+          </div>
+          <p class="field-hint" id="holding-adjustment-hint">按成交价计入成本，操作瞬间总盈亏不变</p>
+          <button type="button" class="holding-adjustment-submit" id="holding-adjustment-submit">确认加仓</button>
+        </section>
+        <div class="field holding-conditional" id="holding-dividend-option" data-holding-market hidden>
+          <label class="holding-market-interest-toggle" for="holding-market-interest">
+            <input id="holding-market-interest" type="checkbox" aria-controls="holding-yield-settings holding-dividend-settings" aria-expanded="false" />
+            <span class="remix-checkbox-icon" aria-hidden="true">
+              <i class="ri-checkbox-blank-line"></i>
+              <i class="ri-checkbox-fill"></i>
+            </span>
+            <span class="holding-market-interest-copy">
+              <strong id="holding-market-income-label">记录股息</strong>
+            </span>
+          </label>
+        </div>
+        <div class="field holding-conditional" data-holding-stable hidden>
+          <label class="field-label" for="holding-principal">投资本金</label>
+          <div class="input-shell money-input">
+            <span class="prefix">$</span>
+            <input id="holding-principal" type="text" inputmode="decimal" placeholder="0.00" />
+          </div>
+        </div>
+        <section class="holding-yield-settings holding-conditional" id="holding-yield-settings" data-holding-yield hidden aria-label="生息设置">
+          <div class="field">
+            <label class="field-label" for="holding-rate">年化利率（APR）</label>
+            <div class="input-shell percent-input">
+              <input id="holding-rate" type="text" inputmode="decimal" placeholder="0.00" />
+              <span class="suffix">%</span>
+            </div>
+          </div>
+          <fieldset>
+            <legend class="field-label">计息方式</legend>
+            <div class="segmented">
+              <label><input type="radio" name="holding-interest-mode" value="simple" checked /><span>单利</span></label>
+              <label><input type="radio" name="holding-interest-mode" value="compound" /><span>每日复利</span></label>
+            </div>
+          </fieldset>
+          <div class="field">
+            <label class="field-label" for="holding-start-date">起息日期</label>
+            <div class="input-shell date-input">
+              <input id="holding-start-date" type="date" />
+              <i class="ri-calendar-line" aria-hidden="true"></i>
+            </div>
+            <p class="field-hint">首次结算为起息日次日</p>
+          </div>
+          <p class="holding-yield-preview" id="holding-yield-preview">填写本金与年化利率后显示预计收益</p>
+        </section>
+        <section class="holding-yield-settings holding-conditional" id="holding-dividend-settings" data-holding-dividend hidden aria-label="分红设置">
+          <div class="holding-settings-head">
+            <strong>本次分红</strong>
+          </div>
+          <div class="field">
+            <label class="field-label" for="holding-dividend-per-share">每股分红</label>
+            <div class="input-shell money-input">
+              <span class="prefix">$</span>
+              <input id="holding-dividend-per-share" type="text" inputmode="decimal" placeholder="0.00" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label" id="holding-dividend-frequency-label" for="holding-dividend-frequency">分红频率</label>
+            <button type="button" class="input-shell select-input" id="holding-dividend-frequency" value="quarterly" aria-labelledby="holding-dividend-frequency-label holding-dividend-frequency-value" aria-haspopup="dialog" aria-controls="dividend-frequency-overlay" aria-expanded="false">
+              <span class="select-input-value" id="holding-dividend-frequency-value">每季度一次</span>
+              <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+            </button>
+            <p class="field-hint">频率仅用于说明，不会自动推算未公告的分红</p>
+          </div>
+          <div class="holding-date-grid">
+            <div class="field">
+              <label class="field-label" for="holding-ex-dividend-date">除息日</label>
+              <div class="input-shell date-input">
+                <input id="holding-ex-dividend-date" type="date" />
+                <i class="ri-calendar-line" aria-hidden="true"></i>
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="holding-dividend-pay-date">派息日（可选）</label>
+              <div class="input-shell date-input">
+                <input id="holding-dividend-pay-date" type="date" />
+                <i class="ri-calendar-line" aria-hidden="true"></i>
+              </div>
+            </div>
+          </div>
+          <p class="field-hint">分红在除息日确认，派息日只用于记录实际到账时间</p>
+          <p class="holding-yield-preview" id="holding-dividend-preview">填写数量与每股分红后显示本次收益</p>
+          <button type="button" class="holding-records-link" id="holding-dividend-records-btn" hidden>
+            <span><strong>股息记录</strong><small id="holding-dividend-records-count">0 条记录</small></span>
+            <i class="ri-arrow-right-s-line" aria-hidden="true"></i>
+          </button>
+        </section>
+        </div>
+        <div class="sheet-footer">
+          <button type="submit" class="calculate-btn" id="holding-submit-btn">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="asset-search-overlay" id="asset-search-overlay" hidden>
+    <div class="sheet-scrim" data-close-search></div>
+    <section class="asset-search-sheet" role="dialog" aria-modal="true" aria-labelledby="asset-search-title">
+      <div class="sheet-grabber"></div>
+      <div class="sheet-head asset-search-head">
+        <h2 class="sheet-title" id="asset-search-title">搜索标的代码</h2>
+        <button type="button" class="asset-search-cancel" id="asset-search-cancel">取消</button>
+      </div>
+      <div class="sheet-body asset-search-body">
+        <form class="asset-search-form" id="asset-search-form" role="search">
+          <div class="asset-search-input-shell">
+            <i class="ri-search-line" aria-hidden="true"></i>
+            <input id="asset-search-input" type="search" enterkeyhint="search" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="例如 AAPL、BTC" aria-label="搜索股票或加密货币" />
+            <button type="submit" class="asset-search-submit">搜索</button>
+          </div>
+        </form>
+        <div class="asset-search-content" id="asset-search-content" aria-live="polite" data-dialog-scroll>
+          <div class="asset-search-state">
+            <i class="ri-search-line" aria-hidden="true"></i>
+            <p>输入代码或名称，按回车开始搜索</p>
+            <span>支持 Yahoo Finance 上的股票、ETF 和 Crypto</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="sheet-overlay frequency-sheet-overlay" id="dividend-frequency-overlay" hidden>
+    <div class="sheet-scrim" data-close-frequency></div>
+    <section class="sheet-panel frequency-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="dividend-frequency-title">
+      <div class="sheet-grabber"></div>
+      <div class="sheet-head">
+        <h2 class="sheet-title" id="dividend-frequency-title">选择分红频率</h2>
+        <button type="button" class="sheet-close-btn" id="dividend-frequency-close-btn" aria-label="关闭分红频率选择">
+          <i class="ri-close-line" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="sheet-body frequency-sheet-body" role="group" aria-labelledby="dividend-frequency-title" data-dialog-scroll>
+        <button type="button" class="frequency-option" aria-pressed="true" data-frequency="quarterly">
+          <span>每季度一次</span><i class="ri-check-line" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="frequency-option" aria-pressed="false" data-frequency="monthly">
+          <span>每月一次</span><i class="ri-check-line" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="frequency-option" aria-pressed="false" data-frequency="semimonthly">
+          <span>每月两次</span><i class="ri-check-line" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="frequency-option" aria-pressed="false" data-frequency="semiannual">
+          <span>每半年一次</span><i class="ri-check-line" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="frequency-option" aria-pressed="false" data-frequency="annual">
+          <span>每年一次</span><i class="ri-check-line" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="frequency-option" aria-pressed="false" data-frequency="irregular">
+          <span>不固定</span><i class="ri-check-line" aria-hidden="true"></i>
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <div class="sheet-overlay profit-sheet-overlay" id="profit-sheet-overlay" hidden>
+    <div class="sheet-scrim" data-close-profit></div>
+    <section class="sheet-panel profit-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="profit-sheet-title">
+      <div class="sheet-grabber"></div>
+      <div class="sheet-head">
+        <h2 class="sheet-title" id="profit-sheet-title">盈亏明细</h2>
+        <button type="button" class="sheet-close-btn" id="profit-close-btn" aria-label="关闭盈亏明细">
+          <i class="ri-close-line" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="sheet-body profit-sheet-body" data-dialog-scroll>
+      <div class="profit-sheet-summary">
+        <span id="profit-sheet-symbol">—</span>
+        <strong id="profit-sheet-total">$0.00</strong>
+        <small id="profit-sheet-total-label">总盈亏</small>
+      </div>
+      <div class="profit-breakdown-list">
+        <div class="profit-breakdown-row" id="profit-market-row">
+          <span><strong>持仓盈亏</strong><small id="profit-market-detail">当前市值减去持仓成本</small></span>
+          <b id="profit-market-value">$0.00</b>
+        </div>
+        <div class="profit-breakdown-row" id="profit-dividend-row">
+          <span><strong>股息收益</strong><small id="profit-dividend-detail">暂无已确认股息</small></span>
+          <b id="profit-dividend-value">$0.00</b>
+        </div>
+        <div class="profit-breakdown-row" id="profit-interest-row" hidden>
+          <span><strong>利息收益</strong><small>收益每日于北京时间 16:00 更新</small></span>
+          <b id="profit-interest-value">$0.00</b>
+        </div>
+        <div class="profit-breakdown-row" id="profit-annual-rate-row" hidden>
+          <span><strong>年化收益率（APR）</strong><small id="profit-annual-rate-detail">当前持仓设置</small></span>
+          <b id="profit-annual-rate-value">0.00%</b>
+        </div>
+      </div>
+      <div class="profit-event-card" id="profit-event-card" hidden>
+        <strong>股息记录</strong>
+        <dl>
+          <div><dt>每股股息</dt><dd id="profit-dividend-per-share">—</dd></div>
+          <div><dt>除息日</dt><dd id="profit-ex-date">—</dd></div>
+          <div><dt>派息日</dt><dd id="profit-pay-date">—</dd></div>
+        </dl>
+      </div>
+      <button type="button" class="profit-records-btn" id="profit-dividend-records-btn" hidden>
+        <span><strong>股息记录</strong><small id="profit-dividend-records-count">0 条记录</small></span>
+        <i class="ri-arrow-right-s-line" aria-hidden="true"></i>
+      </button>
+      <p class="profit-sheet-foot" id="profit-sheet-foot">持仓成本 $0.00 · 当前资产 $0.00</p>
+      </div>
+      <div class="sheet-footer">
+        <button type="button" class="calculate-btn profit-edit-btn" id="profit-edit-btn">编辑持仓</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="sheet-overlay dividend-records-overlay" id="dividend-records-overlay" hidden>
+    <div class="sheet-scrim" data-close-dividend-records></div>
+    <section class="sheet-panel dividend-records-panel" role="dialog" aria-modal="true" aria-labelledby="dividend-records-title">
+      <div class="sheet-grabber"></div>
+      <div class="sheet-head">
+        <h2 class="sheet-title" id="dividend-records-title">股息记录</h2>
+        <button type="button" class="sheet-close-btn" id="dividend-records-close-btn" aria-label="关闭股息记录">
+          <i class="ri-close-line" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="sheet-body dividend-records-body" data-dialog-scroll>
+      <div class="dividend-records-summary">
+        <span id="dividend-records-symbol">—</span>
+        <strong id="dividend-records-total">$0.00</strong>
+        <small>已确认股息</small>
+      </div>
+      <div class="dividend-records-list" id="dividend-records-list"></div>
+      <p class="dividend-records-empty" id="dividend-records-empty" hidden>暂无股息记录</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="confirm-overlay" id="delete-confirm-overlay" hidden>
+    <div class="sheet-scrim" data-close-confirm></div>
+    <div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-confirm-title">
+      <h2 class="confirm-title" id="delete-confirm-title">删除持仓</h2>
+      <p class="confirm-body" id="delete-confirm-body" data-dialog-scroll>删除后不可恢复，确定要删除吗？</p>
+      <div class="confirm-actions">
+        <button type="button" class="confirm-cancel" id="delete-cancel-btn">取消</button>
+        <button type="button" class="confirm-delete" id="delete-confirm-btn">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="app.js?v=54"></script>
 </body>
 </html>

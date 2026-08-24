@@ -13,6 +13,9 @@
   --ink-4: rgba(0, 0, 0, .04);
   --tint-blue: #e6f1fd;
   --tint-purple: #edeefc;
+  --yield-note-bg: #f0f0fb;
+  --yield-note-text: #262536;
+  --yield-note-edge: rgba(88, 86, 214, .12);
   --series-blue: #7dbbff;
   --series-cyan: #a0bce8;
   --series-mint: #6be6d3;
@@ -20,16 +23,17 @@
   --series-green: #71dd8c;
   --radius-block: 20px;
   --radius-card: 16px;
-  --gap-grid: 28px;
+  --gap-grid: 32px;
   --thumb-ring: #ffffff;
   /* White read as invisible against the near-identical #f9f9fa Block (1.05:1
      luminance ratio, measured). ink-20 is the alpha-ramp step that actually
      separates from both the Block and the ink-4 track (1.61:1 light, 1.91:1
      dark) — one step darker than the hairline color, still within the ramp. */
   --segment-active: var(--ink-20);
-  --gain: #5856D6;
+  --accent: #5856D6;
+  --gain: #12803f;
   --loss: #c0392b;
-  --ticker-down: #AF52DE;
+  --flat: #6b6b6b;
   --glow-pink: #FF2D55;
   --glow-teal: #30B0C7;
   /* 交易时段色，沿用行情类应用的通行约定：绿=正在交易，琥珀=盘前，蓝=盘后，
@@ -63,8 +67,13 @@
   --thumb-ring: #1c1c1c;
   /* #5856D6 sits at ~2.7:1 on the dark Block — same hue, lifted 30% toward white
      (#8a89e2) to clear AA 4.5:1. */
-  --gain: #8a89e2;
+  --accent: #8a89e2;
+  --gain: #3ddc84;
   --loss: #f87171;
+  --flat: #8e8e8e;
+  --yield-note-bg: rgba(138, 137, 226, .12);
+  --yield-note-text: rgba(255, 255, 255, .8);
+  --yield-note-edge: rgba(138, 137, 226, .22);
   --glow-pink: #FF5C7C;
   --glow-teal: #5AC8DE;
   /* 深色底上反过来提亮，同样逐个校验过（最低 5.20:1）。 */
@@ -86,6 +95,10 @@
 }
 
 * { box-sizing: border-box; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
 
 html {
   font-family: Inter, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
@@ -94,6 +107,10 @@ html {
   background: var(--bg-1);
   color: var(--ink);
 }
+/* Keep the viewport width stable across every panel. The scrollbar track stays
+   hidden while wheel, touch and keyboard scrolling continue to work. */
+html { scrollbar-width: none; }
+html::-webkit-scrollbar { display: none; }
 body { margin: 0; min-width: 320px; background: var(--bg-1); overflow-x: hidden; }
 button, input { font: inherit; letter-spacing: 0; }
 button { -webkit-tap-highlight-color: transparent; }
@@ -103,12 +120,12 @@ img { max-width: 100%; }
 /* Three sibling groups on one 68px row: identity leads, ticker + toggle trail.
    Intra-group gap 8, inter-group gap 20 — the 2x rule that keeps them readable
    as separate groups. */
-/* With no border under the header, its bottom padding *is* the gap to the first
-   Block — so it carries the module-gap value and .shell adds no top padding.
-   Stacking both produced 38px here against 16/28px between modules. */
+/* The header owns the breathing room above its divider; .shell adds no second
+   top inset, so the rule remains the single boundary before page content. */
 .topbar {
   padding: 20px 28px 28px;
   display: flex; align-items: center; gap: 8px 20px;
+  border-block-end: 1px solid var(--ink-10);
 }
 .header-identity { min-width: 0; flex: 1 1 auto; display: flex; align-items: center; gap: 8px; }
 .brand-mark { width: 24px; height: 24px; flex: 0 0 24px; display: block; overflow: hidden; border-radius: 50%; }
@@ -143,9 +160,11 @@ img { max-width: 100%; }
 .btc-name { overflow: hidden; max-width: 88px; color: var(--ink); font-size: 12px; line-height: 16px; text-overflow: ellipsis; white-space: nowrap; }
 .btc-quote { min-width: 0; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
 .btc-ticker strong { color: var(--ink); font-size: 12px; line-height: 16px; font-weight: 400; }
-.btc-ticker small { color: var(--ink-40); font-size: 12px; line-height: 16px; }
-.btc-ticker small.positive { color: var(--gain); }
-.btc-ticker small.negative { color: var(--ticker-down); }
+.btc-ticker small { display: inline-flex; align-items: center; gap: 2px; color: var(--ink-40); font-size: 12px; line-height: 16px; }
+.btc-ticker small > i { font-size: 13px; line-height: 1; }
+.btc-ticker small.is-gain { color: var(--gain); }
+.btc-ticker small.is-loss { color: var(--loss); }
+.btc-ticker small.is-flat { color: var(--flat); }
 /* 交易时段：纯文字加一个小圆点，不加背景。圆点用 currentColor 跟着文字变色，
    但颜色不是唯一信号 —— 文字本身就写着状态，色觉障碍用户不依赖配色也能读。 */
 .market-session {
@@ -176,14 +195,19 @@ img { max-width: 100%; }
 .icon-btn::after { content: ""; position: absolute; top: 50%; left: 50%; translate: -50% -50%; width: 44px; height: 44px; }
 @media (hover: hover) { .icon-btn:hover { background: var(--ink-4); } }
 .icon-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.theme-icon { position: absolute; width: 16px; height: 16px; transition-property: opacity, scale; transition-duration: 180ms; transition-timing-function: cubic-bezier(.2,0,0,1); }
+.theme-icon {
+  position: absolute; width: 16px; height: 16px; display: grid; place-items: center;
+  font-size: 16px; line-height: 1;
+  transition-property: opacity, scale; transition-duration: 180ms; transition-timing-function: cubic-bezier(.2,0,0,1);
+}
 .theme-icon-dark { opacity: 1; scale: 1; }
 .theme-icon-light { opacity: 0; scale: .25; }
 :root[data-theme="dark"] .theme-icon-dark { opacity: 0; scale: .25; }
-:root[data-theme="dark"] .theme-icon-light { opacity: 1; scale: 1; filter: invert(1); }
+:root[data-theme="dark"] .theme-icon-light { opacity: 1; scale: 1; }
 
-/* ── Page grid — 28px gutters throughout ────────────────── */
-.shell { padding: 0 28px 28px; }
+/* Content begins 16px below the header rule; sections use a 32/16 rhythm:
+   32px between modules, 16px within a module. */
+.shell { padding: 16px 28px 28px; }
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--gap-grid); }
 /* `display: grid` outranks the [hidden] UA rule, so inactive panels need this. */
 .workspace[hidden] { display: none; }
@@ -193,10 +217,20 @@ img { max-width: 100%; }
   min-width: 0; display: flex; flex-direction: column; gap: 16px;
   overflow: clip; padding: 24px; border-radius: var(--radius-block); background: var(--bg-2);
 }
+/* The three primary tabs now use one continuous page surface. Section spacing
+   carries the hierarchy; filled shapes remain reserved for data and controls. */
+#panel-retirement { gap: var(--gap-grid); }
+#panel-retirement > .card,
+#panel-fx > .card {
+  padding: 0; border-radius: 0; background: transparent; overflow: visible;
+}
+#panel-retirement > .calculator {
+  padding: 24px; border-radius: var(--radius-block); background: var(--bg-2); overflow: clip;
+}
 h2 { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; }
 
-/* Spacing scale (SnowUI: 4 8 12 16 20 24 28)
-   28 between Blocks · 24 Block padding · 16 between field groups
+/* Spacing scale (SnowUI: 4 8 12 16 20 24 32)
+   32 between modules · 24 Block padding · 16 between field groups
    ·  8 label→control and option→option ·  4 label→value inside a Card */
 form { display: flex; flex-direction: column; gap: 16px; }
 .field { display: flex; flex-direction: column; gap: 8px; }
@@ -281,6 +315,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 @media (hover: hover) { .calculate-btn:hover { opacity: .8; } }
 .calculate-btn:active { opacity: .7; }
 .calculate-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.calculator .calculate-btn { margin-top: 0; }
 
 /* ── Results ────────────────────────────────────────────── */
 .results-meta { min-width: 0; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
@@ -306,8 +341,10 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .chart-cny { color: var(--ink-40); font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; }
 /* Gain/loss is colored per the brief — SnowUI keeps deltas black, so this is a
    deliberate override. The +/- sign carries the same meaning without color. */
-.chart-sub { margin: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; color: var(--gain); font-size: 12px; line-height: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chart-sub { margin: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; color: var(--flat); font-size: 12px; line-height: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chart-sub.is-gain { color: var(--gain); }
 .chart-sub.is-loss { color: var(--loss); }
+.chart-sub.is-flat { color: var(--flat); }
 
 .period-tabs { flex: 0 0 auto; display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--ink-4); }
 .period-tabs button {
@@ -320,7 +357,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .period-tabs button[aria-pressed="true"] { color: var(--ink); background: var(--segment-active); }
 .period-tabs button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 
-.chart-wrap { position: relative; width: 100%; height: 234px; margin-top: 8px; }
+.chart-wrap { position: relative; width: 100%; height: 234px; }
 #growth-chart { display: block; width: 100%; height: 100%; touch-action: none; }
 .chart-tooltip {
   position: absolute; z-index: 2; width: max-content; max-width: calc(100% - 8px); pointer-events: none;
@@ -331,7 +368,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 :root[data-theme="dark"] .chart-tooltip { color: #1c1c1c; }
 
 /* ── Currency converter ─────────────────────────────────── */
-.fx-workspace { grid-template-columns: minmax(0, 1fr); }
+.workspace.fx-workspace { grid-template-columns: minmax(0, 1fr); }
 .fx-card { max-width: 480px; }
 .fx-input-shell { gap: 12px; }
 .fx-flag { flex: 0 0 auto; display: block; width: 28px; height: 20px; border-radius: 3px; }
@@ -355,9 +392,641 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .fx-row-code { flex: 0 0 auto; opacity: .5; font-size: 12px; line-height: 16px; font-weight: 600; }
 .fx-updated { margin: 0; color: var(--ink-40); font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; }
 
-.placeholder-card { max-width: 480px; gap: 4px; }
-.placeholder-title { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; }
-.placeholder-body { margin: 0; color: var(--ink-40); font-size: 12px; line-height: 16px; }
+/* ── Portfolio — login gate ───────────────────────────────
+   账号系统还没接（要先建 Supabase 项目），这张卡先说明本地仓位功能；账号
+   接入后同一入口再切换成真实登录与云端同步。 */
+.gate-card { max-width: 480px; align-items: center; gap: 16px; padding: 32px 24px; text-align: center; }
+/* `.card` 给它的 display:flex 会盖过浏览器给 [hidden] 的默认 display:none——
+   两条规则特异度打平时，源码顺序在后的作者样式赢，UA 默认样式必输。
+   这里补一条 class+属性的组合选择器（特异度更高），是本文件第三次踩这个
+   坑（另两处见 .workspace[hidden] 和 .market-session[hidden]）。 */
+.gate-card[hidden] { display: none; }
+.gate-icon {
+  width: 56px; height: 56px; border-radius: 18px; flex: 0 0 auto;
+  display: grid; place-items: center;
+  background: var(--tint-purple); color: var(--accent);
+}
+.gate-icon > i { font-size: 26px; line-height: 1; }
+.gate-title { margin: 0; font-size: 16px; line-height: 22px; font-weight: 600; }
+.gate-body { margin: 0; max-width: 30ch; color: var(--ink-40); font-size: 13px; line-height: 1.6; }
+.gate-perks { width: 100%; margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.gate-perks li { display: flex; align-items: center; gap: 10px; color: var(--ink-80); font-size: 13px; line-height: 1.4; text-align: left; }
+.perk-tick { flex: 0 0 16px; width: 16px; height: 16px; color: var(--accent); font-size: 16px; line-height: 1; }
+.gate-card .calculate-btn { margin-top: 6px; }
+
+/* ── Portfolio — holdings ─────────────────────────────────
+   概览采用单块账本式布局；持仓行的视觉抄 .fx-row（同款 tint 背景、
+   hover/active/focus 处理），换成两行信息 + 徽标。 */
+/* --gain / --loss 本身就是随主题切换的 token（见文件顶部两套 :root），
+   这里直接用，不需要再叠一层深色覆盖 —— 和 .chart-sub 的做法一致。 */
+#portfolio-app { display: grid; gap: var(--gap-grid); width: 100%; max-width: 720px; }
+#portfolio-app[hidden], .portfolio-summary[hidden] { display: none; }
+/* Portfolio sections share the page surface. Spacing, rather than nested
+   containers, separates the overview, recommendations and holdings. */
+#portfolio-app > .card {
+  padding: 0; border-radius: 0; background: transparent; overflow: visible;
+}
+.portfolio-overview {
+  min-height: 88px; display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(104px, 36%, 200px);
+  align-items: center; gap: 16px; padding-block: 4px;
+}
+.portfolio-overview-copy { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.portfolio-overview-change {
+  min-width: 0; display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap;
+  font-size: 12px; line-height: 16px;
+}
+.portfolio-overview-label { color: var(--ink-40); font-size: 12px; line-height: 16px; }
+.portfolio-overview-copy > strong {
+  overflow: hidden; color: var(--ink); font-size: clamp(24px, 7vw, 32px); line-height: 1.18;
+  font-weight: 650; letter-spacing: -.025em; text-overflow: ellipsis; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.portfolio-overview-change > span { color: var(--ink-40); font-weight: 400; }
+.portfolio-overview-change strong,
+.portfolio-overview-change b { color: inherit; font-size: inherit; line-height: inherit; font-weight: 600; font-variant-numeric: tabular-nums; }
+.portfolio-overview-change.is-gain { color: var(--gain); }
+.portfolio-overview-change.is-loss { color: var(--loss); }
+.portfolio-overview-change.is-flat { color: var(--flat); }
+.portfolio-sparkline { width: 100%; height: 72px; overflow: visible; color: var(--ink-20); }
+.portfolio-sparkline path {
+  fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
+}
+.portfolio-sparkline.is-gain { color: var(--gain); }
+.portfolio-sparkline.is-loss { color: var(--loss); }
+.portfolio-sparkline.is-flat { color: var(--flat); }
+
+/* ── 快捷添加 ──────────────────────────────────────────────
+   价格/涨跌复用顶部 ticker 正在轮询的 marketAssets，不额外发请求。涨跌配色
+   和方向图标也照抄顶部 ticker 的约定（--gain/--loss + Remix Icon），同一批数据
+   不该在两处呈现成两套颜色。推荐始终保留，并允许为同一标的追加独立仓位。 */
+.portfolio-recommend-card[hidden] { display: none; }
+.portfolio-recommend-head { align-items: center; justify-content: space-between; }
+.recommend-close-btn {
+  position: relative; width: 28px; height: 28px; margin: -4px; padding: 5px;
+  border: 0; border-radius: 9px; background: none; color: var(--ink-40); cursor: pointer;
+  transition-property: color, background-color; transition-duration: 150ms;
+}
+.recommend-close-btn::after { content: ""; position: absolute; inset: -6px; }
+.recommend-close-btn > i { font-size: 18px; line-height: 1; }
+@media (hover: hover) { .recommend-close-btn:hover { color: var(--ink); background: var(--ink-4); } }
+.recommend-close-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.recommend-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.recommend-card {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  min-width: 0; padding: 14px 8px 8px; border-radius: var(--radius-card);
+  background: var(--ink-4); color: var(--ink);
+}
+.recommend-icon {
+  width: 22px; height: 22px; flex: 0 0 22px; margin-bottom: 2px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--ink-10); color: var(--ink);
+}
+img.recommend-icon { display: block; background: none; }
+.recommend-letter { font-size: 9px; line-height: 1; font-weight: 750; }
+.recommend-symbol { font-size: 12px; line-height: 16px; font-weight: 600; }
+.recommend-price { overflow: hidden; max-width: 100%; font-size: 13px; line-height: 18px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.recommend-price.is-pending { color: var(--ink-40); font-weight: 400; }
+.recommend-change { display: inline-flex; align-items: center; justify-content: center; gap: 2px; font-size: 11px; line-height: 15px; color: var(--ink-40); font-variant-numeric: tabular-nums; }
+.recommend-change > i { font-size: 12px; line-height: 1; }
+.recommend-change.is-gain { color: var(--gain); }
+.recommend-change.is-loss { color: var(--loss); }
+.recommend-change.is-flat { color: var(--flat); }
+.recommend-add-btn {
+  width: 100%; height: 32px; margin-top: 8px; padding: 0 8px;
+  border: 0; border-radius: 8px; background: var(--ink); color: var(--bg-1);
+  font-size: 12px; line-height: 16px; font-weight: 600; cursor: pointer;
+  transition-property: opacity, scale; transition-duration: 150ms;
+}
+@media (hover: hover) { .recommend-add-btn:hover { opacity: .8; } }
+.recommend-add-btn:active { scale: .96; }
+.recommend-add-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.recommend-add-btn:disabled { opacity: .32; cursor: default; pointer-events: none; }
+
+.portfolio-list-card { gap: 16px; }
+.portfolio-list-head { align-items: center; justify-content: space-between; flex-wrap: nowrap; }
+.merge-holdings-control {
+  min-height: 44px; margin-block: -6px; display: inline-flex; align-items: center; gap: 7px;
+  color: var(--ink-40); font-size: 12px; line-height: 16px; cursor: pointer; white-space: nowrap;
+}
+.merge-holdings-control input {
+  position: absolute; width: 1px; height: 1px; margin: -1px; opacity: 0; pointer-events: none;
+}
+.remix-checkbox-icon {
+  width: 20px; height: 20px; flex: 0 0 20px;
+  display: grid; place-items: center; color: var(--ink-40);
+  transition: color 160ms ease;
+}
+.remix-checkbox-icon > i {
+  grid-area: 1 / 1; width: 20px; height: 20px;
+  font-size: 20px; line-height: 20px;
+}
+.remix-checkbox-icon .ri-checkbox-fill { display: none; }
+.merge-holdings-control input:checked + .remix-checkbox-icon {
+  color: var(--ink);
+}
+.merge-holdings-control input:checked + .remix-checkbox-icon .ri-checkbox-blank-line { display: none; }
+.merge-holdings-control input:checked + .remix-checkbox-icon .ri-checkbox-fill { display: block; }
+.merge-holdings-control:has(input:checked) { color: var(--ink-80); }
+.merge-holdings-control input:focus-visible + .remix-checkbox-icon { outline: 2px solid var(--ink); outline-offset: 2px; }
+.holdings-list { display: flex; flex-direction: column; gap: 8px; }
+.holdings-list[hidden] { display: none; }
+.holdings-empty { margin: 0; padding-block: 16px 8px; color: var(--ink-40); font-size: 13px; line-height: 1.5; text-align: center; }
+.holding-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: start;
+  padding: 12px 16px; border: 0; border-radius: var(--radius-card);
+  background: var(--ink-4); color: var(--ink); cursor: pointer;
+  transition-property: opacity, scale; transition-duration: 150ms;
+}
+@media (hover: hover) { .holding-row:hover { opacity: .82; } }
+.holding-row:active { scale: .99; }
+.holding-row:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.holding-logo {
+  flex: 0 0 auto; width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--ink-10); color: inherit;
+  font-size: 11px; font-weight: 700; letter-spacing: .01em;
+}
+.holding-meta { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.holding-title-line { min-width: 0; display: flex; align-items: center; gap: 4px; }
+.holding-symbol { min-width: 0; overflow: hidden; font-size: 14px; line-height: 20px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.holding-type-tag {
+  flex: 0 0 auto; padding: 1px 5px; border-radius: 6px;
+  background: var(--tint-purple); color: #4b449f;
+  font-size: 10px; line-height: 14px; font-weight: 600; white-space: nowrap;
+}
+.holding-qty { overflow: hidden; opacity: .55; font-size: 11px; line-height: 16px; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.holding-row.has-dividend-dates { flex-wrap: wrap; }
+.holding-dividend-dates {
+  flex: 0 0 100%; display: flex; align-items: baseline; justify-content: flex-start; gap: 6px;
+  padding-top: 10px; border-top: 1px solid var(--ink-10);
+  color: var(--ink-40); font-size: 11px; line-height: 16px; font-variant-numeric: tabular-nums;
+}
+.holding-dividend-dates > span { min-width: 0; display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.holding-dividend-dates > span + span::before { content: "·"; margin-inline-end: 2px; color: var(--ink-40); }
+.holding-dividend-dates small { flex: 0 0 auto; color: inherit; font: inherit; }
+.holding-dividend-dates strong {
+  overflow: hidden; color: var(--ink); font-size: 11px; font-weight: 550;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.holding-right { min-width: 0; flex: 0 1 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.holding-value { font-size: 14px; line-height: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.holding-pl {
+  max-width: 100%; display: flex; align-items: baseline; justify-content: flex-end; gap: 4px;
+  overflow: hidden; font-size: 11px; line-height: 16px; font-weight: 600;
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.holding-pl-label { color: var(--ink-40); font-weight: 400; }
+.holding-pl-value, .holding-pl-pct { overflow: hidden; text-overflow: ellipsis; }
+.holding-pl.is-gain { color: var(--gain); }
+.holding-pl.is-loss { color: var(--loss); }
+.holding-pl.is-flat { color: var(--flat); }
+.holding-group { display: flex; flex-direction: column; gap: 4px; }
+.holding-group-lots {
+  display: flex; flex-direction: column; gap: 4px; padding-inline-start: 20px;
+}
+.holding-group-lots[hidden] { display: none; }
+.holding-subrow { background: transparent; box-shadow: inset 0 0 0 1px var(--ink-10); }
+.holding-expand {
+  display: inline-flex; align-items: center; gap: 4px; color: var(--ink-40);
+  font-size: 11px; line-height: 16px; font-weight: 500;
+}
+.holding-expand i { width: 12px; height: 12px; font-size: 12px; line-height: 1; transition: rotate 150ms ease-out; }
+.holding-row[aria-expanded="true"] .holding-expand i { rotate: 90deg; }
+/* 还没拿到实时价（新代号、抓取失败）：不是错误状态，是提示——用浅灰小字加
+   一个箭头，引着用户点进去手动补一个价格，而不是空着或显示一堆 0。 */
+.holding-price-hint { display: inline-flex; align-items: center; gap: 2px; color: var(--ink-40); font-size: 11px; line-height: 16px; white-space: nowrap; }
+.holding-price-hint > i { font-size: 12px; line-height: 1; }
+@media (max-width: 359px) {
+  .holding-row { gap: 8px; padding-inline: 12px; }
+}
+
+/* ── 盈亏明细 ───────────────────────────────────────────── */
+.profit-sheet-overlay { z-index: 22; }
+.profit-sheet-panel { gap: 0; }
+.profit-sheet-summary { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 0 4px; }
+.profit-sheet-summary > span { color: var(--ink-40); font-size: 13px; line-height: 18px; font-weight: 600; }
+.profit-sheet-summary > strong {
+  color: var(--ink); font-size: 30px; line-height: 36px; font-weight: 650;
+  letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+}
+.profit-sheet-summary > strong.is-gain { color: var(--gain); }
+.profit-sheet-summary > strong.is-loss { color: var(--loss); }
+.profit-sheet-summary > strong.is-flat { color: var(--flat); }
+.profit-sheet-summary > small { color: var(--ink-40); font-size: 12px; line-height: 16px; }
+.profit-breakdown-list {
+  padding: 4px 16px; border-radius: 18px; background: var(--bg-2);
+  display: flex; flex-direction: column;
+}
+.profit-breakdown-row { min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.profit-breakdown-row + .profit-breakdown-row { border-top: 1px solid var(--ink-10); }
+.profit-breakdown-list.is-stable-only #profit-interest-row { border-top: 0; }
+.profit-breakdown-row[hidden] { display: none; }
+.profit-breakdown-row > span { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.profit-breakdown-row strong { font-size: 14px; line-height: 20px; font-weight: 600; }
+.profit-breakdown-row small { color: var(--ink-40); font-size: 11px; line-height: 16px; }
+.profit-breakdown-row b { flex: 0 0 auto; font-size: 14px; line-height: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.profit-breakdown-row b.is-gain { color: var(--gain); }
+.profit-breakdown-row b.is-loss { color: var(--loss); }
+.profit-breakdown-row b.is-flat { color: var(--flat); }
+.profit-event-card { padding: 14px 16px; border: 1px solid var(--ink-10); border-radius: 18px; }
+.profit-event-card[hidden] { display: none; }
+.profit-event-card > strong { display: block; margin-bottom: 10px; font-size: 13px; line-height: 18px; font-weight: 650; }
+.profit-event-card dl { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.profit-event-card dl div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.profit-event-card dt { color: var(--ink-40); font-size: 11px; line-height: 16px; }
+.profit-event-card dd { overflow: hidden; margin: 0; font-size: 12px; line-height: 18px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.profit-records-btn, .holding-records-link {
+  width: 100%; min-height: 52px; padding: 8px 0; border: 0; background: none; color: var(--ink);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  font: inherit; text-align: start; cursor: pointer;
+}
+.profit-records-btn { padding: 12px 16px; border-radius: 16px; background: var(--ink-4); }
+.profit-records-btn[hidden], .holding-records-link[hidden] { display: none; }
+.profit-records-btn > span, .holding-records-link > span { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.profit-records-btn strong, .holding-records-link strong { font-size: 13px; line-height: 18px; font-weight: 600; }
+.profit-records-btn small, .holding-records-link small { color: var(--ink-40); font-size: 11px; line-height: 16px; }
+.profit-records-btn > i, .holding-records-link > i { flex: 0 0 auto; color: var(--ink-40); font-size: 20px; line-height: 1; }
+.profit-records-btn:focus-visible, .holding-records-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.profit-sheet-foot { margin: -4px 0 0; color: var(--ink-40); font-size: 12px; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums; }
+.profit-edit-btn { margin-top: 0; }
+
+.add-holding-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; height: 44px;
+  border: 1px dashed var(--ink-20); border-radius: var(--radius-card); background: none;
+  color: var(--ink-40); font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer;
+  transition-property: color, border-color; transition-duration: 150ms;
+}
+@media (hover: hover) { .add-holding-btn:hover { color: var(--ink); border-color: var(--ink-40); } }
+.add-holding-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.add-holding-btn > i { font-size: 18px; line-height: 1; }
+
+/* ── 底部弹层：新增/编辑持仓 ───────────────────────────────
+   和确认弹窗共用同一套 scrim+反向平移过渡；.sheet-scrim 那个大点击区兼职
+   两种弹层的背景遮罩，靠各自的 data-close-* 属性区分点了哪个该关哪个。 */
+.sheet-overlay, .confirm-overlay, .asset-search-overlay {
+  position: fixed; inset: 0; z-index: 20;
+  display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 200ms ease-out;
+}
+.confirm-overlay { z-index: 30; align-items: center; padding: 24px; }
+/* opacity:0 已经让关闭态肉眼不可见，但没这条的话盒子仍是 display:flex，
+   里面的输入框/按钮依旧能被 Tab 键聚焦到——键盘用户会陷进一个「看不见但
+   在」的弹层。和上面 .gate-card[hidden] 是同一类坑：display:flex 盖过了
+   UA 默认的 [hidden] 规则。 */
+.sheet-overlay[hidden], .confirm-overlay[hidden], .asset-search-overlay[hidden] { display: none; }
+.sheet-overlay.is-open, .confirm-overlay.is-open, .asset-search-overlay.is-open { opacity: 1; pointer-events: auto; }
+.sheet-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, .42); }
+
+.sheet-panel {
+  --sheet-inline: 20px;
+  position: relative; z-index: 1; width: 100%; max-width: 480px;
+  max-height: calc(100dvh - 92px); overflow: hidden;
+  padding: 10px 0 0;
+  border-radius: 26px 26px 0 0; background: var(--bg-1);
+  display: flex; flex-direction: column;
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, .18);
+  translate: 0 24px; transition: translate 220ms cubic-bezier(.2, 0, 0, 1);
+}
+.sheet-overlay.is-open .sheet-panel { translate: 0 0; }
+.sheet-grabber {
+  width: 36px; height: 4px; flex: 0 0 4px; margin: 0 auto 6px;
+  border-radius: 999px; background: var(--ink-10);
+}
+.sheet-head {
+  position: relative; z-index: 2; min-height: 48px; flex: 0 0 48px;
+  padding-inline: var(--sheet-inline); background: var(--bg-1);
+  display: flex; align-items: center; justify-content: center;
+}
+.sheet-title { margin: 0; font-size: 17px; line-height: 24px; font-weight: 650; }
+.sheet-close-btn, .sheet-delete-btn {
+  position: absolute; top: 50%; translate: 0 -50%;
+  width: 32px; height: 32px; border: 0; border-radius: 10px; background: none;
+  display: grid; place-items: center; cursor: pointer;
+}
+.sheet-close-btn i, .sheet-delete-btn i { font-size: 20px; line-height: 1; }
+.sheet-close-btn { inset-inline-end: var(--sheet-inline); color: var(--ink); }
+.sheet-delete-btn { inset-inline-start: var(--sheet-inline); color: var(--loss); }
+.sheet-close-btn::after, .sheet-delete-btn::after { content: ""; position: absolute; inset: -6px; }
+@media (hover: hover) { .sheet-close-btn:hover { background: var(--ink-4); color: var(--ink); } }
+@media (hover: hover) { .sheet-delete-btn:hover { background: color-mix(in srgb, var(--loss) 12%, transparent); } }
+.sheet-close-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.sheet-delete-btn:focus-visible { outline: 2px solid var(--loss); outline-offset: 1px; }
+/* 新增模式下这个按钮带 hidden：同样的 display:grid 会盖过 [hidden]，
+   不补就会在“添加持仓”弹层里露出一个能点的删除图标。 */
+.sheet-delete-btn[hidden] { display: none; }
+.sheet-body {
+  min-height: 0; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain;
+  padding: 12px var(--sheet-inline) calc(20px + env(safe-area-inset-bottom));
+  scrollbar-width: none;
+}
+.sheet-body::-webkit-scrollbar { display: none; }
+.sheet-footer {
+  position: relative; z-index: 2; flex: 0 0 auto;
+  padding: 12px var(--sheet-inline) calc(20px + env(safe-area-inset-bottom));
+  border-block-start: 1px solid var(--ink-10); background: var(--bg-1);
+  box-shadow: 0 -12px 30px -26px rgba(0, 0, 0, .5);
+}
+.sheet-footer .calculate-btn { width: 100%; }
+#holding-form {
+  min-height: 0; flex: 1 1 auto; overflow: hidden;
+  display: flex; flex-direction: column; gap: 0;
+}
+.holding-sheet-body { display: flex; flex-direction: column; gap: 16px; padding-bottom: 12px; }
+.profit-sheet-body { display: flex; flex-direction: column; gap: 20px; padding-bottom: 12px; }
+.dividend-records-body { display: flex; flex-direction: column; gap: 18px; }
+.holding-kind-field { display: flex; flex-direction: column; }
+.holding-kind-field[hidden] { display: none; }
+.holding-kind-segmented { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.holding-conditional[hidden] { display: none; }
+#holding-form .input-shell input {
+  min-width: 0; width: 100%; flex: 1; appearance: none;
+  margin: 0; padding: 0; border: 0; outline: 0; background: transparent;
+  color: var(--ink); font-size: 16px; line-height: 24px; font-weight: 500;
+}
+#holding-form .input-shell input::placeholder { color: var(--ink-40); font-weight: 400; opacity: 1; }
+#holding-form .input-shell input:disabled { color: var(--ink-40); -webkit-text-fill-color: var(--ink-40); opacity: 1; }
+.percent-input input { text-align: start; }
+.date-input { position: relative; }
+.date-input input { position: relative; color-scheme: light; }
+.date-input > i { flex: 0 0 auto; color: var(--ink-40); font-size: 20px; line-height: 1; pointer-events: none; }
+.date-input input::-webkit-calendar-picker-indicator {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer;
+}
+:root[data-theme="dark"] .date-input input { color-scheme: dark; }
+#holding-symbol-manual { text-transform: uppercase; }
+.field-hint { margin: -4px 0 0; color: var(--ink-40); font-size: 12px; line-height: 16px; }
+.holding-market-interest-toggle {
+  position: relative; min-height: 24px; margin-top: 0; padding: 0;
+  display: flex; align-items: flex-end; gap: 12px; color: var(--ink); cursor: pointer;
+}
+.holding-market-interest-toggle > input {
+  position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
+}
+.holding-market-interest-toggle > input:checked + .remix-checkbox-icon {
+  color: var(--ink);
+}
+.holding-market-interest-toggle > input:checked + .remix-checkbox-icon .ri-checkbox-blank-line { display: none; }
+.holding-market-interest-toggle > input:checked + .remix-checkbox-icon .ri-checkbox-fill { display: block; }
+.holding-market-interest-toggle > input:disabled + .remix-checkbox-icon { opacity: .45; }
+.holding-market-interest-toggle > input:disabled ~ .holding-market-interest-copy { opacity: .6; }
+.holding-market-interest-toggle:has(input:disabled) { cursor: not-allowed; }
+.holding-market-interest-toggle > input:focus-visible + .remix-checkbox-icon { outline: 2px solid var(--ink); outline-offset: 2px; }
+.holding-market-interest-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.holding-market-interest-copy strong { font-size: 14px; line-height: 20px; font-weight: 600; }
+.holding-market-interest-copy small { color: var(--ink-40); font-size: 12px; line-height: 16px; }
+.holding-yield-settings {
+  padding: 16px; border: 1px solid var(--ink-10); border-radius: 20px; background: var(--bg-2);
+  display: flex; flex-direction: column; gap: 16px;
+}
+/* 稳定生息沿用普通表单的单层结构；股息事件仍保留独立容器来表达其附加关系。 */
+#holding-yield-settings {
+  padding: 0; border: 0; border-radius: 0; background: transparent;
+}
+.holding-adjustment {
+  padding: 16px; border-radius: 20px; background: var(--ink-4);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.holding-adjustment[hidden] { display: none; }
+.holding-adjustment-segmented button {
+  min-height: 36px; border: 0; border-radius: 9px; background: transparent; color: var(--ink-40);
+  font: inherit; font-size: 13px; line-height: 18px; font-weight: 600; cursor: pointer;
+}
+.holding-adjustment-segmented button.is-active { background: var(--segment-active); color: var(--ink); }
+.holding-adjustment-segmented button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.holding-adjustment-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.holding-adjustment-grid .input-shell { padding-inline: 12px; }
+.holding-adjustment-submit {
+  min-height: 42px; border: 0; border-radius: 12px; background: var(--ink); color: var(--bg-1);
+  font: inherit; font-size: 13px; line-height: 18px; font-weight: 650; cursor: pointer;
+  transition-property: opacity, scale; transition-duration: 150ms;
+}
+.holding-adjustment-submit:active { scale: .96; }
+.holding-adjustment-submit:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+:root[data-theme="dark"] .holding-adjustment-submit { color: #1c1c1c; }
+@media (max-width: 359px) { .holding-adjustment-grid { grid-template-columns: 1fr; gap: 14px; } }
+.holding-yield-settings[hidden] { display: none; }
+.holding-settings-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.holding-settings-head strong { font-size: 14px; line-height: 20px; font-weight: 650; }
+.holding-settings-head span {
+  flex: 0 0 auto; padding: 3px 8px; border-radius: 999px; background: var(--ink-4);
+  color: var(--ink-40); font-size: 11px; line-height: 16px;
+}
+.select-input {
+  width: 100%; border: 0; color: var(--ink); font: inherit; text-align: start; cursor: pointer;
+}
+.select-input-value {
+  min-width: 0; flex: 1; overflow: hidden;
+  font-size: 16px; line-height: 24px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap;
+}
+.select-input > i {
+  flex: 0 0 auto; color: var(--ink-40); font-size: 20px; line-height: 1;
+  transition: rotate 150ms ease-out;
+}
+.select-input[aria-expanded="true"] > i { rotate: 180deg; }
+.select-input:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.holding-date-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.holding-date-grid .input-shell { padding-inline: 12px; }
+@media (max-width: 359px) { .holding-date-grid { grid-template-columns: 1fr; gap: 16px; } }
+.holding-yield-preview {
+  margin: 0; padding: 10px 12px; border: 1px solid var(--yield-note-edge); border-radius: 12px;
+  background: var(--yield-note-bg); color: var(--yield-note-text);
+  font-size: 12px; line-height: 18px; font-variant-numeric: tabular-nums;
+}
+
+/* ── 股息记录 ───────────────────────────────────────────── */
+.dividend-records-overlay { z-index: 24; }
+.dividend-records-panel { gap: 0; }
+.dividend-records-summary { display: flex; flex-direction: column; align-items: center; gap: 3px; padding-block: 6px 2px; }
+.dividend-records-summary > span { color: var(--ink-40); font-size: 13px; line-height: 18px; font-weight: 600; }
+.dividend-records-summary > strong { color: var(--flat); font-size: 28px; line-height: 34px; font-weight: 650; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.dividend-records-summary > strong.is-gain { color: var(--gain); }
+.dividend-records-summary > strong.is-loss { color: var(--loss); }
+.dividend-records-summary > small { color: var(--ink-40); font-size: 12px; line-height: 16px; }
+.dividend-records-list { display: flex; flex-direction: column; }
+.dividend-records-list[hidden] { display: none; }
+.dividend-record-row {
+  min-height: 68px; display: flex; align-items: center; gap: 12px;
+  padding-block: 10px; border-bottom: 1px solid var(--ink-10);
+}
+.dividend-record-row:first-child { border-top: 1px solid var(--ink-10); }
+.dividend-record-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.dividend-record-copy strong { font-size: 14px; line-height: 20px; font-weight: 600; }
+.dividend-record-copy small { overflow: hidden; color: var(--ink-40); font-size: 11px; line-height: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.dividend-record-amount { flex: 0 0 auto; color: var(--flat); font-size: 13px; line-height: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.dividend-record-amount.is-gain { color: var(--gain); }
+.dividend-record-amount.is-loss { color: var(--loss); }
+.dividend-record-delete {
+  position: relative; width: 36px; height: 36px; flex: 0 0 36px; border: 0; border-radius: 10px;
+  display: grid; place-items: center; background: transparent; color: var(--loss); cursor: pointer;
+}
+@media (hover: hover) { .dividend-record-delete:hover { background: color-mix(in srgb, var(--loss) 10%, transparent); } }
+.dividend-record-delete:focus-visible { outline: 2px solid var(--loss); outline-offset: 1px; }
+.dividend-record-delete > i { font-size: 18px; line-height: 1; }
+.dividend-records-empty { margin: 0; padding-block: 28px; color: var(--ink-40); font-size: 13px; line-height: 20px; text-align: center; }
+
+/* SnowUI 单选列表：靠轻填充表达当前项，不额外套卡片或堆叠分割线。 */
+.frequency-sheet-overlay { z-index: 26; }
+.frequency-sheet-panel { gap: 0; }
+.frequency-sheet-body {
+  display: flex; flex-direction: column; gap: 4px; padding-top: 4px;
+}
+.frequency-option {
+  width: 100%; min-height: 52px; flex: 0 0 auto; padding: 0 12px;
+  border: 0; border-radius: 12px; background: transparent; color: var(--ink);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  font: inherit; text-align: start; cursor: pointer;
+  transition-property: background-color, scale; transition-duration: 150ms;
+}
+.frequency-option > span { font-size: 14px; line-height: 20px; font-weight: 500; }
+.frequency-option > i {
+  flex: 0 0 20px; color: var(--ink); font-size: 20px; line-height: 1;
+  opacity: 0; scale: .25; filter: blur(4px);
+  transition-property: opacity, scale, filter; transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(.2, 0, 0, 1);
+}
+.frequency-option[aria-pressed="true"] { background: var(--ink-4); }
+.frequency-option[aria-pressed="true"] > span { font-weight: 650; }
+.frequency-option[aria-pressed="true"] > i { opacity: 1; scale: 1; filter: blur(0); }
+@media (hover: hover) { .frequency-option:hover { background: var(--ink-4); } }
+.frequency-option:active { scale: .96; }
+.frequency-option:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+
+.asset-select {
+  width: 100%; border: 0; color: var(--ink); text-align: start; cursor: pointer;
+}
+.asset-select > i:first-child { flex: 0 0 auto; color: var(--ink-40); font-size: 20px; line-height: 1; }
+.asset-select-value {
+  min-width: 0; flex: 1; overflow: hidden; font-size: 16px; line-height: 24px;
+  font-weight: 600; text-overflow: ellipsis; white-space: nowrap;
+}
+.asset-select-value.is-placeholder { color: var(--ink-40); font-weight: 400; }
+.asset-select-chevron { flex: 0 0 auto; color: var(--ink-40); font-size: 20px; line-height: 1; }
+.asset-select:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.calculate-btn:disabled {
+  opacity: .2; cursor: not-allowed; pointer-events: none;
+}
+
+/* 资产搜索与其他弹层共享 92px 顶部止点；搜索框留在固定标题下方，仅结果区滚动。 */
+.asset-search-overlay { z-index: 24; }
+.asset-search-sheet {
+  --sheet-inline: 20px;
+  position: relative; z-index: 1;
+  width: 100%; max-width: 720px; height: calc(100dvh - 92px); max-height: calc(100dvh - 92px);
+  padding: 10px 0 0;
+  border-radius: 26px 26px 0 0; background: var(--bg-1);
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, .18);
+  translate: 0 24px; transition: translate 220ms cubic-bezier(.2, 0, 0, 1);
+}
+.asset-search-overlay.is-open .asset-search-sheet { translate: 0 0; }
+.asset-search-head .asset-search-cancel {
+  position: absolute; inset-inline-end: var(--sheet-inline); top: 50%; translate: 0 -50%;
+}
+.asset-search-body {
+  display: flex; flex-direction: column; gap: 16px; overflow: hidden;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
+}
+.asset-search-form { flex: 0 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; }
+.asset-search-input-shell {
+  min-width: 0; height: 48px; padding: 0 6px 0 14px;
+  display: flex; align-items: center; gap: 10px;
+  border-radius: 14px; background: var(--ink-4);
+}
+.asset-search-input-shell:focus-within { background: var(--surface-1); outline: 2px solid var(--ink); outline-offset: -2px; }
+.asset-search-input-shell > i { flex: 0 0 auto; color: var(--ink-40); font-size: 20px; line-height: 1; }
+.asset-search-input-shell input {
+  min-width: 0; width: 100%; height: 100%; padding: 0; border: 0; outline: 0;
+  appearance: none; -webkit-appearance: none; background: transparent; color: var(--ink);
+  font-size: 16px; line-height: 24px;
+}
+.asset-search-input-shell input::-webkit-search-cancel-button { display: none; }
+.asset-search-input-shell input::placeholder { color: var(--ink-40); opacity: 1; }
+.asset-search-submit {
+  flex: 0 0 auto; height: 36px; padding: 0 12px; border: 0; border-radius: 10px;
+  background: var(--ink); color: var(--bg-1); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+:root[data-theme="dark"] .asset-search-submit { color: #1c1c1c; }
+.asset-search-submit:disabled { opacity: .35; cursor: wait; }
+.asset-search-cancel {
+  height: 44px; padding: 0; border: 0; background: none; color: var(--ink);
+  font-size: 14px; font-weight: 500; cursor: pointer;
+}
+.asset-search-submit:focus-visible, .asset-search-cancel:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.asset-search-content { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.asset-search-content::-webkit-scrollbar { display: none; }
+.asset-search-state {
+  min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; color: var(--ink-40); text-align: center;
+}
+.asset-search-state > i { margin-bottom: 4px; font-size: 28px; line-height: 1; }
+.asset-search-state p { margin: 0; color: var(--ink); font-size: 14px; line-height: 20px; font-weight: 600; }
+.asset-search-state span { max-width: 280px; font-size: 12px; line-height: 18px; }
+.asset-search-list { display: flex; flex-direction: column; }
+.asset-result {
+  width: 100%; min-width: 0; min-height: 64px; padding: 10px 4px;
+  border: 0; border-bottom: 1px solid var(--ink-10); background: none; color: var(--ink);
+  display: flex; align-items: center; gap: 12px; text-align: start; cursor: pointer;
+}
+.asset-result:last-child { border-bottom: 0; }
+@media (hover: hover) { .asset-result:hover { background: var(--ink-4); } }
+.asset-result:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.asset-result-mark {
+  width: 36px; height: 36px; flex: 0 0 36px; border-radius: 50%; background: var(--ink-4);
+  display: grid; place-items: center; font-size: 11px; line-height: 1; font-weight: 700;
+}
+.asset-result-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.asset-result-name { overflow: hidden; font-size: 14px; line-height: 20px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.asset-result-meta { overflow: hidden; color: var(--ink-40); font-size: 12px; line-height: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.asset-result-symbol { flex: 0 0 auto; color: var(--ink-40); font-size: 13px; line-height: 20px; font-weight: 600; }
+
+@media (min-width: 768px) {
+  .sheet-panel { --sheet-inline: 24px; }
+  .asset-search-sheet { --sheet-inline: 28px; }
+}
+
+/* ── 删除确认 ── */
+.confirm-dialog {
+  position: relative; z-index: 1; width: 100%; max-width: 320px;
+  max-height: calc(100dvh - 184px); overflow: hidden;
+  padding: 22px; border-radius: var(--radius-block); background: var(--bg-1);
+  display: flex; flex-direction: column; gap: 8px; text-align: center;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .22);
+  scale: .96; transition: scale 200ms cubic-bezier(.2, 0, 0, 1);
+}
+.confirm-overlay.is-open .confirm-dialog { scale: 1; }
+.confirm-title { flex: 0 0 auto; margin: 0; font-size: 16px; line-height: 22px; font-weight: 650; }
+.confirm-body {
+  min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  margin: 0 0 8px; color: var(--ink-40); font-size: 13px; line-height: 1.5;
+}
+.confirm-actions { flex: 0 0 auto; display: flex; gap: 10px; }
+.confirm-cancel, .confirm-delete {
+  flex: 1; height: 40px; border: 0; border-radius: 12px;
+  font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer;
+}
+.confirm-cancel { background: var(--ink-4); color: var(--ink); }
+@media (hover: hover) { .confirm-cancel:hover { background: var(--ink-10); } }
+.confirm-delete { background: var(--loss); color: #ffffff; }
+@media (hover: hover) { .confirm-delete:hover { opacity: .88; } }
+.confirm-cancel:focus-visible, .confirm-delete:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ── Toast ──────────────────────────────────────────────── */
+.toast {
+  position: fixed; z-index: 30; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom));
+  translate: -50% 8px; padding: 10px 18px; border-radius: 999px;
+  background: var(--ink-80); color: var(--bg-1);
+  font-size: 13px; font-weight: 500; white-space: nowrap;
+  opacity: 0; pointer-events: none;
+  transition-property: opacity, translate; transition-duration: 200ms; transition-timing-function: ease-out;
+}
+.toast.is-visible { opacity: 1; translate: -50% 0; }
+:root[data-theme="dark"] .toast { background: var(--ink-80); color: #000000; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-panel, .asset-search-sheet, .confirm-dialog, .toast { transition-duration: .01ms !important; }
+}
 
 /* ── Bottom tab bar — floating glassmorphic pill ─────────
    Detached rounded bar over blurred content, with a top-lit gradient hairline
@@ -407,7 +1076,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
     transparent 100%);
 }
 /* Beam sits at each tab's centre: 1/6, 3/6, 5/6 across three equal tabs. */
-.tabbar:has(.tabbar-item[data-tab="retirement"][aria-selected="true"]) { --beam-x: calc(6px + (100% - 12px) / 6); --beam-color: var(--gain); }
+.tabbar:has(.tabbar-item[data-tab="retirement"][aria-selected="true"]) { --beam-x: calc(6px + (100% - 12px) / 6); --beam-color: var(--accent); }
 .tabbar:has(.tabbar-item[data-tab="portfolio"][aria-selected="true"]) { --beam-x: 50%; --beam-color: var(--glow-teal); }
 .tabbar:has(.tabbar-item[data-tab="fx"][aria-selected="true"]) { --beam-x: calc(100% - 6px - (100% - 12px) / 6); --beam-color: var(--glow-pink); }
 /* Without backdrop-filter a 60% wash just leaks content through unblurred. */
@@ -559,9 +1228,15 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 
 .tabbar-item[aria-selected="true"] { color: var(--ink); font-weight: 500; opacity: 1; scale: 1; }
 .tabbar-item:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
-.tabbar-icon { width: 22px; height: 22px; display: block; }
+.tabbar-icon { width: 22px; height: 22px; display: grid; place-items: center; font-size: 22px; line-height: 1; }
 
-footer { padding: 0 28px 28px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; color: var(--ink-40); font-size: 12px; line-height: 16px; }
+footer {
+  padding: 16px 28px 28px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;
+  border-block-start: 1px solid var(--ink-10);
+  color: var(--ink-40); font-size: 12px; line-height: 16px;
+}
+body:has(#panel-portfolio:not([hidden])) footer,
+body:has(#panel-fx:not([hidden])) footer { display: none; }
 /* Clear the floating bar (64px pill + 24px lift + breathing room). */
 body { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
 
@@ -572,12 +1247,12 @@ body { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
 
 @media (max-width: 767px) {
   .topbar { padding: 16px; gap: 8px 12px; }
-  .shell { padding: 0 16px 16px; }
-  .workspace { gap: 16px; }
+  .shell { padding: 16px; }
   .card { padding: 16px; }
+  #panel-retirement > .calculator { padding: 16px; }
   .metric { padding: 10px 12px; }
   .metric strong { font-size: 20px; line-height: 28px; }
-  footer { padding: 0 16px 16px; }
+  footer { padding: 16px; }
 }
 
 /* Hold three across down to 390px — the metric type steps down instead of the
@@ -597,7 +1272,7 @@ body { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
 
 /* Shed the ticker by importance rather than wrapping the header — the asset icon
    already identifies the series. Thresholds measured from worst-case content
-   ("Bitcoin · $102,395.29 · ▲ 12.34%"), not from device presets. */
+   ("Bitcoin · $102,395.29 · 12.34%"), not from device presets. */
 @media (max-width: 485px) { .btc-name { display: none; } }
 @media (max-width: 415px) { .btc-ticker small { display: none; } }
 @media (max-width: 347px) { .btc-ticker { display: none; } }
@@ -606,6 +1281,7 @@ body { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
   .quick-amounts { gap: 4px; }
   .money-input input { font-size: 20px; }
 }
+
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }

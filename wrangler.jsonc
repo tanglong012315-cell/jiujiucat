@@ -1,5 +1,5 @@
 {
-  // 静态资产 + 一个轻量 Worker 入口（src/index.js 只处理 /api/quote 行情代理）。
+  // 静态资产 + 一个轻量 Worker 入口（处理 /api/quote 与 /api/search）。
   // 静态资源命中时 Cloudflare 直接分发，不会执行 Worker，所以首屏没有额外开销。
   "name": "jiujiucat",
   "main": "src/index.js",

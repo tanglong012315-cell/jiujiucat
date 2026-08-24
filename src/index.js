@@ -10,20 +10,26 @@
  *
  * 路由说明：静态资源命中时 Cloudflare 直接分发、根本不会执行这段代码，
  * 所以只有 /api/* 这类请求才会进来，不会给首屏增加开销。
+ *
+ * /api/quote 提供 Yahoo 行情；/api/search 只返回 Yahoo 可识别的股票、ETF 和
+ * Crypto，前端只允许把这些搜索结果存成持仓。
  */
 
-// 只允许这两个代号。缺了这道白名单，任何人都能拿 ?symbol=../../ 之类的构造把
-// 这个 Worker 当成开放中继，用你账号的额度去转发任意流量。
-const ALLOWED_SYMBOLS = new Set(['MSTR', 'QQQ']);
+// 这道格式校验不是可选的：缺了它，构造出的路径可能让 Worker 变成开放中继。
+// Yahoo 的合法代码不只 AAPL 这种纯字母：Crypto 是 BTC-USD，部分股票含点号
+// 或连字符。仍然只允许行情代码会用到的有限字符，避免把代理变成开放中继。
+const SYMBOL_PATTERN = /^[A-Z0-9^][A-Z0-9.^=-]{0,19}$/;
+const SEARCH_TYPES = new Set(['EQUITY', 'ETF', 'CRYPTOCURRENCY']);
 
 async function handleQuote(url) {
   const symbol = (url.searchParams.get('symbol') || '').toUpperCase();
-  if (!ALLOWED_SYMBOLS.has(symbol)) {
+  if (!SYMBOL_PATTERN.test(symbol)) {
     return Response.json({ error: 'unsupported symbol' }, { status: 400 });
   }
 
+  // 最近 5 个交易日就是股票市场可交易的一周；30 分钟粒度足够绘制小型趋势图。
   const upstream =
-    `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=5m&range=2d`;
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=30m&range=5d`;
 
   const response = await fetch(upstream, {
     headers: {
@@ -52,6 +58,52 @@ async function handleQuote(url) {
   });
 }
 
+async function handleSearch(url) {
+  const query = (url.searchParams.get('q') || '').trim();
+  if (!query || query.length > 40 || /[\u0000-\u001f\u007f]/.test(query)) {
+    return Response.json({ error: 'invalid query' }, { status: 400 });
+  }
+
+  const upstream =
+    `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}` +
+    '&quotesCount=16&newsCount=0&enableFuzzyQuery=false';
+  const response = await fetch(upstream, {
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+        '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': 'application/json'
+    },
+    cf: { cacheTtl: 300, cacheEverything: true }
+  });
+
+  if (!response.ok) {
+    return Response.json({ error: 'upstream failed' }, { status: 502 });
+  }
+
+  const data = await response.json();
+  const results = (Array.isArray(data?.quotes) ? data.quotes : [])
+    .filter(item => item?.isYahooFinance !== false && SEARCH_TYPES.has(item?.quoteType))
+    .map(item => {
+      const quoteSymbol = String(item.symbol || '').toUpperCase();
+      if (!SYMBOL_PATTERN.test(quoteSymbol)) return null;
+      const isCrypto = item.quoteType === 'CRYPTOCURRENCY';
+      return {
+        symbol: isCrypto ? quoteSymbol.replace(/-USD$/, '') : quoteSymbol,
+        quoteSymbol,
+        name: String(item.longname || item.shortname || quoteSymbol).slice(0, 120),
+        assetType: item.quoteType,
+        exchange: String(item.exchDisp || item.exchange || '').slice(0, 60)
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 12);
+
+  return Response.json({ results }, {
+    headers: { 'Cache-Control': 'public, max-age=300' }
+  });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -64,6 +116,17 @@ export default {
         return await handleQuote(url);
       } catch {
         return Response.json({ error: 'proxy error' }, { status: 502 });
+      }
+    }
+
+    if (url.pathname === '/api/search') {
+      if (request.method !== 'GET') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      try {
+        return await handleSearch(url);
+      } catch {
+        return Response.json({ error: 'search error' }, { status: 502 });
       }
     }
 
