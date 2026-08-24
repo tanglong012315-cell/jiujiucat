@@ -2767,7 +2767,13 @@ if (cloud) {
     // 只认显式的 SIGNED_OUT。首次加载会先来一个 session 为 null 的
     // INITIAL_SESSION，当成登出处理会把从没登录过的人的本地持仓清空。
     if (event === 'SIGNED_OUT') return handleSignedOut();
-    if (session?.user && currentUser?.id !== session.user.id) handleSignedIn(session.user);
+    // 回调是在 auth 的内部锁里跑的，而 handleSignedIn 会去查表 —— 那次查询同样
+    // 要拿这把锁，锁却要等回调返回才释放，两边互等就是死锁。丢到下一个 tick
+    // 执行，回调先返回、锁先松开。这条是 Supabase 文档明说的用法约束，不是
+    // 保险起见：它是否发作取决于时序，本机跑通不代表别人的网络下也跑得通。
+    if (session?.user && currentUser?.id !== session.user.id) {
+      setTimeout(() => handleSignedIn(session.user), 0);
+    }
   });
 }
 
