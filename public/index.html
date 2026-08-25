@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=67" />
+  <link rel="stylesheet" href="styles.css?v=69" />
 </head>
 <body>
   <header class="topbar">
@@ -142,7 +142,10 @@
 
       <div id="portfolio-app" hidden>
         <div class="account-bar" id="account-bar" hidden>
-          <span class="account-identity"><i class="ri-user-line" aria-hidden="true"></i><span id="account-email">—</span></span>
+          <button type="button" class="account-identity" id="account-profile-btn" aria-haspopup="dialog" aria-controls="profile-sheet-overlay">
+            <span class="account-avatar"><i class="ri-bear-smile-line" id="account-avatar-icon" aria-hidden="true"></i></span>
+            <span id="account-name">—</span>
+          </button>
           <span class="account-sync" id="account-sync" aria-live="polite"></span>
           <button type="button" class="account-signout" id="account-signout-btn">退出</button>
         </div>
@@ -182,7 +185,7 @@
                 <i class="ri-checkbox-blank-line"></i>
                 <i class="ri-checkbox-fill"></i>
               </span>
-              <span>合并同类</span>
+              <span>合并同资产</span>
             </label>
           </div>
           <div class="holdings-list" id="holdings-list"></div>
@@ -218,13 +221,13 @@
   <nav class="tabbar" role="tablist" aria-label="主导航">
     <span class="tabbar-beam" aria-hidden="true"></span>
     <span class="tabbar-sheen" aria-hidden="true"></span>
-    <button class="tabbar-item" id="tab-retirement" type="button" role="tab" aria-selected="true" aria-controls="panel-retirement" data-tab="retirement">
-      <i class="ri-increase-decrease-line tabbar-icon" aria-hidden="true"></i>
-      <span>计算</span>
-    </button>
     <button class="tabbar-item" id="tab-portfolio" type="button" role="tab" aria-selected="false" aria-controls="panel-portfolio" data-tab="portfolio">
       <i class="ri-coin-line tabbar-icon" aria-hidden="true"></i>
       <span>投资组合</span>
+    </button>
+    <button class="tabbar-item" id="tab-retirement" type="button" role="tab" aria-selected="true" aria-controls="panel-retirement" data-tab="retirement">
+      <i class="ri-increase-decrease-line tabbar-icon" aria-hidden="true"></i>
+      <span>计算</span>
     </button>
     <button class="tabbar-item" id="tab-fx" type="button" role="tab" aria-selected="false" aria-controls="panel-fx" data-tab="fx">
       <i class="ri-money-dollar-circle-line tabbar-icon" aria-hidden="true"></i>
@@ -539,6 +542,35 @@
     </section>
   </div>
 
+  <div class="sheet-overlay profile-sheet-overlay" id="profile-sheet-overlay" hidden>
+    <div class="sheet-scrim" data-close-profile></div>
+    <form class="sheet-panel profile-sheet-panel" id="profile-form" role="dialog" aria-modal="true" aria-labelledby="profile-sheet-title">
+      <div class="sheet-grabber"></div>
+      <div class="sheet-head">
+        <button type="button" class="sheet-close-btn" id="profile-close-btn" aria-label="关闭个人资料">
+          <i class="ri-close-line" aria-hidden="true"></i>
+        </button>
+        <h2 class="sheet-title" id="profile-sheet-title">个人资料</h2>
+      </div>
+      <div class="sheet-body profile-sheet-body" data-dialog-scroll>
+        <div class="field">
+          <label class="field-label" for="profile-name">用户名</label>
+          <div class="input-shell">
+            <input id="profile-name" type="text" autocomplete="nickname" maxlength="20" placeholder="未设置时显示邮箱" />
+          </div>
+        </div>
+        <fieldset class="field profile-avatar-field">
+          <legend class="field-label">头像</legend>
+          <div class="profile-avatar-grid" id="profile-avatar-grid"></div>
+        </fieldset>
+        <p class="profile-account-line">登录账号 <span id="profile-email">—</span></p>
+      </div>
+      <div class="sheet-footer">
+        <button type="submit" class="calculate-btn" id="profile-submit-btn">保存</button>
+      </div>
+    </form>
+  </div>
+
   <div class="confirm-overlay" id="delete-confirm-overlay" hidden>
     <div class="sheet-scrim" data-close-confirm></div>
     <div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-confirm-title">
@@ -554,6 +586,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
-  <script src="app.js?v=63"></script>
+  <script src="app.js?v=66"></script>
 </body>
 </html>

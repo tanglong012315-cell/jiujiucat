@@ -24,3 +24,23 @@ create policy "holdings are private to their owner"
   for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- 用户资料（自定义用户名 + 头像）。和持仓分表：holdings 的 payload 是一整条
+-- 持仓，把用户名塞进去等于每条持仓存一份副本，改一次名要重写所有行。
+-- avatar 存的是 Remix Icon 的类名（如 ri-bear-smile-line），前端有白名单校验。
+create table if not exists public.profiles (
+  user_id       uuid        primary key references auth.users on delete cascade default auth.uid(),
+  display_name  text,
+  avatar        text,
+  updated_at    timestamptz not null default now()
+);
+
+-- 同上：anon key 是公开的，没有这段策略，拿到 key 就能读到所有人的用户名。
+alter table public.profiles enable row level security;
+
+drop policy if exists "profiles are private to their owner" on public.profiles;
+create policy "profiles are private to their owner"
+  on public.profiles
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);

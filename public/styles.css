@@ -443,8 +443,22 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   color: var(--ink-40); font-size: 12px; line-height: 16px;
 }
 .account-bar[hidden] { display: none; }
-.account-identity { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.account-identity > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 身份区现在是打开个人资料弹层的按钮。视觉要和原来那行纯文本一模一样，所以按钮
+   自带的边框/背景/内距全部抹掉，只留 hover 与 focus 的可点提示。 */
+.account-identity {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 0; border: 0; border-radius: 8px; background: none;
+  color: inherit; font-size: inherit; line-height: inherit; text-align: start;
+  cursor: pointer; transition-property: opacity; transition-duration: 150ms;
+}
+.account-identity > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (hover: hover) { .account-identity:hover { opacity: .7; } }
+.account-identity:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.account-avatar {
+  flex: 0 0 auto; width: 24px; height: 24px; border-radius: 999px;
+  display: grid; place-items: center; background: var(--ink-4); color: var(--ink-80);
+}
+.account-avatar i { font-size: 15px; line-height: 1; }
 .account-sync { margin-left: auto; flex: 0 0 auto; opacity: .8; }
 .account-signout {
   flex: 0 0 auto; padding: 4px 10px; border: 0; border-radius: 8px;
@@ -780,6 +794,23 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   box-shadow: 0 -12px 30px -26px rgba(0, 0, 0, .5);
 }
 .sheet-footer .calculate-btn { width: 100%; }
+.profile-sheet-body { display: flex; flex-direction: column; gap: 16px; }
+.profile-avatar-field { display: flex; flex-direction: column; }
+/* 固定 6 列而不是 auto-fill：12 个头像正好排成两整行，列数随宽度变的话最后
+   一行会剩下参差的两三个。 */
+.profile-avatar-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+/* 圆形是因为它就是头像：账号条上那个 24px 的圆点，在这里放大成可选项。 */
+.profile-avatar-option {
+  position: relative; aspect-ratio: 1; min-width: 0; padding: 0;
+  border: 0; border-radius: 999px; display: grid; place-items: center;
+  color: var(--ink-80); background: var(--ink-4); cursor: pointer;
+  transition-property: color, background-color; transition-duration: 150ms;
+}
+.profile-avatar-option i { font-size: clamp(20px, 4.6vw, 26px); line-height: 1; }
+@media (hover: hover) { .profile-avatar-option:hover { background: var(--ink-10); } }
+.profile-avatar-option[aria-pressed="true"] { color: var(--on-tint); background: var(--tint-blue); }
+.profile-avatar-option:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.profile-account-line { margin: 0; color: var(--ink-40); font-size: 12px; line-height: 16px; }
 #holding-form {
   min-height: 0; flex: 1 1 auto; overflow: hidden;
   display: flex; flex-direction: column; gap: 0;
@@ -1139,8 +1170,10 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
     transparent 100%);
 }
 /* Beam sits at each tab's centre: 1/6, 3/6, 5/6 across three equal tabs. */
-.tabbar:has(.tabbar-item[data-tab="retirement"][aria-selected="true"]) { --beam-x: calc(6px + (100% - 12px) / 6); --beam-color: var(--accent); }
-.tabbar:has(.tabbar-item[data-tab="portfolio"][aria-selected="true"]) { --beam-x: 50%; --beam-color: var(--glow-teal); }
+/* --beam-x 是按「第几格」写死的，所以调整 tabbar 里按钮的顺序必须同步改这里，
+   否则灯锥会照在另一个 tab 底下。2026-08-25 投资组合挪到第一格、计算挪到中间。 */
+.tabbar:has(.tabbar-item[data-tab="portfolio"][aria-selected="true"]) { --beam-x: calc(6px + (100% - 12px) / 6); --beam-color: var(--glow-teal); }
+.tabbar:has(.tabbar-item[data-tab="retirement"][aria-selected="true"]) { --beam-x: 50%; --beam-color: var(--accent); }
 .tabbar:has(.tabbar-item[data-tab="fx"][aria-selected="true"]) { --beam-x: calc(100% - 6px - (100% - 12px) / 6); --beam-color: var(--glow-pink); }
 /* Without backdrop-filter a 60% wash just leaks content through unblurred. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {

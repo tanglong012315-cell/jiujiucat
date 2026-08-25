@@ -40,22 +40,79 @@ const metricCny = value => (Math.abs(value) >= 10000 ? cnyWhole : cnyMoney).form
 // 而 assetLogoStatus 是 const，定义在后面会直接抛 TDZ 错误。
 const assetLogoStatus = new Map();
 
-// 加密货币走 CoinCap：它按「代码」索引，不需要维护代码→数字 ID 的映射表。
-// 之前用 CMC 时硬编码了 34 个主流币的 ID，OKB 这类没列进去的就只能显示首字母
-// ——那张表既漏又要人手维护，换成代码索引后整张表都不需要了。
+// 加密货币优先用 CoinMarketCap 的图：它跟着品牌更新，CoinCap 那套还停在几年前
+// （OKB 2025 年已经换成黑底棋盘格，CoinCap 至今给的是旧的蓝色渐变图）。
+//
+// CMC 只认数字 ID。曾经为此在前端硬编码过 34 个币的映射表，漏得多又要人手维护，
+// 所以当时整个换成了按代码索引的 CoinCap。这回换回来但不再硬编码：
+// /api/crypto-logos 由 Worker 拉一次市值前 1000 的列表、压成 {代码: ID} 返回，
+// 前端缓存一天。CoinCap 退居兜底 —— 1000 名开外、或改过代码的币（RNDR 在 CMC
+// 已经叫 RENDER）在表里找不到，仍然按代码去 CoinCap 试一次。
+const CRYPTO_ID_KEY = 'jiujiucat-cmc-crypto-ids';
+const CRYPTO_ID_TTL = 24 * 60 * 60 * 1000;
+
+function loadCachedCryptoIds() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(CRYPTO_ID_KEY) || 'null');
+    if (cached?.ids && Date.now() - Number(cached.savedAt) < CRYPTO_ID_TTL) return cached.ids;
+  } catch {
+    // 缓存坏了当没有，下面会重新拉。
+  }
+  return null;
+}
+
+let cryptoLogoIds = loadCachedCryptoIds() || {};
+
+async function refreshCryptoLogoIds() {
+  if (loadCachedCryptoIds()) return;
+  try {
+    const response = await fetch('/api/crypto-logos', { cache: 'no-store' });
+    if (!response.ok) throw new Error('crypto logo map failed');
+    const ids = await response.json();
+    if (!ids || typeof ids !== 'object' || Array.isArray(ids)) throw new Error('bad crypto logo map');
+    cryptoLogoIds = ids;
+    localStorage.setItem(CRYPTO_ID_KEY, JSON.stringify({ savedAt: Date.now(), ids }));
+    // 表通常比首屏晚到：清掉已经落到 CoinCap 的解析结果，重渲染一次换成 CMC 的图。
+    assetLogoStatus.clear();
+    renderMarketTicker(marketAssets[currentMarketIndex]);
+    if (!document.querySelector('#portfolio-app').hidden) renderHoldings();
+  } catch {
+    // 拿不到就继续用 CoinCap。logo 不在关键路径上，本地静态预览也没有这个端点。
+  }
+}
+
+const cmcLogo = id => `https://s2.coinmarketcap.com/static/img/coins/64x64/${id}.png`;
 const coinCapLogo = bare => `https://assets.coincap.io/assets/icons/${bare.toLowerCase()}@2x.png`;
 const parqetLogo = symbol => `https://assets.parqet.com/logos/symbol/${encodeURIComponent(symbol)}?format=png`;
+
+// 稳定生息持仓的「标的名」是用户手打的，可能是 USDT、USDG 这类代码，也可能是
+// 「活期」这种词。不像代码的就一个候选都不给，直接退首字母 —— 拿它去拼图片地址
+// 只会白打两次 404。
+const TICKER_PATTERN = /^[A-Z0-9]{1,12}$/;
+
+function cryptoLogoCandidates(bare) {
+  if (!TICKER_PATTERN.test(bare)) return [];
+  const id = Number(cryptoLogoIds[bare]);
+  // 校验成正整数再拼进 URL：这张表是从网络上拿的，别把任意内容拼进地址里。
+  return Number.isInteger(id) && id > 0 ? [cmcLogo(id), coinCapLogo(bare)] : [coinCapLogo(bare)];
+}
 
 // 判断是不是加密货币不能只看 assetType：旧持仓里的加密货币没存 -USD 后缀，
 // normalizeAsset 只能按后缀猜，ETH 这种会被判成 EQUITY（loadHoldings 的兼容
 // 特判只覆盖了 BTC）。所以两条候选都给出去，按序试第一个能加载的。
 function assetLogoCandidates(quoteSymbol, assetType) {
   const bare = quoteSymbol.replace(/-USD$/, '').toUpperCase();
-  const crypto = coinCapLogo(bare);
+  const crypto = cryptoLogoCandidates(bare);
   const stock = parqetLogo(quoteSymbol);
-  // 明确是加密货币就先试 CoinCap；否则先试股票源，失败再按「可能是漏判类型的
-  // 旧数据」补试一次加密源。
-  return assetType === 'CRYPTOCURRENCY' ? [crypto, stock] : [stock, crypto];
+  // 稳定生息持仓的 assetType 是 'STABLE'，填的标的名就是 USDT / USDG 这类稳定币
+  // ——它们在 Parqet（股票/ETF 源）永远 404，得和加密货币一样先走加密源。
+  // 之前没算上这一类，USDT 每次都是先白打一次 Parqet 404，再落到兜底的 CoinCap，
+  // 拿到的正是那张旧的渐变圆图，CMC 那条候选根本轮不上。
+  const cryptoFirst = assetType === 'CRYPTOCURRENCY' || assetType === 'STABLE';
+  // 手打的名字不像代码时 crypto 是空的，这时连 Parqet 都不用试。
+  if (cryptoFirst) return crypto.length ? [...crypto, stock] : [];
+  // 其余先试股票源，失败再按「可能是漏判类型的旧数据」补试一次加密源。
+  return [stock, ...crypto];
 }
 
 function applyAssetLogo(element, quoteSymbol, fallbackText, assetType) {
@@ -223,13 +280,26 @@ function renderMarketTicker(asset) {
   document.querySelector('.btc-ticker').title = `${asset.name}/USD 实时行情；${asset.basis}涨跌幅${session ? `；美股${session.full}` : ''}`;
 }
 
+// 走势序列统一存成 [时间戳(ms), 价格] 对。只存价格数组时没法按时间对齐 ——
+// 组合走势图要把好几个标的叠在一起，而它们的 K 线根数和覆盖时长都不一样。
+// 旧缓存里就是纯数字数组，这里直接丢掉，下一轮刷新会换成新格式。
+const SERIES_MAX_POINTS = 240;
+
+function normalizeSeries(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(point => Array.isArray(point) && Number.isFinite(Number(point[0])) && Number(point[1]) > 0)
+    .map(point => [Number(point[0]), Number(point[1])])
+    .sort((a, b) => a[0] - b[0]);
+}
+
 function setMarketData(symbol, price, change, cached = false, status = '暂不可用', basis, series = []) {
   const asset = marketAssets.find(item => item.symbol === symbol);
   if (!asset) return;
   if (basis) asset.basis = basis;
   asset.price = Number.isFinite(price) ? price : null;
   asset.change = Number.isFinite(change) ? change : null;
-  if (Array.isArray(series) && series.length > 1) asset.series = series.filter(Number.isFinite);
+  if (Array.isArray(series) && series.length > 1) asset.series = normalizeSeries(series);
   asset.cached = cached;
   asset.status = Number.isFinite(price) ? '' : status;
   if (marketAssets[currentMarketIndex] === asset) renderMarketTicker(asset);
@@ -281,7 +351,10 @@ async function updateBitcoinPrice() {
     if (!response.ok) throw new Error('Bitcoin price request failed');
     const data = await response.json();
     const prices = Array.isArray(data?.prices) ? data.prices : [];
-    const series = prices.map(point => Number(point?.[1])).filter(value => Number.isFinite(value) && value > 0);
+    const series = prices
+      .filter(point => Number.isFinite(Number(point?.[0])) && Number(point?.[1]) > 0)
+      .map(point => [Number(point[0]), Number(point[1])])
+      .slice(-SERIES_MAX_POINTS);
     let openingPrice = NaN;
     for (const point of prices) {
       if (Number(point?.[0]) > dayStart * 1000) break;
@@ -348,7 +421,13 @@ async function fetchBeijingQuote(symbol) {
     const price = Number(result?.meta?.regularMarketPrice);
     const timestamps = Array.isArray(result?.timestamp) ? result.timestamp : [];
     const closes = result?.indicators?.quote?.[0]?.close ?? [];
-    const series = closes.filter(Number.isFinite).map(Number).slice(-80);
+    // Yahoo 的 timestamp 是秒，序列统一用毫秒。原来只留最后 80 根收盘价：
+    // 加密货币 24 小时连续成交，80 根 30 分钟线只有 40 小时，美股 80 根却横跨
+    // 整整 5 天 —— 两条序列叠在一起画的时候完全对不上。
+    const series = timestamps
+      .map((time, index) => [Number(time) * 1000, Number(closes[index])])
+      .filter(point => Number.isFinite(point[0]) && Number.isFinite(point[1]) && point[1] > 0)
+      .slice(-SERIES_MAX_POINTS);
     const dayStart = getBeijingDayStartUnix();
     let reference = NaN;
     for (let i = 0; i < timestamps.length; i++) {
@@ -900,6 +979,7 @@ fxState.amount = readFxAmount();
 renderFxRows();
 const savedTab = localStorage.getItem('jiujiu-active-tab');
 activateTab(['retirement', 'portfolio', 'fx'].includes(savedTab) ? savedTab : 'retirement');
+refreshCryptoLogoIds();
 updateExchangeRate();
 setInterval(updateExchangeRate, 15 * 60 * 1000);
 renderMarketTicker(marketAssets[0]);
@@ -1315,60 +1395,69 @@ function holdingMetrics(holding, timestamp = Date.now()) {
   };
 }
 
+// 走势图的时间轴：最近 5 个交易日，48 个采样点。
+const TREND_POINT_COUNT = 48;
+const TREND_WINDOW_MS = 5 * DAY_MS;
+
+// 各标的的价格序列必须先对齐到同一条时间轴再相加。之前是按「数组下标」按比例
+// 对齐的：加密货币一天 48 根 30 分钟线、美股一天只有 13 根，同样根数覆盖的真实
+// 时间差好几倍，叠出来的曲线根本不是时间序列；每刷新一次各自的窗口滑动幅度还
+// 不一样，形状自然一直在变。问题不在「数据时间太短」，在对齐方式。
 function portfolioProfitTrendValues() {
-  const interestHoldings = holdings.filter(holding => holding.holdingKind === 'interest');
+  if (!holdings.length) return [];
+  const now = Date.now();
+  const grid = Array.from({ length: TREND_POINT_COUNT }, (_, index) =>
+    now - TREND_WINDOW_MS * (TREND_POINT_COUNT - 1 - index) / (TREND_POINT_COUNT - 1));
+  const totals = new Array(TREND_POINT_COUNT).fill(0);
+  // 至少得有一个随时间变化的来源，否则画出来是条直线，不如老实说没有历史数据。
+  let hasHistory = false;
 
-  // 生息资产按北京时间每日 16:00 结算。存在生息持仓时，走势图固定使用最近
-  // 7 天；市价资产的当前浮盈亏作为基线，生息收益在其上逐日累加。
-  if (interestHoldings.length) {
-    let marketProfit = 0;
-    for (const holding of holdings.filter(item => item.holdingKind !== 'interest')) {
-      const metrics = holdingMetrics(holding);
-      if (!metrics.hasValue || !Number.isFinite(metrics.profit)) return [];
-      marketProfit += metrics.profit;
-    }
-    const currentDays = interestHoldings.map(holding => settledInterestDays(holding));
-    const pointCount = 7;
-    return Array.from({ length: pointCount }, (_, index) => {
-      const daysAgo = pointCount - 1 - index;
-      const interest = interestHoldings.reduce((total, holding, holdingIndex) => {
-        return total + holdingInterestForDays(holding, Math.max(0, currentDays[holdingIndex] - daysAgo));
-      }, 0);
-      return marketProfit + interest;
-    });
-  }
-
-  const sources = [];
-  let hasHistoricalSource = false;
   for (const holding of holdings) {
+    // 生息持仓本身就是时间的函数，直接按每个采样时刻算已结算的利息。
+    if (holding.holdingKind === 'interest') {
+      if (!(Number(holding.principal) > 0)) return [];
+      grid.forEach((time, index) => { totals[index] += holdingAccruedInterest(holding, time); });
+      hasHistory = true;
+      continue;
+    }
     const quantity = Number(holding.quantity);
     const costPerShare = Number(holding.costPerShare);
-    // 成本或当前价缺失时无法计算这笔持仓对组合盈亏的贡献。
+    // 成本或数量缺失时无法计算这笔持仓对组合盈亏的贡献。
     if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(costPerShare) || costPerShare <= 0) return [];
-    const known = marketAssets.find(asset => asset.symbol === holding.symbol);
-    const fetched = holdingPrices.get(holding.quoteSymbol || holding.symbol);
-    const sourceSeries = known?.series?.length > 1 ? known.series : fetched?.series;
-    let values = Array.isArray(sourceSeries)
-      ? sourceSeries.filter(value => Number.isFinite(value) && value > 0)
-      : [];
-    if (values.length > 1) {
-      hasHistoricalSource = true;
-    } else {
-      // 手动价格或 TradingView 备用报价只有当前点。它们应作为恒定基线参与
-      // 组合，而不是让任意一笔缺历史的持仓把整张走势图降级为直线。
-      const currentPrice = resolveHoldingPrice(holding);
-      if (!Number.isFinite(currentPrice) || currentPrice <= 0) return [];
-      values = [currentPrice, currentPrice];
+    const history = holdingPriceHistory(holding);
+    if (history.length > 1) {
+      hasHistory = true;
+      resampleSeries(history, grid).forEach((price, index) => {
+        totals[index] += (price - costPerShare) * quantity;
+      });
+      continue;
     }
-    sources.push({ quantity, costPerShare, values });
+    // 手动价格、TradingView 备用报价只有当前一个点：作为恒定基线参与组合，
+    // 而不是让任意一笔缺历史的持仓把整张图拉成直线。
+    const price = resolveHoldingPrice(holding);
+    if (!Number.isFinite(price) || price <= 0) return [];
+    const profit = (price - costPerShare) * quantity;
+    for (let index = 0; index < totals.length; index++) totals[index] += profit;
   }
+  return hasHistory ? totals : [];
+}
 
-  if (!sources.length || !hasHistoricalSource) return [];
-  const pointCount = Math.min(48, Math.max(2, ...sources.map(source => source.values.length)));
-  return Array.from({ length: pointCount }, (_, index) => sources.reduce((total, source) => {
-    const sourceIndex = Math.round((index / (pointCount - 1)) * (source.values.length - 1));
-    return total + (source.values[sourceIndex] - source.costPerShare) * source.quantity;
-  }, 0));
+function holdingPriceHistory(holding) {
+  const known = normalizeSeries(marketAssets.find(asset => asset.symbol === holding.symbol)?.series);
+  if (known.length > 1) return known;
+  return normalizeSeries(holdingPrices.get(holding.quoteSymbol || holding.symbol)?.series);
+}
+
+// 前向填充式重采样：每个时刻取该时刻之前最后一个已知价。序列开始之前的时刻用
+// 最早的价格兜底 —— 覆盖时长比别人短的标的（如只回溯 40 小时的加密货币）在前
+// 半段保持水平，而不是凭空插值出一段假行情。
+function resampleSeries(points, grid) {
+  let cursor = 0;
+  let last = points[0][1];
+  return grid.map(time => {
+    while (cursor < points.length && points[cursor][0] <= time) last = points[cursor++][1];
+    return last;
+  });
 }
 
 function renderPortfolioSparkline(tone) {
@@ -1607,23 +1696,36 @@ function mergedHoldingModel(group) {
   };
 }
 
-function createMergedHoldingGroup(group) {
+// 展开状态记在渲染之外：持仓列表每 60 秒整体重建一次（renderHoldings 用
+// replaceChildren），状态挂在 DOM 上的话展开的组会自己合上。
+const expandedHoldingGroups = new Set();
+
+function createMergedHoldingGroup(group, key) {
   const wrapper = document.createElement('div');
   wrapper.className = 'holding-group';
   const summary = document.createElement('button');
   summary.type = 'button';
   summary.className = 'holding-row holding-group-summary';
-  summary.setAttribute('aria-label', `查看 ${group[0].symbol} 合并持仓盈亏明细`);
   appendHoldingRowContent(summary, mergedHoldingModel(group), true);
 
   const lots = document.createElement('div');
   lots.className = 'holding-group-lots';
-  lots.hidden = true;
   lots.replaceChildren(...group.map(holding => createHoldingRow(holding, 'holding-row holding-subrow')));
-  summary.addEventListener('click', () => openProfitSheet(group, {
-    label: `查看 ${group.length} 笔持仓`,
-    action: () => { lots.hidden = false; lots.querySelector('button')?.focus(); }
-  }));
+
+  // 合并卡点开是展开这一组的明细，不再是盈亏弹层：合并后用户想看的是「这几笔
+  // 分别是什么」，单笔的盈亏明细在展开后的子行上照样点得到。
+  const applyExpanded = expanded => {
+    lots.hidden = !expanded;
+    summary.setAttribute('aria-expanded', String(expanded));
+    summary.setAttribute('aria-label',
+      `${expanded ? '收起' : '展开'} ${group[0].symbol} 的 ${group.length} 笔持仓`);
+  };
+  applyExpanded(expandedHoldingGroups.has(key));
+  summary.addEventListener('click', () => {
+    const expanded = !expandedHoldingGroups.has(key);
+    if (expanded) expandedHoldingGroups.add(key); else expandedHoldingGroups.delete(key);
+    applyExpanded(expanded);
+  });
   wrapper.append(summary, lots);
   return wrapper;
 }
@@ -1644,8 +1746,8 @@ function renderHoldings() {
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(holding);
     });
-    list.replaceChildren(...[...groups.values()].map(group => (
-      group.length > 1 ? createMergedHoldingGroup(group) : createHoldingRow(group[0])
+    list.replaceChildren(...[...groups.entries()].map(([key, group]) => (
+      group.length > 1 ? createMergedHoldingGroup(group, key) : createHoldingRow(group[0])
     )));
   } else {
     list.replaceChildren(...holdings.map(holding => createHoldingRow(holding)));
@@ -2679,6 +2781,7 @@ mergeHoldingsInput.addEventListener('change', () => {
 document.addEventListener('keydown', event => {
   if (event.key !== 'Escape') return;
   if (!document.querySelector('#delete-confirm-overlay').hidden) return closeDeleteConfirm();
+  if (!document.querySelector('#profile-sheet-overlay').hidden) return closeProfileSheet();
   if (!document.querySelector('#dividend-frequency-overlay').hidden) return closeDividendFrequencySheet();
   if (!document.querySelector('#asset-search-overlay').hidden) return closeAssetSearch();
   if (!document.querySelector('#dividend-records-overlay').hidden) return closeDividendRecordsSheet();
@@ -2735,14 +2838,174 @@ function maskEmail(email) {
   return `${masked}@${domain}`;
 }
 
+// ── 个人资料（用户名 + 头像）─────────────────────────────────────────
+//
+// 单独一张 profiles 表，不塞进 holdings 的 payload：那个 payload 是一整条持仓，
+// 用户名放进去等于每条持仓都存一份副本，改名还得逐条重写。见 supabase/schema.sql。
+const PROFILE_KEY = 'jiujiucat-profile';
+const DEFAULT_AVATAR = 'ri-bear-smile-line';
+// 头像值会直接当成 <i> 的 class 用，而云端那一行是用户自己可写的 —— 取值必须
+// 限定在这张表里，不能把任意字符串当类名塞进 DOM。
+const PROFILE_AVATARS = [
+  { icon: 'ri-bear-smile-line', label: '小熊' },
+  { icon: 'ri-mickey-line', label: '米奇' },
+  { icon: 'ri-aliens-line', label: '外星人' },
+  { icon: 'ri-ghost-smile-line', label: '幽灵' },
+  { icon: 'ri-star-smile-line', label: '星星' },
+  { icon: 'ri-emotion-laugh-line', label: '笑脸' },
+  { icon: 'ri-robot-2-line', label: '机器人' },
+  { icon: 'ri-planet-line', label: '星球' },
+  { icon: 'ri-rocket-line', label: '火箭' },
+  { icon: 'ri-flower-line', label: '小花' },
+  { icon: 'ri-fire-line', label: '火苗' },
+  { icon: 'ri-magic-line', label: '魔法棒' }
+];
+const PROFILE_AVATAR_ICONS = new Set(PROFILE_AVATARS.map(item => item.icon));
+const PROFILE_NAME_MAX = 20;
+
+function normalizeProfile(raw) {
+  return {
+    name: typeof raw?.name === 'string' ? raw.name.trim().slice(0, PROFILE_NAME_MAX) : '',
+    avatar: PROFILE_AVATAR_ICONS.has(raw?.avatar) ? raw.avatar : DEFAULT_AVATAR,
+    updatedAt: Number(raw?.updatedAt) || 0
+  };
+}
+
+function loadProfile() {
+  try {
+    return normalizeProfile(JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}'));
+  } catch {
+    return normalizeProfile(null);
+  }
+}
+
+let profile = loadProfile();
+let profileDraftAvatar = profile.avatar;
+let profileSheetTrigger = null;
+let profileSheetCloseTimer = null;
+
 function renderAccountBar() {
   const bar = document.querySelector('#account-bar');
   bar.hidden = !currentUser;
-  if (currentUser) {
-    document.querySelector('#account-email').textContent =
-      currentUser.email ? maskEmail(currentUser.email) : '已登录';
+  if (!currentUser) return;
+  const masked = currentUser.email ? maskEmail(currentUser.email) : '已登录';
+  // 设了用户名就以用户名为准，脱敏邮箱退到资料弹层里 —— 一行 12px 的元信息塞
+  // 两个身份标识，两个都会被挤到省略号。
+  document.querySelector('#account-name').textContent = profile.name || masked;
+  document.querySelector('#account-avatar-icon').className = profile.avatar;
+  document.querySelector('#account-profile-btn')
+    .setAttribute('aria-label', `个人资料：${profile.name || masked}`);
+  document.querySelector('#profile-email').textContent = masked;
+}
+
+async function pullCloudProfile() {
+  const { data, error } = await cloud
+    .from('profiles')
+    .select('display_name, avatar, updated_at')
+    .eq('user_id', currentUser.id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return normalizeProfile({
+    name: data.display_name,
+    avatar: data.avatar,
+    updatedAt: Date.parse(data.updated_at)
+  });
+}
+
+async function pushCloudProfile() {
+  const { error } = await cloud.from('profiles').upsert({
+    user_id: currentUser.id,
+    display_name: profile.name || null,
+    avatar: profile.avatar,
+    updated_at: new Date(profile.updatedAt || Date.now()).toISOString()
+  });
+  if (error) throw error;
+}
+
+// 独立于持仓同步，且自己吞掉错误：profiles 表要在 Supabase 控制台手动建，没建
+// 之前这里必然报错 —— 不能让它把持仓的「已同步」状态也一起拖成失败，那是两件事。
+async function syncProfile() {
+  if (!cloud || !currentUser) return;
+  try {
+    const remote = await pullCloudProfile();
+    // 退出会清掉本机资料，所以登录后通常直接收下云端那份；只有「本机改过、且比
+    // 云端新」时才反过来推上去（例如在另一台设备改完这台还没拉过）。
+    if (remote && remote.updatedAt >= profile.updatedAt) {
+      profile = remote;
+      profileDraftAvatar = profile.avatar;
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+      renderAccountBar();
+    } else if (profile.updatedAt) {
+      await pushCloudProfile();
+    }
+  } catch {
+    // 资料同步不上只影响显示名，持仓不受影响，不值得打断用户。
   }
 }
+
+function setProfileDraftAvatar(icon) {
+  profileDraftAvatar = PROFILE_AVATAR_ICONS.has(icon) ? icon : DEFAULT_AVATAR;
+  document.querySelectorAll('.profile-avatar-option').forEach(option => {
+    option.setAttribute('aria-pressed', String(option.dataset.avatar === profileDraftAvatar));
+  });
+}
+
+const profileAvatarGrid = document.querySelector('#profile-avatar-grid');
+PROFILE_AVATARS.forEach(({ icon, label }) => {
+  const option = document.createElement('button');
+  option.type = 'button';
+  option.className = 'profile-avatar-option';
+  option.dataset.avatar = icon;
+  option.setAttribute('aria-pressed', 'false');
+  option.setAttribute('aria-label', `头像 ${label}`);
+  option.innerHTML = `<i class="${icon}" aria-hidden="true"></i>`;
+  option.addEventListener('click', () => setProfileDraftAvatar(icon));
+  profileAvatarGrid.append(option);
+});
+
+function openProfileSheet() {
+  clearTimeout(profileSheetCloseTimer);
+  profileSheetTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  document.querySelector('#profile-name').value = profile.name;
+  setProfileDraftAvatar(profile.avatar);
+  openOverlay(document.querySelector('#profile-sheet-overlay'));
+}
+
+function closeProfileSheet(restoreFocus = true) {
+  const overlay = document.querySelector('#profile-sheet-overlay');
+  overlay.classList.remove('is-open');
+  const trigger = profileSheetTrigger;
+  profileSheetCloseTimer = setTimeout(() => {
+    overlay.hidden = true;
+    if (restoreFocus && trigger?.isConnected) trigger.focus();
+    profileSheetTrigger = null;
+  }, 220);
+}
+
+document.querySelector('#account-profile-btn').addEventListener('click', openProfileSheet);
+document.querySelector('#profile-close-btn').addEventListener('click', () => closeProfileSheet());
+[...document.querySelectorAll('[data-close-profile]')]
+  .forEach(el => el.addEventListener('click', () => closeProfileSheet()));
+
+document.querySelector('#profile-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  profile = normalizeProfile({
+    name: document.querySelector('#profile-name').value,
+    avatar: profileDraftAvatar,
+    updatedAt: Date.now()
+  });
+  // 先落本地再推云端：本地是即时读取源，网络失败也不该让刚改的名字弹回去。
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  renderAccountBar();
+  closeProfileSheet();
+  if (!cloud || !currentUser) return;
+  try {
+    await pushCloudProfile();
+  } catch {
+    showToast('资料已存在本机，云端同步失败');
+  }
+});
 
 async function pullCloudHoldings() {
   const { data, error } = await cloud.from('holdings').select('payload').eq('user_id', currentUser.id);
@@ -2804,6 +3067,7 @@ async function handleSignedIn(user) {
     sessionStorage.removeItem(PENDING_LOGIN_KEY);
     document.querySelector('#tab-portfolio').click();
   }
+  syncProfile();
   setSyncStatus('同步中…');
   try {
     holdings = mergeHoldings(holdings, await pullCloudHoldings());
@@ -2827,6 +3091,10 @@ function handleSignedOut() {
   holdings = [];
   resetHoldingFingerprints();
   localStorage.removeItem(PORTFOLIO_KEY);
+  // 资料和持仓同理：这台设备换个 Google 账号登进来，不该继承上一个人的用户名和头像。
+  localStorage.removeItem(PROFILE_KEY);
+  profile = normalizeProfile(null);
+  profileDraftAvatar = profile.avatar;
   renderAccountBar();
   renderHoldings();
   document.querySelector('#portfolio-gate').hidden = false;

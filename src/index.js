@@ -58,6 +58,56 @@ async function handleQuote(url) {
   });
 }
 
+// 加密货币图标的「代码 → CMC 数字 ID」映射表。
+//
+// 为什么要绕这一圈：CoinMarketCap 的图是跟着品牌更新的（OKB 2025 年换成黑底
+// 棋盘格那版，CoinCap 到现在还是旧的蓝色渐变图），但它只认数字 ID。前端曾经
+// 硬编码过 34 个币的 ID，漏得多又要人手维护。这里改成拉一次市值前 1000 的
+// 列表、压成 {代码: ID} 返回（约 15KB），前端缓存一天，映射表不再进代码。
+//
+// 用的是 CMC 站内的非公开接口，随时可能变。挂了就返回 502，前端会继续用
+// CoinCap —— logo 不在关键路径上。
+async function handleCryptoLogos() {
+  const upstream =
+    'https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing' +
+    '?start=1&limit=1000&sortBy=market_cap&sortType=desc&cryptoType=all&tagType=all';
+
+  const response = await fetch(upstream, {
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+        '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': 'application/json'
+    },
+    // 上游响应 1.3MB，边缘缓存 6 小时：币的排名会动，但图标 ID 一旦分配就不变。
+    cf: { cacheTtl: 21600, cacheEverything: true }
+  });
+
+  if (!response.ok) {
+    return Response.json({ error: 'upstream failed' }, { status: 502 });
+  }
+
+  const data = await response.json();
+  const list = data?.data?.cryptoCurrencyList;
+  if (!Array.isArray(list)) {
+    return Response.json({ error: 'unexpected upstream shape' }, { status: 502 });
+  }
+
+  const ids = {};
+  for (const coin of list) {
+    const symbol = String(coin?.symbol || '').toUpperCase();
+    // 同一个代码会被多个币占用（山寨币蹭代码）。列表按市值降序，先出现的那个
+    // 才是用户想看到的那一个，所以只认第一次出现。
+    if (symbol && Number.isInteger(coin?.id) && coin.id > 0 && !(symbol in ids)) {
+      ids[symbol] = coin.id;
+    }
+  }
+
+  return Response.json(ids, {
+    headers: { 'Cache-Control': 'public, max-age=21600' }
+  });
+}
+
 async function handleSearch(url) {
   const query = (url.searchParams.get('q') || '').trim();
   if (!query || query.length > 40 || /[\u0000-\u001f\u007f]/.test(query)) {
@@ -127,6 +177,17 @@ export default {
         return await handleSearch(url);
       } catch {
         return Response.json({ error: 'search error' }, { status: 502 });
+      }
+    }
+
+    if (url.pathname === '/api/crypto-logos') {
+      if (request.method !== 'GET') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      try {
+        return await handleCryptoLogos();
+      } catch {
+        return Response.json({ error: 'crypto logo error' }, { status: 502 });
       }
     }
 
