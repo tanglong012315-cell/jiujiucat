@@ -1690,9 +1690,12 @@ function holdingRowModel(holding) {
 }
 
 function appendHoldingRowContent(row, model, expandable = false) {
+  // 合并组展开后的子行不放 logo：同一个标的的几笔仓位，图标一模一样地竖着排
+  // 四个，只是在重复上面那一行已经说过的话。
+  const isSubrow = row.classList.contains('holding-subrow');
   const logo = document.createElement('span');
   logo.className = 'holding-logo';
-  applyAssetLogo(logo, model.quoteSymbol, model.symbol.slice(0, 2), model.assetType, model.name);
+  if (!isSubrow) applyAssetLogo(logo, model.quoteSymbol, model.symbol.slice(0, 2), model.assetType, model.name);
 
   const meta = document.createElement('span');
   meta.className = 'holding-meta';
@@ -1770,7 +1773,8 @@ function appendHoldingRowContent(row, model, expandable = false) {
     right.append(hint);
   }
 
-  row.append(logo, meta, right);
+  if (isSubrow) row.append(meta, right);
+  else row.append(logo, meta, right);
 }
 
 function createHoldingRow(holding, className = 'holding-row') {

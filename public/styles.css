@@ -649,7 +649,13 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   display: flex; flex-direction: column; gap: 4px; padding-inline-start: 20px;
 }
 .holding-group-lots[hidden] { display: none; }
-.holding-subrow { background: transparent; box-shadow: inset 0 0 0 1px var(--ink-10); }
+/* 子行没有 logo（见 appendHoldingRowContent），所以少一列 —— 不改列定义的话
+   第一条轨道会空着，只留下一段说不清来历的缩进。 */
+.holding-subrow {
+  grid-template-columns: minmax(0, 1fr) auto;
+  background: transparent; box-shadow: inset 0 0 0 1px var(--ink-10);
+}
+@media (max-width: 359px) { .holding-subrow { grid-template-columns: minmax(0, 1fr); } }
 .holding-expand {
   /* 不参与收缩：窄屏上它会被压到「3」和「笔」上下断开。 */
   flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px;
