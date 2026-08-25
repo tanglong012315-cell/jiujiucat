@@ -1016,6 +1016,8 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
     0 0 0 6px var(--bg-1), 0 0 0 8px var(--ink);
 }
 .cat-cell { gap: 6px; }
+/* 长按看大图：别让系统的「保存图片」菜单和文字选中插进来。 */
+.cat-cell { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
 .cat-name { min-height: 16px; font-size: 12px; line-height: 16px; font-weight: 550; }
 /* 介绍是次要信息：小一号、淡一档，和名字拉开层级。 */
 .cat-desc {
@@ -1032,6 +1034,35 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 }
 .cat-name:empty::after { width: 32px; }
 .cat-desc:empty::after { width: 60px; background: var(--ink-4); }
+/* 大图：盖在猫弹层之上的一层。相片沿用白边 + 投影，只是放大。 */
+.photo-viewer {
+  position: fixed; inset: 0; z-index: 40;
+  display: grid; place-items: center; padding: 24px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 200ms ease-out;
+}
+.photo-viewer[hidden] { display: none; }
+.photo-viewer.is-open { opacity: 1; pointer-events: auto; }
+.photo-viewer-scrim {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  padding: 0; border: 0; background: rgba(0, 0, 0, .72); cursor: zoom-out;
+}
+.photo-viewer-frame {
+  position: relative; z-index: 1; margin: 0; max-width: min(420px, 100%);
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  pointer-events: none;
+}
+.photo-viewer-frame img {
+  max-width: 100%; max-height: min(70vh, 520px); display: block;
+  border: 6px solid #ffffff; background: #ffffff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
+}
+.photo-viewer-frame figcaption {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  color: #ffffff; text-align: center;
+}
+.photo-viewer-frame strong { font-size: 15px; line-height: 22px; font-weight: 600; }
+.photo-viewer-frame span { color: rgba(255, 255, 255, .7); font-size: 12px; line-height: 18px; }
 .records-more-note { margin: 0; padding-block: 14px; color: var(--ink-40); font-size: 11px; line-height: 16px; text-align: center; }
 .dividend-records-empty { margin: 0; padding-block: 28px; color: var(--ink-40); font-size: 13px; line-height: 20px; text-align: center; }
 /* 利息按天列，一个月就是 30 条。月份小标题吸顶，滚到哪个月一眼看得到；

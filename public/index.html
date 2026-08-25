@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=94" />
+  <link rel="stylesheet" href="styles.css?v=95" />
 </head>
 <body>
   <header class="topbar">
@@ -588,10 +588,21 @@
         </button>
       </div>
       <div class="sheet-body cat-sheet-body" data-dialog-scroll>
-        <p class="cat-sheet-note" id="cat-sheet-note">这是我们家的九只猫。点一只，把它设成头像。</p>
+        <p class="cat-sheet-note" id="cat-sheet-note">这是我们家的九只猫。点一只设成头像，长按看大图。</p>
         <div class="cat-grid" id="cat-grid"></div>
       </div>
     </section>
+  </div>
+
+  <div class="photo-viewer" id="cat-photo-viewer" hidden>
+    <button type="button" class="photo-viewer-scrim" data-close-photo aria-label="关闭大图"></button>
+    <figure class="photo-viewer-frame">
+      <img id="cat-photo-viewer-img" src="" alt="" />
+      <figcaption>
+        <strong id="cat-photo-viewer-name"></strong>
+        <span id="cat-photo-viewer-desc"></span>
+      </figcaption>
+    </figure>
   </div>
 
   <div class="confirm-overlay" id="delete-confirm-overlay" hidden>
@@ -609,6 +620,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
-  <script src="app.js?v=94"></script>
+  <script src="app.js?v=95"></script>
 </body>
 </html>

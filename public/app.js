@@ -3088,6 +3088,7 @@ mergeHoldingsInput.addEventListener('change', () => {
 document.addEventListener('keydown', event => {
   if (event.key !== 'Escape') return;
   if (!document.querySelector('#delete-confirm-overlay').hidden) return closeDeleteConfirm();
+  if (!document.querySelector('#cat-photo-viewer').hidden) return closeCatPhoto();
   if (!document.querySelector('#cat-sheet-overlay').hidden) return closeCatSheet();
   if (!document.querySelector('#profile-sheet-overlay').hidden) return closeProfileSheet();
   if (!document.querySelector('#dividend-frequency-overlay').hidden) return closeDividendFrequencySheet();
@@ -3418,10 +3419,66 @@ function renderCatGrid() {
     desc.textContent = cat.desc || '';
 
     cell.append(photo, name, desc);
-    if (cat.file) cell.addEventListener('click', () => chooseCatAvatar(cat));
+    if (cat.file) bindCatCellGestures(cell, cat);
     return cell;
   }));
 }
+
+// 短按设头像、长按看大图。两个手势挂在同一个元素上，长按触发后要把随之而来
+// 的那次 click 吃掉，否则手一松就顺带把头像也换了。
+const CAT_LONG_PRESS_MS = 500;
+
+function bindCatCellGestures(cell, cat) {
+  let pressTimer = null;
+  let longPressed = false;
+  const cancel = () => clearTimeout(pressTimer);
+
+  cell.addEventListener('pointerdown', () => {
+    longPressed = false;
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => {
+      longPressed = true;
+      openCatPhoto(cat);
+    }, CAT_LONG_PRESS_MS);
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(type => cell.addEventListener(type, cancel));
+  // 移动端长按图片会弹系统菜单（保存图片/拷贝），把它挡掉。
+  cell.addEventListener('contextmenu', event => event.preventDefault());
+  cell.addEventListener('click', event => {
+    if (!longPressed) return chooseCatAvatar(cat);
+    event.preventDefault();
+    longPressed = false;
+  });
+}
+
+let catPhotoTrigger = null;
+let catPhotoCloseTimer = null;
+
+function openCatPhoto(cat) {
+  clearTimeout(catPhotoCloseTimer);
+  catPhotoTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const image = document.querySelector('#cat-photo-viewer-img');
+  image.src = cat.file;
+  image.alt = cat.name ? `${cat.name}的照片` : '猫的照片';
+  document.querySelector('#cat-photo-viewer-name').textContent = cat.name;
+  document.querySelector('#cat-photo-viewer-desc').textContent = cat.desc || '';
+  openOverlay(document.querySelector('#cat-photo-viewer'));
+  document.querySelector('.photo-viewer-scrim').focus();
+}
+
+function closeCatPhoto(restoreFocus = true) {
+  const overlay = document.querySelector('#cat-photo-viewer');
+  overlay.classList.remove('is-open');
+  const trigger = catPhotoTrigger;
+  catPhotoCloseTimer = setTimeout(() => {
+    overlay.hidden = true;
+    if (restoreFocus && trigger?.isConnected) trigger.focus();
+    catPhotoTrigger = null;
+  }, 220);
+}
+
+[...document.querySelectorAll('[data-close-photo]')]
+  .forEach(el => el.addEventListener('click', () => closeCatPhoto()));
 
 async function chooseCatAvatar(cat) {
   // 头像属于账号资料，没登录就没地方存 —— 和资料弹层里那条规则保持一致。
