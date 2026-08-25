@@ -617,12 +617,20 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .holding-qty { overflow: hidden; opacity: .55; font-size: 11px; line-height: 16px; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .holding-row.has-dividend-dates { flex-wrap: wrap; }
 .holding-dividend-dates {
-  flex: 0 0 100%; display: flex; align-items: baseline; justify-content: flex-start; gap: 6px;
+  /* 允许折行：最窄的 320px 屏上，两个日期加一个「每月两次分红」是排不下的，
+     不折行的话这一行会顶破卡片（各段自身都是 nowrap，缩不动）。折行后频率
+     掉到第二行、仍然靠右。 */
+  flex: 0 0 100%; display: flex; flex-wrap: wrap; align-items: baseline;
+  justify-content: flex-start; gap: 2px 6px;
   padding-top: 10px; border-top: 1px solid var(--ink-10);
   color: var(--ink-40); font-size: 11px; line-height: 16px; font-variant-numeric: tabular-nums;
 }
 .holding-dividend-dates > span { min-width: 0; display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
 .holding-dividend-dates > span + span::before { content: "·"; margin-inline-end: 2px; color: var(--ink-40); }
+/* 频率排在最右端：靠 auto margin 推过去，它就不再是紧跟着日期的一段，
+   所以那个分隔点也要一并吃掉，否则右侧会孤零零挂一个「·」。 */
+.holding-dividend-frequency { margin-inline-start: auto; }
+.holding-dividend-dates > span + .holding-dividend-frequency::before { content: none; margin-inline-end: 0; }
 .holding-dividend-dates small { flex: 0 0 auto; color: inherit; font: inherit; }
 .holding-dividend-dates strong {
   overflow: hidden; color: var(--ink); font-size: 11px; font-weight: 550;
@@ -947,6 +955,17 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .dividend-record-delete:focus-visible { outline: 2px solid var(--loss); outline-offset: 1px; }
 .dividend-record-delete > i { font-size: 18px; line-height: 1; }
 .dividend-records-empty { margin: 0; padding-block: 28px; color: var(--ink-40); font-size: 13px; line-height: 20px; text-align: center; }
+/* 利息按天列，一个月就是 30 条。月份小标题吸顶，滚到哪个月一眼看得到；
+   右侧是当月小计。第一条记录的上边框由这里补 —— 原来那条 :first-child 规则
+   在插了月标题之后够不着它了。 */
+.records-month-head {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding-block: 12px 6px; background: var(--bg-1);
+  color: var(--ink-40); font-size: 12px; line-height: 16px;
+}
+.records-month-head > span:last-child { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.records-month-head + .dividend-record-row { border-top: 1px solid var(--ink-10); }
 
 /* SnowUI 单选列表：靠轻填充表达当前项，不额外套卡片或堆叠分割线。 */
 .frequency-sheet-overlay { z-index: 26; }

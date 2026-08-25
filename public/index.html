@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=69" />
+  <link rel="stylesheet" href="styles.css?v=72" />
 </head>
 <body>
   <header class="topbar">
@@ -512,6 +512,10 @@
         <span><strong>股息记录</strong><small id="profit-dividend-records-count">0 条记录</small></span>
         <i class="ri-arrow-right-s-line" aria-hidden="true"></i>
       </button>
+      <button type="button" class="profit-records-btn" id="profit-interest-records-btn" hidden>
+        <span><strong>利息发放记录</strong><small id="profit-interest-records-count">0 条记录</small></span>
+        <i class="ri-arrow-right-s-line" aria-hidden="true"></i>
+      </button>
       <p class="profit-sheet-foot" id="profit-sheet-foot">持仓成本 $0.00 · 当前资产 $0.00</p>
       </div>
       <div class="sheet-footer">
@@ -526,7 +530,7 @@
       <div class="sheet-grabber"></div>
       <div class="sheet-head">
         <h2 class="sheet-title" id="dividend-records-title">股息记录</h2>
-        <button type="button" class="sheet-close-btn" id="dividend-records-close-btn" aria-label="关闭股息记录">
+        <button type="button" class="sheet-close-btn" id="dividend-records-close-btn" aria-label="关闭记录">
           <i class="ri-close-line" aria-hidden="true"></i>
         </button>
       </div>
@@ -534,7 +538,7 @@
       <div class="dividend-records-summary">
         <span id="dividend-records-symbol">—</span>
         <strong id="dividend-records-total">$0.00</strong>
-        <small>已确认股息</small>
+        <small id="dividend-records-total-label">已确认股息</small>
       </div>
       <div class="dividend-records-list" id="dividend-records-list"></div>
       <p class="dividend-records-empty" id="dividend-records-empty" hidden>暂无股息记录</p>
@@ -586,6 +590,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
-  <script src="app.js?v=66"></script>
+  <script src="app.js?v=70"></script>
 </body>
 </html>

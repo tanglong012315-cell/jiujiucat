@@ -1137,6 +1137,8 @@ function loadHoldings() {
         priceOverride: null,
         interestMode: item.interestMode === 'compound' ? 'compound' : 'simple',
         positionAdjustments: Array.isArray(item.positionAdjustments) ? item.positionAdjustments : [],
+        // 被手动删掉的结算日（北京日期串）。删一天等于那天没发利息。
+        interestSkips: Array.isArray(item.interestSkips) ? item.interestSkips.filter(date => typeof date === 'string') : [],
         dividendRecords,
         dividendRecordId: item.dividendRecordId || dividendRecords.at(-1)?.id || null
       };
@@ -1181,6 +1183,9 @@ let selectedHoldingAsset = null;
 let marketIncomeKindOverride = null;
 let positionAdjustmentMode = 'add';
 let dividendRecordsContext = [];
+// 记录弹层现在两种记录共用：'dividend' 是股息，'interest' 是稳定生息的每日发放。
+// DOM 里的 id / class 仍叫 dividend-records-*，是历史名字，别按它判断当前模式。
+let recordsSheetMode = 'dividend';
 let dividendRecordsTrigger = null;
 let dividendRecordsCloseTimer = null;
 let pendingConfirmAction = null;
@@ -1289,6 +1294,33 @@ function settledInterestDays(holding, timestamp = Date.now()) {
   return Math.floor((timestamp - firstSettlement) / DAY_MS) + 1;
 }
 
+function holdingInterestSkips(holding) {
+  return Array.isArray(holding.interestSkips) ? [...new Set(holding.interestSkips)] : [];
+}
+
+// 已结算的每一天（北京日期串）。第 k 天 = 起息日次日 16:00 起的第 k 个 24 小时。
+function interestSettlementDates(holding, timestamp = Date.now()) {
+  const first = firstInterestSettlement(holding.interestStartDate);
+  const count = settledInterestDays(holding, timestamp);
+  if (!Number.isFinite(first) || count <= 0) return [];
+  return Array.from({ length: count }, (_, index) => beijingDateString(first + index * DAY_MS));
+}
+
+// 删掉的结算日不计息。**单利和复利都可以归结为「有效天数」**：单利是乘法、
+// 复利是连乘，少一天分别等于少一项、少一个因子，不必逐日累乘回放。
+// 这里不展开整张日期表再取交集 —— 组合走势图会对每个采样点算一次利息，
+// 展开几百个日期串会白白跑上万次。日期串是 YYYY-MM-DD，直接按字典序比区间。
+function skippedInterestDays(holding, timestamp = Date.now()) {
+  const skips = holdingInterestSkips(holding);
+  if (!skips.length) return 0;
+  const first = firstInterestSettlement(holding.interestStartDate);
+  const count = settledInterestDays(holding, timestamp);
+  if (!Number.isFinite(first) || count <= 0) return 0;
+  const firstDate = beijingDateString(first);
+  const lastDate = beijingDateString(first + (count - 1) * DAY_MS);
+  return skips.filter(date => date >= firstDate && date <= lastDate).length;
+}
+
 function holdingInterestPrincipal(holding) {
   if (holding.holdingKind === 'interest') return Number(holding.principal) || 0;
   const quantity = Number(holding.quantity) || 0;
@@ -1308,9 +1340,27 @@ function holdingInterestForDays(holding, days) {
 }
 
 function holdingAccruedInterest(holding, timestamp = Date.now()) {
-  return isInterestHolding(holding)
-    ? holdingInterestForDays(holding, settledInterestDays(holding, timestamp))
-    : 0;
+  if (!isInterestHolding(holding)) return 0;
+  const days = settledInterestDays(holding, timestamp) - skippedInterestDays(holding, timestamp);
+  return holdingInterestForDays(holding, Math.max(0, days));
+}
+
+// 逐日的发放明细：第 n 个未跳过的结算日拿到的，是「累计到 n 天」减「累计到
+// n-1 天」。单利下每天一样多，复利下逐日变大 —— 都由同一个公式推出来，
+// 不会和持仓行上那个总数打架。
+function interestRecordEntries(holding, timestamp = Date.now()) {
+  const skips = new Set(holdingInterestSkips(holding));
+  const entries = [];
+  let effectiveDays = 0;
+  let accrued = 0;
+  for (const date of interestSettlementDates(holding, timestamp)) {
+    if (skips.has(date)) continue;
+    effectiveDays += 1;
+    const total = holdingInterestForDays(holding, effectiveDays);
+    entries.push({ holding, date, amount: total - accrued });
+    accrued = total;
+  }
+  return entries;
 }
 
 function holdingDividendIncome(holding, timestamp = Date.now()) {
@@ -1530,18 +1580,25 @@ function holdingRowModel(holding) {
   } else if (metrics.kind === 'hybrid') {
     detail = `${metrics.quantity} 份 · 成本 ${money.format(metrics.costPerShare)} · 年化 ${annualRate.toFixed(2)}%`;
   } else if (metrics.kind === 'dividend') {
-    const frequency = DIVIDEND_FREQUENCY_LABELS[holding.dividendFrequency] || '不固定';
-    detail = `${metrics.quantity} 份 · 成本 ${money.format(metrics.costPerShare)} · ${frequency}分红`;
+    detail = `${metrics.quantity} 份 · 成本 ${money.format(metrics.costPerShare)}`;
   } else {
     detail = `${metrics.quantity} 份 · 成本 ${money.format(metrics.costPerShare)}`;
   }
   let dividendDates = null;
   const dividendRecord = metrics.kind === 'dividend' ? latestDividendRecord(holding) : null;
+  const frequencyLabel = metrics.kind === 'dividend'
+    ? `${DIVIDEND_FREQUENCY_LABELS[holding.dividendFrequency] || '不固定'}分红`
+    : null;
   if (dividendRecord) {
     dividendDates = {
+      frequency: frequencyLabel,
       exDate: formatPortfolioDate(dividendRecord.exDate),
       payDate: formatPortfolioDate(dividendRecord.payDate)
     };
+  } else if (frequencyLabel) {
+    // 记录被删光时下面那行不出现，频率就没地方放了 —— 退回到成本那行，
+    // 而不是为一个词单独撑起一条带分隔线的空行。
+    detail += ` · ${frequencyLabel}`;
   }
   return {
     symbol: holding.symbol,
@@ -1634,13 +1691,22 @@ function appendHoldingRowContent(row, model, expandable = false) {
     const dates = document.createElement('span');
     dates.className = 'holding-dividend-dates';
 
+    // 用 <small>（标签档：400 字重 + --ink-40）而不是 <strong>（值档：550 + 全墨）。
+    // 这行里它是唯一没有配套标签的裸值，按值的样式排会比旁边的「除息日」重一档。
+    const frequency = document.createElement('span');
+    frequency.className = 'holding-dividend-frequency';
+    const frequencyLabel = document.createElement('small');
+    frequencyLabel.textContent = model.dividendDates.frequency;
+    frequency.append(frequencyLabel);
+
     const exDate = document.createElement('span');
     exDate.innerHTML = `<small>除息日</small><strong>${model.dividendDates.exDate}</strong>`;
 
     const payDate = document.createElement('span');
     payDate.innerHTML = `<small>派息日</small><strong>${model.dividendDates.payDate}</strong>`;
 
-    dates.append(exDate, payDate);
+    // 日期在左、频率靠右（CSS 里用 auto margin 推过去，并吃掉它前面的分隔点）。
+    dates.append(exDate, payDate, frequency);
     row.append(dates);
   }
 }
@@ -1935,6 +2001,12 @@ function openProfitSheet(items, action) {
   recordsButton.hidden = !dividendHoldings.length;
   document.querySelector('#profit-dividend-records-count').textContent = `${dividendRecords.length} 条记录`;
 
+  const interestRecordsButton = document.querySelector('#profit-interest-records-btn');
+  const interestRecordCount = interestHoldings
+    .reduce((count, holding) => count + interestRecordEntries(holding).length, 0);
+  interestRecordsButton.hidden = !interestHoldings.length;
+  document.querySelector('#profit-interest-records-count').textContent = `${interestRecordCount} 条记录`;
+
   document.querySelector('#profit-sheet-foot').textContent = `持仓成本 ${money.format(totalCost)} · 当前资产 ${Number.isFinite(totalValue) ? money.format(totalValue) : '$—'}`;
   document.querySelector('#profit-edit-btn').textContent = action?.label || '编辑持仓';
   openOverlay(document.querySelector('#profit-sheet-overlay'));
@@ -1958,6 +2030,13 @@ function dividendRecordEntries(items = dividendRecordsContext) {
 }
 
 function renderDividendRecordsSheet() {
+  const title = recordsSheetMode === 'interest' ? '利息发放记录' : '股息记录';
+  document.querySelector('#dividend-records-title').textContent = title;
+  document.querySelector('#dividend-records-empty').textContent = `暂无${title.replace('记录', '')}记录`;
+  document.querySelector('#dividend-records-total-label').textContent =
+    recordsSheetMode === 'interest' ? '已发放利息' : '已确认股息';
+  if (recordsSheetMode === 'interest') return renderInterestRecordsSheet();
+
   const entries = dividendRecordEntries();
   const list = document.querySelector('#dividend-records-list');
   const empty = document.querySelector('#dividend-records-empty');
@@ -2010,8 +2089,107 @@ function renderDividendRecordsSheet() {
   }));
 }
 
-function openDividendRecordsSheet(items) {
+// 利息按天列，一笔生息持仓存了几个月就是几百条 —— 按月分组，每组一个带小计的
+// 标题，滚起来才找得到某一天。
+function renderInterestRecordsSheet() {
+  const list = document.querySelector('#dividend-records-list');
+  const empty = document.querySelector('#dividend-records-empty');
+  const entries = dividendRecordsContext
+    .filter(isInterestHolding)
+    .flatMap(holding => interestRecordEntries(holding))
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const symbols = [...new Set(dividendRecordsContext.map(holding => holding.symbol))];
+  const total = entries.reduce((sum, entry) => sum + entry.amount, 0);
+
+  document.querySelector('#dividend-records-symbol').textContent =
+    symbols.length === 1 ? symbols[0] : `${symbols.length} 个资产`;
+  const totalEl = document.querySelector('#dividend-records-total');
+  totalEl.textContent = signedMoney(total);
+  totalEl.className = movementTone(total);
+  empty.hidden = entries.length > 0;
+  list.hidden = entries.length === 0;
+
+  const nodes = [];
+  let currentMonth = null;
+  entries.forEach(entry => {
+    const month = entry.date.slice(0, 7);
+    if (month !== currentMonth) {
+      currentMonth = month;
+      const monthTotal = entries
+        .filter(item => item.date.startsWith(month))
+        .reduce((sum, item) => sum + item.amount, 0);
+      const head = document.createElement('div');
+      head.className = 'records-month-head';
+      const [year, monthPart] = month.split('-');
+      head.innerHTML = `<span>${year} 年 ${Number(monthPart)} 月</span><span>${signedMoney(monthTotal)}</span>`;
+      nodes.push(head);
+    }
+    nodes.push(interestRecordRow(entry));
+  });
+  list.replaceChildren(...nodes);
+}
+
+function interestRecordRow({ holding, date, amount }) {
+  const row = document.createElement('div');
+  row.className = 'dividend-record-row';
+
+  const copy = document.createElement('span');
+  copy.className = 'dividend-record-copy';
+  const title = document.createElement('strong');
+  const mode = holding.interestMode === 'compound' ? '每日复利' : '单利';
+  title.textContent = `${holding.symbol} · ${mode}`;
+  const detail = document.createElement('small');
+  detail.textContent = `结算日 ${formatPortfolioDate(date)} · 本金 ${money.format(holdingInterestPrincipal(holding))}`;
+  copy.append(title, detail);
+
+  const value = document.createElement('span');
+  value.className = `dividend-record-amount ${movementTone(amount)}`;
+  value.textContent = signedMoney(amount);
+
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'dividend-record-delete';
+  remove.setAttribute('aria-label', `删除 ${holding.symbol} ${formatPortfolioDate(date)} 的利息`);
+  const removeIcon = document.createElement('i');
+  removeIcon.className = 'ri-delete-bin-line';
+  removeIcon.setAttribute('aria-hidden', 'true');
+  remove.append(removeIcon);
+  remove.addEventListener('click', () => requestConfirmation({
+    title: '删除利息记录',
+    // 复利下删掉一天，后面每天的利息也会跟着变小（少滚一天），所以只承诺
+    // 「不少于」这个数，不写死一个会对不上的金额。
+    body: holding.interestMode === 'compound'
+      ? `${formatPortfolioDate(date)} 起将按未发放这一天重新计息，总利息至少减少 ${money.format(amount)}。`
+      : `删除后，总利息将减少 ${money.format(amount)}。`,
+    confirmLabel: '删除记录',
+    action: () => skipInterestDay(holding.id, date)
+  }));
+
+  row.append(copy, value, remove);
+  return row;
+}
+
+// 利息是按公式算出来的，没有「一条记录」可以删 —— 删的是「这天发过利息」这个
+// 事实，落成 interestSkips 里的一个日期，计息时从有效天数里扣掉。
+function skipInterestDay(holdingId, date) {
+  const holding = holdings.find(item => item.id === holdingId);
+  if (!holding) return;
+  holding.interestSkips = [...new Set([...holdingInterestSkips(holding), date])];
+  saveHoldings();
+  renderHoldings();
+  renderDividendRecordsSheet();
+  if (!document.querySelector('#profit-sheet-overlay').hidden && profitSheetItems.length) {
+    const trigger = profitSheetTrigger;
+    openProfitSheet(profitSheetItems, profitSheetAction);
+    profitSheetTrigger = trigger;
+    document.querySelector('#dividend-records-close-btn').focus();
+  }
+  showToast('该日利息已删除，总利息已更新');
+}
+
+function openDividendRecordsSheet(items, mode = 'dividend') {
   clearTimeout(dividendRecordsCloseTimer);
+  recordsSheetMode = mode;
   dividendRecordsTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   dividendRecordsContext = (Array.isArray(items) ? items : [items]).filter(Boolean);
   renderDividendRecordsSheet();
@@ -2757,6 +2935,7 @@ document.querySelector('#holding-close-btn').addEventListener('click', closeHold
 document.querySelector('#profit-close-btn').addEventListener('click', () => closeProfitSheet());
 document.querySelector('#dividend-records-close-btn').addEventListener('click', () => closeDividendRecordsSheet());
 document.querySelector('#profit-dividend-records-btn').addEventListener('click', () => openDividendRecordsSheet(profitSheetItems));
+document.querySelector('#profit-interest-records-btn').addEventListener('click', () => openDividendRecordsSheet(profitSheetItems, 'interest'));
 document.querySelector('#profit-edit-btn').addEventListener('click', () => {
   const action = profitSheetAction?.action;
   const returnTarget = profitSheetTrigger;
