@@ -314,7 +314,7 @@
               <i class="ri-checkbox-fill"></i>
             </span>
             <span class="holding-market-interest-copy">
-              <strong id="holding-market-income-label">记录股息</strong>
+              <strong id="holding-market-income-label">记录分红</strong>
             </span>
           </label>
         </div>
@@ -355,7 +355,7 @@
             <strong>本次分红</strong>
           </div>
           <div class="field">
-            <label class="field-label" for="holding-dividend-per-share">每股分红</label>
+            <label class="field-label" id="holding-dividend-per-share-label" for="holding-dividend-per-share">每股分红</label>
             <div class="input-shell money-input">
               <span class="prefix">$</span>
               <input id="holding-dividend-per-share" type="text" inputmode="decimal" placeholder="0.00" />
@@ -388,7 +388,7 @@
           <p class="field-hint">分红在除息日确认，派息日只用于记录实际到账时间</p>
           <p class="holding-yield-preview" id="holding-dividend-preview">填写数量与每股分红后显示本次收益</p>
           <button type="button" class="holding-records-link" id="holding-dividend-records-btn" hidden>
-            <span><strong>股息记录</strong><small id="holding-dividend-records-count">0 条记录</small></span>
+            <span><strong>分红记录</strong><small id="holding-dividend-records-count">0 条记录</small></span>
             <i class="ri-arrow-right-s-line" aria-hidden="true"></i>
           </button>
         </section>
@@ -482,7 +482,7 @@
           <b id="profit-market-value">$0.00</b>
         </div>
         <div class="profit-breakdown-row" id="profit-dividend-row">
-          <span><strong>股息收益</strong><small id="profit-dividend-detail">暂无已确认股息</small></span>
+          <span><strong>分红收益</strong><small id="profit-dividend-detail">暂无已确认分红</small></span>
           <b id="profit-dividend-value">$0.00</b>
         </div>
         <div class="profit-breakdown-row" id="profit-interest-row" hidden>
@@ -495,18 +495,18 @@
         </div>
       </div>
       <div class="profit-event-card" id="profit-event-card" hidden>
-        <!-- 下面还有一个同名的「股息记录」按钮（进历史列表），这里改叫「最近一次分红」
+        <!-- 下面还有一个同名的「分红记录」按钮（进历史列表），这里改叫「最近一次分红」
              以示区别：这张卡讲的是最新那一笔。 -->
         <strong>最近一次分红</strong>
         <dl>
           <div><dt>分红频率</dt><dd id="profit-dividend-frequency">—</dd></div>
-          <div><dt>每股股息</dt><dd id="profit-dividend-per-share">—</dd></div>
+          <div><dt id="profit-per-share-label">每股分红</dt><dd id="profit-dividend-per-share">—</dd></div>
           <div><dt>除息日</dt><dd id="profit-ex-date">—</dd></div>
           <div><dt>派息日</dt><dd id="profit-pay-date">—</dd></div>
         </dl>
       </div>
       <button type="button" class="profit-records-btn" id="profit-dividend-records-btn" hidden>
-        <span><strong>股息记录</strong><small id="profit-dividend-records-count">0 条记录</small></span>
+        <span><strong>分红记录</strong><small id="profit-dividend-records-count">0 条记录</small></span>
         <i class="ri-arrow-right-s-line" aria-hidden="true"></i>
       </button>
       <button type="button" class="profit-records-btn" id="profit-interest-records-btn" hidden>
@@ -526,7 +526,7 @@
     <section class="sheet-panel dividend-records-panel" role="dialog" aria-modal="true" aria-labelledby="dividend-records-title">
       <div class="sheet-grabber"></div>
       <div class="sheet-head">
-        <h2 class="sheet-title" id="dividend-records-title">股息记录</h2>
+        <h2 class="sheet-title" id="dividend-records-title">分红记录</h2>
         <button type="button" class="sheet-close-btn" id="dividend-records-close-btn" aria-label="关闭记录">
           <i class="ri-close-line" aria-hidden="true"></i>
         </button>
@@ -535,10 +535,10 @@
       <div class="dividend-records-summary">
         <span id="dividend-records-symbol">—</span>
         <strong id="dividend-records-total">$0.00</strong>
-        <small id="dividend-records-total-label">已确认股息</small>
+        <small id="dividend-records-total-label">已确认分红</small>
       </div>
       <div class="dividend-records-list" id="dividend-records-list"></div>
-      <p class="dividend-records-empty" id="dividend-records-empty" hidden>暂无股息记录</p>
+      <p class="dividend-records-empty" id="dividend-records-empty" hidden>暂无分红记录</p>
       </div>
     </section>
   </div>
@@ -617,6 +617,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
-  <script src="app.js?v=89"></script>
+  <script src="app.js?v=90"></script>
 </body>
 </html>

@@ -1266,7 +1266,7 @@ let selectedHoldingAsset = null;
 let marketIncomeKindOverride = null;
 let positionAdjustmentMode = 'add';
 let dividendRecordsContext = [];
-// 记录弹层现在两种记录共用：'dividend' 是股息，'interest' 是稳定生息的每日发放。
+// 记录弹层现在两种记录共用：'dividend' 是分红，'interest' 是稳定生息的每日发放。
 // DOM 里的 id / class 仍叫 dividend-records-*，是历史名字，别按它判断当前模式。
 let recordsSheetMode = 'dividend';
 let dividendRecordsTrigger = null;
@@ -1287,8 +1287,24 @@ function isInterestHolding(holding) {
   return holding.holdingKind === 'interest' || holding.holdingKind === 'hybrid';
 }
 
+// 能不能记分红，看的是「有没有市价」这一件事：股票、ETF、加密货币都能，只有
+// 手填的稳定生息（STABLE）不能 —— 那类没有份数，收益本来就按本金和年化算。
+// 原来这里写死 EQUITY，于是 ETF 和加密货币都被挡在外面；实际上 ETF 本来就按份
+// 派息，加密货币也有各种按持仓发放的分红/空投。
+const DIVIDEND_ASSET_TYPES = new Set(['EQUITY', 'ETF', 'CRYPTOCURRENCY']);
+
+function canAssetRecordDividends(assetType) {
+  return DIVIDEND_ASSET_TYPES.has(assetType);
+}
+
+// 股票按「股」，ETF 和加密货币按「份」——持仓行里数量单位一直是「份」，
+// 这里跟着走，不要在同一个资产上一会儿股一会儿份。
+function perShareLabel(assetType) {
+  return assetType === 'EQUITY' ? '每股' : '每份';
+}
+
 function isDividendHolding(holding) {
-  return holding.holdingKind === 'dividend' && holding.assetType === 'EQUITY';
+  return holding.holdingKind === 'dividend' && canAssetRecordDividends(holding.assetType);
 }
 
 function holdingDividendRecords(holding) {
@@ -1318,7 +1334,7 @@ function syncHoldingDividendRecord(holding) {
     holding.dividendRecords.push(record);
     holding.dividendRecordId = record.id;
   }
-  // 已存在的股息记录冻结除息时的数量；后续加减仓只影响下一次分红。
+  // 已存在的分红记录冻结除息时的数量；后续加减仓只影响下一次分红。
   const quantity = record && Number(record.quantity) > 0
     ? Number(record.quantity)
     : (Number(holding.quantity) || 0);
@@ -2032,7 +2048,7 @@ function openProfitSheet(items, action) {
   const confirmedRecordCount = dividendHoldings.reduce((count, holding) => count + confirmedDividendRecords(holding).length, 0);
   const dividendDetail = document.querySelector('#profit-dividend-detail');
   if (!dividendRecords.length) {
-    dividendDetail.textContent = '暂无已确认股息';
+    dividendDetail.textContent = '暂无已确认分红';
   } else if (confirmedRecordCount > 0) {
     dividendDetail.textContent = `${dividendRecords.length} 条记录，${confirmedRecordCount} 条已确认`;
   } else {
@@ -2064,6 +2080,8 @@ function openProfitSheet(items, action) {
   const latestRecord = dividendHoldings.length === 1 ? latestDividendRecord(dividendHoldings[0]) : null;
   eventCard.hidden = !latestRecord;
   if (latestRecord) {
+    document.querySelector('#profit-per-share-label').textContent =
+      `${perShareLabel(dividendHoldings[0].assetType)}分红`;
     document.querySelector('#profit-dividend-frequency').textContent =
       `${DIVIDEND_FREQUENCY_LABELS[latestRecord.frequency || dividendHoldings[0].dividendFrequency] || '不固定'}分红`;
     document.querySelector('#profit-dividend-per-share').textContent = money.format(Number(latestRecord.perShare) || 0);
@@ -2127,11 +2145,11 @@ function dividendRecordEntries(items = dividendRecordsContext) {
 }
 
 function renderDividendRecordsSheet() {
-  const title = recordsSheetMode === 'interest' ? '利息发放记录' : '股息记录';
+  const title = recordsSheetMode === 'interest' ? '利息发放记录' : '分红记录';
   document.querySelector('#dividend-records-title').textContent = title;
   document.querySelector('#dividend-records-empty').textContent = `暂无${title.replace('记录', '')}记录`;
   document.querySelector('#dividend-records-total-label').textContent =
-    recordsSheetMode === 'interest' ? '已发放利息' : '已确认股息';
+    recordsSheetMode === 'interest' ? '已发放利息' : '已确认分红';
   if (recordsSheetMode === 'interest') return renderInterestRecordsSheet();
 
   const allEntries = dividendRecordEntries();
@@ -2160,7 +2178,8 @@ function renderDividendRecordsSheet() {
     const frequency = DIVIDEND_FREQUENCY_LABELS[record.frequency] || '不固定';
     title.textContent = `${holding.symbol} · ${frequency}分红`;
     const detail = document.createElement('small');
-    detail.textContent = `除息日 ${formatPortfolioDate(record.exDate)} · 派息日 ${formatPortfolioDate(record.payDate)} · 每股 ${money.format(record.perShare)}`;
+    detail.textContent = `除息日 ${formatPortfolioDate(record.exDate)} · 派息日 ${formatPortfolioDate(record.payDate)}`
+      + ` · ${perShareLabel(holding.assetType)} ${money.format(record.perShare)}`;
     copy.append(title, detail);
 
     const amount = document.createElement('span');
@@ -2171,13 +2190,13 @@ function renderDividendRecordsSheet() {
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.className = 'dividend-record-delete';
-    remove.setAttribute('aria-label', `删除 ${holding.symbol} ${formatPortfolioDate(record.exDate)} 的股息记录`);
+    remove.setAttribute('aria-label', `删除 ${holding.symbol} ${formatPortfolioDate(record.exDate)} 的分红记录`);
     const removeIcon = document.createElement('i');
     removeIcon.className = 'ri-delete-bin-line';
     removeIcon.setAttribute('aria-hidden', 'true');
     remove.append(removeIcon);
     remove.addEventListener('click', () => requestConfirmation({
-      title: '删除股息记录',
+      title: '删除分红记录',
       body: `删除后，总盈亏将减少 ${money.format(Number(record.amount) || 0)}。`,
       confirmLabel: '删除记录',
       action: () => deleteDividendRecord(holding.id, record.id)
@@ -2343,7 +2362,7 @@ function deleteDividendRecord(holdingId, recordId) {
     profitSheetTrigger = trigger;
     document.querySelector('#dividend-records-close-btn').focus();
   }
-  showToast('股息记录已删除，总盈亏已更新');
+  showToast('分红记录已删除，总盈亏已更新');
 }
 
 // ── 资产搜索 ────────────────────────────────────────────────────────
@@ -2370,7 +2389,7 @@ function setSelectedHoldingAsset(asset, preserveIncomeKind = false) {
 
 function currentHoldingKind() {
   const baseKind = document.querySelector('input[name="holding-kind"]:checked')?.value || 'market';
-  const canRecordDividends = selectedHoldingAsset?.assetType === 'EQUITY';
+  const canRecordDividends = canAssetRecordDividends(selectedHoldingAsset?.assetType);
   if (baseKind !== 'market' || !canRecordDividends || !document.querySelector('#holding-market-interest').checked) return baseKind;
   return marketIncomeKindOverride || 'dividend';
 }
@@ -2389,7 +2408,7 @@ function updateHoldingYieldPreview() {
     const perShare = Number(document.querySelector('#holding-dividend-per-share').value);
     const exDate = document.querySelector('#holding-ex-dividend-date').value;
     if (!(quantity > 0) || !(perShare > 0)) {
-      preview.textContent = '填写数量与每股分红后显示本次收益';
+      preview.textContent = `填写数量与${perShareLabel(selectedHoldingAsset?.assetType)}分红后显示本次收益`;
       return;
     }
     const expected = quantity * perShare;
@@ -2425,7 +2444,7 @@ function updateHoldingSubmitState() {
 function updateHoldingFormVisibility() {
   const baseKind = document.querySelector('input[name="holding-kind"]:checked')?.value || 'market';
   const marketIncomeInput = document.querySelector('#holding-market-interest');
-  const canRecordDividends = baseKind === 'market' && selectedHoldingAsset?.assetType === 'EQUITY';
+  const canRecordDividends = baseKind === 'market' && canAssetRecordDividends(selectedHoldingAsset?.assetType);
   if (!canRecordDividends) {
     marketIncomeInput.checked = false;
     marketIncomeKindOverride = null;
@@ -2443,7 +2462,9 @@ function updateHoldingFormVisibility() {
   const dividendOption = document.querySelector('#holding-dividend-option');
   dividendOption.hidden = !canRecordDividends;
   marketIncomeInput.disabled = !canRecordDividends;
-  document.querySelector('#holding-market-income-label').textContent = '记录股息';
+  document.querySelector('#holding-market-income-label').textContent = '记录分红';
+  const unit = perShareLabel(selectedHoldingAsset?.assetType);
+  document.querySelector('#holding-dividend-per-share-label').textContent = `${unit}分红`;
   document.querySelector('#holding-market-interest').setAttribute('aria-expanded', String(kind === 'hybrid' || kind === 'dividend'));
   updateHoldingDividendRecordsLink(editingHolding);
   updateHoldingYieldPreview();
@@ -2903,7 +2924,7 @@ document.querySelector('#holding-form').addEventListener('submit', async event =
   if (holdingKind === 'dividend') {
     if (!Number.isFinite(dividendPerShare) || dividendPerShare <= 0) {
       document.querySelector('#holding-dividend-per-share').focus();
-      return showToast('请填写每股分红金额');
+      return showToast(`请填写${perShareLabel(selectedHoldingAsset?.assetType)}分红金额`);
     }
     if (!dividendExDate) {
       document.querySelector('#holding-ex-dividend-date').focus();
