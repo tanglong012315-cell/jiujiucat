@@ -3182,17 +3182,24 @@ const GUEST_AVATAR_COLOR = '#8A8A8F';
 // 照片统一压到 800×800 的 JPEG（原图是 1200 的 PNG，九张加起来 16MB，
 // 压完 1.2MB）—— 格子最大也就 300px 左右，大图 520px，800 足够，
 // **以后换图记得也过一遍这道压缩**。
+// sex: 'female' | 'male'，名字后面跟一个小图标。全部经主人确认过：介绍里能读出
+// 来的（教母/萌妹/公主是母，种公/少爷是公）之外，NoNo 和 ZheZhe 是公、
+// Liz 和 CoCo 是母。
 const CAT_AVATARS = [
-  { id: 'puffy', name: 'Puffy', desc: '元老教母', file: 'cats/puffy.jpg' },
-  { id: 'nono', name: 'NoNo', desc: '不喜欢同性', file: 'cats/nono.jpg' },
-  { id: 'jiujiu', name: 'JiuJiu', desc: '大眼萌妹', file: 'cats/jiujiu.jpg' },
-  { id: 'liz', name: 'Liz', desc: '别名 Mini', file: 'cats/liz.jpg' },
-  { id: 'pudding', name: 'Pudding', desc: '娘娘腔，种公', file: 'cats/pudding.jpg' },
-  { id: 'zhezhe', name: 'ZheZhe', desc: '疯P', file: 'cats/zhezhe.jpg' },
-  { id: 'coco', name: 'CoCo', desc: '脾气暴躁', file: 'cats/coco.jpg' },
-  { id: 'momo', name: 'MoMo', desc: '小公主', file: 'cats/momo.jpg' },
-  { id: 'bobo', name: 'BoBo', desc: '小少爷', file: 'cats/bobo.jpg' }
+  { id: 'puffy', name: 'Puffy', desc: '元老教母', sex: 'female', file: 'cats/puffy.jpg' },
+  { id: 'nono', name: 'NoNo', desc: '不喜欢同性', sex: 'male', file: 'cats/nono.jpg' },
+  { id: 'jiujiu', name: 'JiuJiu', desc: '大眼萌妹', sex: 'female', file: 'cats/jiujiu.jpg' },
+  { id: 'liz', name: 'Liz', desc: '别名 Mini', sex: 'female', file: 'cats/liz.jpg' },
+  { id: 'pudding', name: 'Pudding', desc: '娘娘腔，种公', sex: 'male', file: 'cats/pudding.jpg' },
+  { id: 'zhezhe', name: 'ZheZhe', desc: '疯P', sex: 'male', file: 'cats/zhezhe.jpg' },
+  { id: 'coco', name: 'CoCo', desc: '脾气暴躁', sex: 'female', file: 'cats/coco.jpg' },
+  { id: 'momo', name: 'MoMo', desc: '小公主', sex: 'female', file: 'cats/momo.jpg' },
+  { id: 'bobo', name: 'BoBo', desc: '小少爷', sex: 'male', file: 'cats/bobo.jpg' }
 ];
+const CAT_SEX = {
+  female: { icon: 'ri-women-line', label: '母猫' },
+  male: { icon: 'ri-men-line', label: '公猫' }
+};
 const CAT_AVATAR_PREFIX = 'cat:';
 const CATS_BY_ID = new Map(CAT_AVATARS.map(cat => [cat.id, cat]));
 
@@ -3415,7 +3422,16 @@ function renderCatGrid() {
 
     const name = document.createElement('span');
     name.className = 'cat-name';
-    name.textContent = cat.name;
+    const sex = CAT_SEX[cat.sex];
+    name.append(cat.name);
+    if (sex) {
+      const mark = document.createElement('i');
+      mark.className = `${sex.icon} cat-sex is-${cat.sex}`;
+      // 图标本身不带语义，读屏要能读出「母猫/公猫」。
+      mark.setAttribute('role', 'img');
+      mark.setAttribute('aria-label', sex.label);
+      name.append(mark);
+    }
 
     // 一句话介绍，五六个字。还没写的显示成一条灰条占位，位置先留着。
     const desc = document.createElement('span');
@@ -3464,7 +3480,16 @@ function openCatPhoto(cat) {
   const image = document.querySelector('#cat-photo-viewer-img');
   image.src = cat.file;
   image.alt = cat.name ? `${cat.name}的照片` : '猫的照片';
-  document.querySelector('#cat-photo-viewer-name').textContent = cat.name;
+  const viewerName = document.querySelector('#cat-photo-viewer-name');
+  const sex = CAT_SEX[cat.sex];
+  viewerName.replaceChildren(cat.name);
+  if (sex) {
+    const mark = document.createElement('i');
+    mark.className = `${sex.icon} cat-sex is-${cat.sex}`;
+    mark.setAttribute('role', 'img');
+    mark.setAttribute('aria-label', sex.label);
+    viewerName.append(mark);
+  }
   document.querySelector('#cat-photo-viewer-desc').textContent = cat.desc || '';
   openOverlay(document.querySelector('#cat-photo-viewer'));
   document.querySelector('.photo-viewer-scrim').focus();

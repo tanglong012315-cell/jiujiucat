@@ -984,7 +984,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 /* ── 猫 ───────────────────────────────────────────────── */
 .cat-sheet-body { display: flex; flex-direction: column; gap: 16px; }
 .cat-sheet-note { margin: 0; color: var(--ink-40); font-size: 13px; line-height: 20px; text-align: center; }
-.cat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px; }
+.cat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 12px; }
 .cat-cell {
   min-width: 0; padding: 0; border: 0; background: none; color: var(--ink);
   display: flex; flex-direction: column; align-items: center; gap: 8px;
@@ -1000,7 +1000,8 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
    全靠这层投影把相片托起来。
    没照片的格子只剩白边和一块底，位置先占住。 */
 .cat-photo {
-  width: 100%; aspect-ratio: 1;
+  /* 不占满整格：相片之间留出空隙，九张摆在一起才不挤。 */
+  width: 86%; aspect-ratio: 1;
   /* 直角：洗出来的相片没有圆角。 */
   border: 4px solid #ffffff; border-radius: 0;
   background-color: var(--ink-4); background-size: cover; background-position: center;
@@ -1018,7 +1019,15 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .cat-cell { gap: 6px; }
 /* 长按看大图：别让系统的「保存图片」菜单和文字选中插进来。 */
 .cat-cell { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
-.cat-name { min-height: 16px; font-size: 12px; line-height: 16px; font-weight: 550; }
+.cat-name {
+  min-height: 16px; display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; line-height: 16px; font-weight: 550;
+}
+/* 性别图标：粉=母、蓝=公。深浅两个主题共用同一组色 —— 和头像的身份色一样，
+   它表示的是「这只猫是什么」，不随主题走。 */
+.cat-sex { font-size: 13px; line-height: 1; }
+.cat-sex.is-female { color: #E0629B; }
+.cat-sex.is-male { color: #4A90E2; }
 /* 介绍是次要信息：小一号、淡一档，和名字拉开层级。 */
 .cat-desc {
   min-height: 16px; max-width: 100%; overflow: hidden;
@@ -1061,7 +1070,10 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   color: #ffffff; text-align: center;
 }
-.photo-viewer-frame strong { font-size: 15px; line-height: 22px; font-weight: 600; }
+.photo-viewer-frame strong {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 15px; line-height: 22px; font-weight: 600;
+}
 .photo-viewer-frame span { color: rgba(255, 255, 255, .7); font-size: 12px; line-height: 18px; }
 .records-more-note { margin: 0; padding-block: 14px; color: var(--ink-40); font-size: 11px; line-height: 16px; text-align: center; }
 .dividend-records-empty { margin: 0; padding-block: 28px; color: var(--ink-40); font-size: 13px; line-height: 20px; text-align: center; }
