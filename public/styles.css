@@ -971,6 +971,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 @media (hover: hover) { .dividend-record-delete:hover { background: color-mix(in srgb, var(--loss) 10%, transparent); } }
 .dividend-record-delete:focus-visible { outline: 2px solid var(--loss); outline-offset: 1px; }
 .dividend-record-delete > i { font-size: 18px; line-height: 1; }
+.records-more-note { margin: 0; padding-block: 14px; color: var(--ink-40); font-size: 11px; line-height: 16px; text-align: center; }
 .dividend-records-empty { margin: 0; padding-block: 28px; color: var(--ink-40); font-size: 13px; line-height: 20px; text-align: center; }
 /* 利息按天列，一个月就是 30 条。月份小标题吸顶，滚到哪个月一眼看得到；
    右侧是当月小计。第一条记录的上边框由这里补 —— 原来那条 :first-child 规则

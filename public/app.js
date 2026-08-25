@@ -2019,6 +2019,18 @@ function closeProfitSheet(restoreFocus = true) {
   }, 220);
 }
 
+// 记录弹层只列最近 15 条。生息持仓一天一条，存半年就是 180 条 —— 再往前翻
+// 已经没人看，却要一直渲染。**汇总金额仍按全部记录算**，截断的只是列表。
+const RECORDS_DISPLAY_LIMIT = 15;
+
+function recordsMoreNote(total) {
+  if (total <= RECORDS_DISPLAY_LIMIT) return null;
+  const note = document.createElement('p');
+  note.className = 'records-more-note';
+  note.textContent = `只显示最近 ${RECORDS_DISPLAY_LIMIT} 次，共 ${total} 次`;
+  return note;
+}
+
 function dividendRecordEntries(items = dividendRecordsContext) {
   return items.flatMap(holding => holdingDividendRecords(holding).map(record => ({ holding, record })))
     .sort((a, b) => String(b.record.exDate).localeCompare(String(a.record.exDate)));
@@ -2032,11 +2044,13 @@ function renderDividendRecordsSheet() {
     recordsSheetMode === 'interest' ? '已发放利息' : '已确认股息';
   if (recordsSheetMode === 'interest') return renderInterestRecordsSheet();
 
-  const entries = dividendRecordEntries();
+  const allEntries = dividendRecordEntries();
+  const entries = allEntries.slice(0, RECORDS_DISPLAY_LIMIT);
   const list = document.querySelector('#dividend-records-list');
   const empty = document.querySelector('#dividend-records-empty');
   const symbols = [...new Set(dividendRecordsContext.map(holding => holding.symbol))];
-  const confirmedTotal = entries.reduce((total, { record }) => (
+  // 汇总按全部记录算，不受列表截断影响。
+  const confirmedTotal = allEntries.reduce((total, { record }) => (
     record.exDate <= beijingDateString() ? total + (Number(record.amount) || 0) : total
   ), 0);
 
@@ -2082,6 +2096,8 @@ function renderDividendRecordsSheet() {
     row.append(copy, amount, remove);
     return row;
   }));
+  const note = recordsMoreNote(allEntries.length);
+  if (note) list.append(note);
 }
 
 // 利息按天列，一笔生息持仓存了几个月就是几百条 —— 按月分组，每组一个带小计的
@@ -2089,12 +2105,14 @@ function renderDividendRecordsSheet() {
 function renderInterestRecordsSheet() {
   const list = document.querySelector('#dividend-records-list');
   const empty = document.querySelector('#dividend-records-empty');
-  const entries = dividendRecordsContext
+  const allEntries = dividendRecordsContext
     .filter(isInterestHolding)
     .flatMap(holding => interestRecordEntries(holding))
     .sort((a, b) => b.date.localeCompare(a.date));
+  const entries = allEntries.slice(0, RECORDS_DISPLAY_LIMIT);
   const symbols = [...new Set(dividendRecordsContext.map(holding => holding.symbol))];
-  const total = entries.reduce((sum, entry) => sum + entry.amount, 0);
+  // 汇总是「已发放利息」的全部，和持仓行上那个数一致；列表才只给最近 15 条。
+  const total = allEntries.reduce((sum, entry) => sum + entry.amount, 0);
 
   document.querySelector('#dividend-records-symbol').textContent =
     symbols.length === 1 ? symbols[0] : `${symbols.length} 个资产`;
@@ -2110,7 +2128,9 @@ function renderInterestRecordsSheet() {
     const month = entry.date.slice(0, 7);
     if (month !== currentMonth) {
       currentMonth = month;
-      const monthTotal = entries
+      // 月度小计按当月的全部记录算，不只是显示出来的那几条 —— 它是关于这个月的
+      // 事实。列表被截断这件事由下面那行说明负责，不该让同一个月出现两个数。
+      const monthTotal = allEntries
         .filter(item => item.date.startsWith(month))
         .reduce((sum, item) => sum + item.amount, 0);
       const head = document.createElement('div');
@@ -2121,6 +2141,8 @@ function renderInterestRecordsSheet() {
     }
     nodes.push(interestRecordRow(entry));
   });
+  const note = recordsMoreNote(allEntries.length);
+  if (note) nodes.push(note);
   list.replaceChildren(...nodes);
 }
 
