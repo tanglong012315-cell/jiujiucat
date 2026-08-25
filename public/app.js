@@ -3406,7 +3406,8 @@ function renderCatGrid() {
 
     const photo = document.createElement('span');
     photo.className = 'cat-photo';
-    photo.style.borderColor = cat.color;
+    // 白边是相片本身，颜色退到白边外面那圈 outline。
+    photo.style.outlineColor = cat.color;
     if (cat.file) photo.style.backgroundImage = `url("${cat.file}")`;
 
     const name = document.createElement('span');

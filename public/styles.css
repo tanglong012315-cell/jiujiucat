@@ -994,14 +994,29 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .cat-cell:disabled { cursor: default; }
 @media (hover: hover) { .cat-cell:not(:disabled):hover { scale: 1.04; } }
 .cat-cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; border-radius: 20px; }
-/* 每只猫一圈自己的 2px 描边 —— 九宫格摆在一起就是九种颜色，氛围全靠它。
-   没照片的格子只剩这圈颜色和一块底，位置先占住。 */
+/* 做成洗出来的相片：4px 白边 + 一点投影，圆角收小（相纸是方的）。
+   **这是全站唯一用投影的地方** —— SnowUI 里没有 drop shadow，但这一块本来就是
+   彩蛋，模拟的是实物照片，不投影就立不起来。
+   每只猫的颜色退到白边外面一圈 2px，九宫格摆在一起仍然是九种颜色。
+   没照片的格子只剩这两圈和一块底，位置先占住。 */
 .cat-photo {
-  width: 100%; aspect-ratio: 1; border: 2px solid var(--ink-10); border-radius: 20px;
+  width: 100%; aspect-ratio: 1;
+  border: 4px solid #ffffff; border-radius: 6px;
+  /* 彩色圈往外挪 2px：贴着白边的话，浅色页面上「白边 + 白底」根本分不出来，
+     只会看成一圈彩色描边。空出这 2px，白边才立得住。 */
+  outline: 2px solid var(--ink-10); outline-offset: 2px;
   background-color: var(--ink-4); background-size: cover; background-position: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .16), 0 10px 20px -8px rgba(0, 0, 0, .34);
 }
-/* 选中：在彩色描边外面再套一圈墨色环，中间用页面底色隔开，两圈不会糊在一起。 */
-.cat-cell[aria-pressed="true"] .cat-photo { box-shadow: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--ink); }
+/* 深色下白边照旧（相片就该是白边），但投影要更沉一点才看得出来。 */
+:root[data-theme="dark"] .cat-photo {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .5), 0 10px 22px -10px rgba(0, 0, 0, .6);
+}
+/* 选中：在相片外面再套一圈墨色环，和彩色圈之间用页面底色隔开。 */
+.cat-cell[aria-pressed="true"] .cat-photo {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .16), 0 10px 20px -8px rgba(0, 0, 0, .34),
+    0 0 0 6px var(--bg-1), 0 0 0 8px var(--ink);
+}
 .cat-cell { gap: 6px; }
 .cat-name { min-height: 16px; font-size: 12px; line-height: 16px; font-weight: 550; }
 /* 介绍是次要信息：小一号、淡一档，和名字拉开层级。 */
