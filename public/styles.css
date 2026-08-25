@@ -13,6 +13,9 @@
   --ink-4: rgba(0, 0, 0, .04);
   --tint-blue: #e6f1fd;
   --tint-purple: #edeefc;
+  /* 染色卡片上的前景色。浅色下是黑字；深色下由深色块里改写，不再写死 #000。 */
+  --on-tint: #000000;
+  --on-tint-tag: #4b449f;
   --yield-note-bg: #f0f0fb;
   --yield-note-text: #262536;
   --yield-note-edge: rgba(88, 86, 214, .12);
@@ -64,6 +67,13 @@
   --ink-20: rgba(255, 255, 255, .2);
   --ink-10: rgba(255, 255, 255, .1);
   --ink-4: rgba(255, 255, 255, .04);
+  /* 染色卡片改为「同色相低透明度铺在暗底上」，而不是沿用浅色那两个近白色值。
+     原先深色下 .metric / .fx-row 仍是 #e6f1fd 配强制黑字，在暗页面上是三块
+     刺眼的白板（底部玻璃导航被削顶成白条也是这个原因）。 */
+  --tint-blue: rgba(125, 187, 255, .16);
+  --tint-purple: rgba(184, 153, 235, .18);
+  --on-tint: #ffffff;
+  --on-tint-tag: #c6c2ff;
   --thumb-ring: #1c1c1c;
   /* #5856D6 sits at ~2.7:1 on the dark Block — same hue, lifted 30% toward white
      (#8a89e2) to clear AA 4.5:1. */
@@ -323,9 +333,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 
 /* Card — inside a Block, so Surface/1; diagonal tints echo the reference 2×2 */
 .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.metric { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; border-radius: var(--radius-card); background: var(--tint-blue); }
-/* Tints don't invert — text on them stays black in both themes (SnowUI). */
-:root[data-theme="dark"] .metric { color: #000000; }
+.metric { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; border-radius: var(--radius-card); background: var(--tint-blue); color: var(--on-tint); }
 .metric > span { color: inherit; opacity: .6; font-size: 12px; line-height: 16px; }
 .metric strong { display: block; overflow: hidden; max-width: 100%; font-size: 24px; line-height: 32px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .metric .cny-value { display: block; overflow: hidden; max-width: 100%; opacity: .4; font-size: 12px; line-height: 16px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -380,7 +388,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .fx-row {
   display: flex; align-items: center; gap: 12px; width: 100%; text-align: start;
   padding: 12px 16px; border: 0; border-radius: var(--radius-card);
-  background: var(--tint-blue); color: #000000; cursor: pointer;
+  background: var(--tint-blue); color: var(--on-tint); cursor: pointer;
   transition-property: opacity, scale; transition-duration: 150ms;
 }
 @media (hover: hover) { .fx-row:hover { opacity: .82; } }
@@ -393,7 +401,13 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .fx-updated { margin: 0; color: var(--ink-40); font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; }
 
 /* ── Portfolio — login gate ─────────────────────────────── */
-.gate-card { max-width: 480px; align-items: center; gap: 16px; padding: 32px 24px; text-align: center; }
+/* 不再挂 .card：登录页是这个面板的全部内容，再套一层面板底色只是多一圈edge。
+   布局属性原本继承自 .card，这里自带。 */
+.gate-card {
+  max-width: 480px; min-width: 0;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16px; padding: 32px 24px; text-align: center;
+}
 /* `.card` 给它的 display:flex 会盖过浏览器给 [hidden] 的默认 display:none——
    两条规则特异度打平时，源码顺序在后的作者样式赢，UA 默认样式必输。
    这里补一条 class+属性的组合选择器（特异度更高），是本文件第三次踩这个
@@ -413,7 +427,8 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .gate-card .calculate-btn { margin-top: 6px; }
 .google-signin-btn { gap: 10px; }
 /* Google 的品牌规范要求这个 mark 保持原色，所以它不跟随主题反色。 */
-.google-mark { flex: 0 0 18px; width: 18px; height: 18px; background: #fff; border-radius: 50%; }
+/* 图标字体版：跟随按钮文字色，不需要原来给多色 SVG 衬的白色圆底。 */
+.google-mark { flex: 0 0 auto; font-size: 18px; line-height: 1; }
 
 .account-bar {
   display: flex; align-items: center; gap: 10px;
@@ -578,7 +593,7 @@ img.recommend-icon { display: block; background: none; }
 .holding-symbol { min-width: 0; overflow: hidden; font-size: 14px; line-height: 20px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .holding-type-tag {
   flex: 0 0 auto; padding: 1px 5px; border-radius: 6px;
-  background: var(--tint-purple); color: #4b449f;
+  background: var(--tint-purple); color: var(--on-tint-tag);
   font-size: 10px; line-height: 14px; font-weight: 600; white-space: nowrap;
 }
 .holding-qty { overflow: hidden; opacity: .55; font-size: 11px; line-height: 16px; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -1007,6 +1022,16 @@ img.recommend-icon { display: block; background: none; }
 .asset-result-mark {
   width: 36px; height: 36px; flex: 0 0 36px; border-radius: 50%; background: var(--ink-4);
   display: grid; place-items: center; font-size: 11px; line-height: 1; font-weight: 700;
+}
+/* Parqet / CMC 给的本身就是圆形满铺图标，自带品牌底色，所以这里不再加白底、
+   不缩放、不描边——那套是为「原始品牌图片」准备的，套在成品图标上反而会出现
+   双层圆环，正是之前那股复古味的来源。 */
+.holding-logo.has-logo,
+.asset-result-mark.has-logo {
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
 }
 .asset-result-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .asset-result-name { overflow: hidden; font-size: 14px; line-height: 20px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }

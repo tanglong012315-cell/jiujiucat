@@ -878,7 +878,10 @@ setInterval(() => renderMarketSession(marketAssets[currentMarketIndex]), 60000);
 // ══════════════════════════════════════════════════════════════════════
 
 const PORTFOLIO_KEY = 'jiujiucat-portfolio-holdings';
-const PORTFOLIO_UNLOCKED_KEY = 'jiujiucat-portfolio-unlocked';
+// 曾经用 jiujiucat-portfolio-unlocked 记「解锁过就一直放行」，结果是点过一次
+// 「先用本地版」的人再也回不到登录页。现在持仓只认真实会话，这里把历史遗留的
+// 标记清掉，老用户下次进来一律回到登录页。
+localStorage.removeItem('jiujiucat-portfolio-unlocked');
 const PORTFOLIO_RECOMMEND_DISMISSED_KEY = 'jiujiucat-portfolio-recommend-dismissed';
 const PORTFOLIO_MERGE_KEY = 'jiujiucat-portfolio-merge-same';
 const HOLDING_KINDS = new Set(['market', 'interest', 'hybrid', 'dividend']);
@@ -1043,6 +1046,64 @@ let dividendFrequencyCloseTimer = null;
 // 持仓里任意代号（非 BTC/MSTR/QQQ）的抓取结果，键是代号。和 marketAssets
 // 分开存，因为后者是给顶部轮播用的固定三项，这里是用户自己输入的任意集合。
 const holdingPrices = new Map();
+
+// ── 资产 logo ────────────────────────────────────────────────────────
+// 两个源分工，都是「按圆形满铺设计」的图标，不往仓库里塞图片：
+//   股票 / ETF → Parqet   加密货币 → CoinMarketCap
+// 为什么不用 FMP：它给的是原始品牌图片而非图标——有的自带白底、有的是方形带
+// 底色、有的是透明背景的纯文字（Vanguard 在深色模式下几乎看不见）。拼在一排
+// 圆形容器里必然参差。Parqet / CMC 这两家都已经做成统一的圆形图标。
+//
+// 两家查不到时都返回 404 而不是占位图，所以「加载失败」可以放心当成
+// 「这个标的没有 logo」，直接回退首字母。
+//
+// 结果按 quoteSymbol 记住：持仓页每 60 秒重渲染一次，没有这层缓存的话
+// 没 logo 的标的会反复打 404，有 logo 的则每次都先闪一下首字母。
+const assetLogoStatus = new Map();
+
+// CMC 按数字 ID 索引而不是代码，这里只列主流币。漏掉的会回退首字母——
+// 对照「有些资产没 logo 也无所谓」的取舍，不值得为长尾引入一次 ID 映射请求。
+const CMC_COIN_IDS = {
+  BTC: 1, ETH: 1027, USDT: 825, BNB: 1839, SOL: 5426, XRP: 52, USDC: 3408,
+  DOGE: 74, ADA: 2010, TRX: 1958, AVAX: 5805, SHIB: 5994, DOT: 6636, LINK: 1975,
+  BCH: 1831, NEAR: 6535, MATIC: 3890, LTC: 2, ICP: 8916, UNI: 7083, APT: 21794,
+  XLM: 512, ETC: 1321, ATOM: 3794, FIL: 2280, ARB: 11841, OP: 11840, SUI: 20947,
+  PEPE: 24478, TON: 11419, HBAR: 4642, VET: 3077, INJ: 7226, AAVE: 7278
+};
+
+function assetLogoUrl(quoteSymbol, assetType) {
+  // Crypto 的 quoteSymbol 形如 BTC-USD，取前半段查 CMC。
+  if (assetType === 'CRYPTOCURRENCY') {
+    const coinId = CMC_COIN_IDS[quoteSymbol.replace(/-USD$/, '').toUpperCase()];
+    return coinId ? `https://s2.coinmarketcap.com/static/img/coins/128x128/${coinId}.png` : null;
+  }
+  return `https://assets.parqet.com/logos/symbol/${encodeURIComponent(quoteSymbol)}?format=png`;
+}
+
+function applyAssetLogo(element, quoteSymbol, fallbackText, assetType) {
+  element.textContent = fallbackText;
+  element.classList.remove('has-logo');
+  element.style.backgroundImage = '';
+  if (!quoteSymbol) return;
+
+  const status = assetLogoStatus.get(quoteSymbol);
+  if (status === 'fail') return;
+
+  const url = assetLogoUrl(quoteSymbol, assetType);
+  if (!url) return;
+  const show = () => {
+    element.textContent = '';
+    element.classList.add('has-logo');
+    element.style.backgroundImage = `url("${url}")`;
+  };
+  // 已知可用就同步铺上，不必再等一次 onload（图片本身走浏览器缓存）。
+  if (status === 'ok') return show();
+
+  const probe = new Image();
+  probe.onload = () => { assetLogoStatus.set(quoteSymbol, 'ok'); show(); };
+  probe.onerror = () => { assetLogoStatus.set(quoteSymbol, 'fail'); };
+  probe.src = url;
+}
 
 function isInterestHolding(holding) {
   return holding.holdingKind === 'interest' || holding.holdingKind === 'hybrid';
@@ -1385,13 +1446,17 @@ function holdingRowModel(holding) {
   }
   return {
     symbol: holding.symbol,
+    quoteSymbol: holding.quoteSymbol,
+    assetType: holding.assetType,
     detail,
     value: metrics.value,
     profit: metrics.profit,
     pct: metrics.pct,
     hasValue: metrics.hasValue,
     profitLabel: metrics.kind === 'interest' ? '利息' : '盈亏',
-    typeTag: metrics.kind === 'interest' ? '稳定生息' : null,
+    typeTag: metrics.kind === 'interest'
+      ? (holding.interestMode === 'compound' ? '每日复利' : '单利')
+      : null,
     dividendDates
   };
 }
@@ -1399,7 +1464,7 @@ function holdingRowModel(holding) {
 function appendHoldingRowContent(row, model, expandable = false) {
   const logo = document.createElement('span');
   logo.className = 'holding-logo';
-  logo.textContent = model.symbol.slice(0, 2);
+  applyAssetLogo(logo, model.quoteSymbol, model.symbol.slice(0, 2), model.assetType);
 
   const meta = document.createElement('span');
   meta.className = 'holding-meta';
@@ -1514,6 +1579,8 @@ function mergedHoldingModel(group) {
       : `综合成本 ${money.format(totalCost)}`;
   return {
     symbol: group[0].symbol,
+    quoteSymbol: group[0].quoteSymbol,
+    assetType: group[0].assetType,
     detail,
     count: group.length,
     value: totalValue,
@@ -1521,7 +1588,12 @@ function mergedHoldingModel(group) {
     pct: totalCost > 0 && Number.isFinite(totalProfit) ? totalProfit / totalCost * 100 : 0,
     hasValue: Number.isFinite(totalValue),
     profitLabel: allStable ? '利息' : '盈亏',
-    typeTag: allStable ? '稳定生息' : null
+    // 合并组里计息方式可能不一致，那就别谎报成其中一种。
+    typeTag: allStable
+      ? (group.every(item => item.interestMode === 'compound') ? '每日复利'
+        : group.every(item => item.interestMode !== 'compound') ? '单利'
+        : '稳定生息')
+      : null
   };
 }
 
@@ -1722,7 +1794,13 @@ function openProfitSheet(items, action) {
   document.querySelector('.profit-breakdown-list').classList.toggle('is-stable-only', stableOnly);
   document.querySelector('#profit-market-row').hidden = stableOnly;
   document.querySelector('#profit-dividend-row').hidden = stableOnly;
-  interestRow.hidden = !holdingsForBreakdown.some(isInterestHolding);
+  const interestHoldings = holdingsForBreakdown.filter(isInterestHolding);
+  interestRow.hidden = !interestHoldings.length;
+  if (interestHoldings.length) {
+    const modes = new Set(interestHoldings.map(holding => holding.interestMode === 'compound' ? '每日复利' : '单利'));
+    const modeLabel = modes.size === 1 ? [...modes][0] : '单利 + 每日复利';
+    document.querySelector('#profit-interest-detail').textContent = `${modeLabel} · 每日北京时间 16:00 更新`;
+  }
   annualRateRow.hidden = !stableOnly;
   document.querySelector('#profit-annual-rate-value').textContent = Number.isFinite(annualRate)
     ? `${annualRate.toFixed(2)}%`
@@ -2096,7 +2174,7 @@ function renderAssetResults(results, query) {
 
     const mark = document.createElement('span');
     mark.className = 'asset-result-mark';
-    mark.textContent = asset.symbol.slice(0, 2);
+    applyAssetLogo(mark, asset.quoteSymbol, asset.symbol.slice(0, 2), asset.assetType);
     const copy = document.createElement('span');
     copy.className = 'asset-result-copy';
     const name = document.createElement('span');
@@ -2738,15 +2816,15 @@ function handleSignedOut() {
   holdings = [];
   resetHoldingFingerprints();
   localStorage.removeItem(PORTFOLIO_KEY);
-  localStorage.removeItem(PORTFOLIO_UNLOCKED_KEY);
   renderAccountBar();
   renderHoldings();
   document.querySelector('#portfolio-gate').hidden = false;
   document.querySelector('#portfolio-app').hidden = true;
 }
 
+// 只由真实会话调用（handleSignedIn）。不再落任何「已解锁」标记 —— 刷新后
+// 是否放行，一律重新问 Supabase 要会话。
 function unlockPortfolio() {
-  localStorage.setItem(PORTFOLIO_UNLOCKED_KEY, '1');
   document.querySelector('#portfolio-gate').hidden = true;
   document.querySelector('#portfolio-app').hidden = false;
   renderHoldings();
@@ -2756,10 +2834,9 @@ function unlockPortfolio() {
 
 document.querySelector('#portfolio-login-btn').addEventListener('click', async () => {
   if (!cloud) {
-    // Supabase 还没配好时不要把人挡在门外，先给本地版；配好后同一个按钮就是
-    // 真登录，本地这批数据会在首次登录时并进账号。
-    showToast('账号登录尚未开放，先用本地版体验');
-    unlockPortfolio();
+    // 以前这里会直接放行本地版。但那条旁路同时也是「配置挂了就静默变成免登录」
+    // 的后门，持仓页从此不再有这种降级。
+    showToast('登录服务暂时不可用，请稍后重试');
     return;
   }
   sessionStorage.setItem(PENDING_LOGIN_KEY, '1');
@@ -2792,10 +2869,9 @@ if (cloud) {
   });
 }
 
-if (localStorage.getItem(PORTFOLIO_UNLOCKED_KEY) === '1') {
-  document.querySelector('#portfolio-gate').hidden = true;
-  document.querySelector('#portfolio-app').hidden = false;
-}
+// 进来先一律显示登录页。真有会话时，onAuthStateChange 会补发 INITIAL_SESSION
+// 再走 handleSignedIn 解锁 —— 已登录的人只会看到一瞬间的登录页，没登录的人
+// 则不会再被历史标记放行。
 updateHoldingFormVisibility();
 renderHoldings();
 if (!document.querySelector('#portfolio-app').hidden) refreshRecommendationPrices();
