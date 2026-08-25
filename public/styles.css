@@ -804,11 +804,12 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   scrollbar-width: none;
 }
 .sheet-body::-webkit-scrollbar { display: none; }
+/* 不投影：内容滚到底下时那层渐变会在发丝线上方糊出一道灰边，反而比线本身重。
+   这里只靠 1px 发丝线和底色区分。 */
 .sheet-footer {
   position: relative; z-index: 2; flex: 0 0 auto;
   padding: 12px var(--sheet-inline) calc(20px + env(safe-area-inset-bottom));
   border-block-start: 1px solid var(--ink-10); background: var(--bg-1);
-  box-shadow: 0 -12px 30px -26px rgba(0, 0, 0, .5);
 }
 .sheet-footer .calculate-btn { width: 100%; }
 .profile-sheet-body { display: flex; flex-direction: column; gap: 16px; }
