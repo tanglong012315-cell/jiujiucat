@@ -517,7 +517,6 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   width: 22px; height: 22px; flex: 0 0 22px; margin-bottom: 2px; border-radius: 50%;
   display: grid; place-items: center; background: var(--ink-10); color: var(--ink);
 }
-img.recommend-icon { display: block; background: none; }
 .recommend-letter { font-size: 9px; line-height: 1; font-weight: 750; }
 .recommend-symbol { font-size: 12px; line-height: 16px; font-weight: 600; }
 .recommend-price { overflow: hidden; max-width: 100%; font-size: 13px; line-height: 18px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -1027,7 +1026,8 @@ img.recommend-icon { display: block; background: none; }
    不缩放、不描边——那套是为「原始品牌图片」准备的，套在成品图标上反而会出现
    双层圆环，正是之前那股复古味的来源。 */
 .holding-logo.has-logo,
-.asset-result-mark.has-logo {
+.asset-result-mark.has-logo,
+.recommend-icon.has-logo {
   background-color: transparent;
   background-repeat: no-repeat;
   background-position: center;

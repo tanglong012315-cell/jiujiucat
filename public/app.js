@@ -925,7 +925,7 @@ const FALLBACK_ASSETS = [
 const RECOMMENDED_ASSETS = [
   { symbol: 'VOO', quoteSymbol: 'VOO', name: 'Vanguard S&P 500 ETF', assetType: 'ETF', exchange: 'NYSEArca' },
   { symbol: 'AAPL', quoteSymbol: 'AAPL', name: 'Apple Inc.', assetType: 'EQUITY', exchange: 'NASDAQ' },
-  { symbol: 'BTC', quoteSymbol: 'BTC-USD', name: 'Bitcoin', assetType: 'CRYPTOCURRENCY', exchange: 'CCC', icon: 'btc-icon.svg' }
+  { symbol: 'BTC', quoteSymbol: 'BTC-USD', name: 'Bitcoin', assetType: 'CRYPTOCURRENCY', exchange: 'CCC' }
 ];
 
 function normalizeAsset(asset) {
@@ -1061,35 +1061,22 @@ const holdingPrices = new Map();
 // 没 logo 的标的会反复打 404，有 logo 的则每次都先闪一下首字母。
 const assetLogoStatus = new Map();
 
-// CMC 按数字 ID 索引而不是代码，这里只列主流币。漏掉的会回退首字母——
-// 对照「有些资产没 logo 也无所谓」的取舍，不值得为长尾引入一次 ID 映射请求。
-const CMC_COIN_IDS = {
-  BTC: 1, ETH: 1027, USDT: 825, BNB: 1839, SOL: 5426, XRP: 52, USDC: 3408,
-  DOGE: 74, ADA: 2010, TRX: 1958, AVAX: 5805, SHIB: 5994, DOT: 6636, LINK: 1975,
-  BCH: 1831, NEAR: 6535, MATIC: 3890, LTC: 2, ICP: 8916, UNI: 7083, APT: 21794,
-  XLM: 512, ETC: 1321, ATOM: 3794, FIL: 2280, ARB: 11841, OP: 11840, SUI: 20947,
-  PEPE: 24478, TON: 11419, HBAR: 4642, VET: 3077, INJ: 7226, AAVE: 7278
-};
+// 加密货币走 CoinCap：它按「代码」索引，不需要维护代码→数字 ID 的映射表。
+// 之前用 CMC 时硬编码了 34 个主流币的 ID，OKB 这类没列进去的就只能显示首字母
+// ——那张表既漏又要人手维护，换成代码索引后整张表都不需要了。
+const coinCapLogo = bare => `https://assets.coincap.io/assets/icons/${bare.toLowerCase()}@2x.png`;
+const parqetLogo = symbol => `https://assets.parqet.com/logos/symbol/${encodeURIComponent(symbol)}?format=png`;
 
-// 返回候选 URL 列表，按序尝试第一个能加载的。
-//
-// 为什么不是单个 URL：真实数据有两种情况会漏。一是旧持仓里的加密货币没存
-// -USD 后缀，normalizeAsset 只能按后缀猜类型，ETH 这种会被判成 EQUITY
-// （loadHoldings 的特判只覆盖了 BTC）。二是 CMC 要数字 ID，不在表里的币
-// 直接没有 URL 可用。两种情况下都还有别的源值得一试，不该直接放弃。
+// 判断是不是加密货币不能只看 assetType：旧持仓里的加密货币没存 -USD 后缀，
+// normalizeAsset 只能按后缀猜，ETH 这种会被判成 EQUITY（loadHoldings 的兼容
+// 特判只覆盖了 BTC）。所以两条候选都给出去，按序试第一个能加载的。
 function assetLogoCandidates(quoteSymbol, assetType) {
   const bare = quoteSymbol.replace(/-USD$/, '').toUpperCase();
-  const coinId = CMC_COIN_IDS[bare];
-  const cmc = coinId ? `https://s2.coinmarketcap.com/static/img/coins/128x128/${coinId}.png` : null;
-  const parqet = `https://assets.parqet.com/logos/symbol/${encodeURIComponent(quoteSymbol)}?format=png`;
-
-  // 认作加密货币的条件放宽：类型字段说是，或者代码本身就是已知币种代码
-  // ——后者专门用来救没有 -USD 后缀的旧数据。
-  if (assetType === 'CRYPTOCURRENCY' || coinId) {
-    // 冷门币走不到 CMC，仍让 Parqet 试一次再回退首字母。
-    return [cmc, parqet].filter(Boolean);
-  }
-  return [parqet];
+  const crypto = coinCapLogo(bare);
+  const stock = parqetLogo(quoteSymbol);
+  // 明确是加密货币就先试 CoinCap；否则先试股票源，失败再按「可能是漏判类型的
+  // 旧数据」补试一次加密源。
+  return assetType === 'CRYPTOCURRENCY' ? [crypto, stock] : [stock, crypto];
 }
 
 function applyAssetLogo(element, quoteSymbol, fallbackText, assetType) {
@@ -1676,10 +1663,11 @@ function renderPortfolioRecommend() {
     const card = document.createElement('article');
     card.className = 'recommend-card';
 
-    const icon = asset.icon ? document.createElement('img') : document.createElement('span');
-    icon.className = asset.icon ? 'recommend-icon' : 'recommend-icon recommend-letter';
-    if (asset.icon) { icon.src = asset.icon; icon.alt = ''; }
-    else icon.textContent = asset.symbol.slice(0, 1);
+    // 和持仓行、搜索结果共用同一套 logo 解析。原先只认 asset.icon 这个内置
+    // 字段（仅 BTC 有），其余一律首字母。
+    const icon = document.createElement('span');
+    icon.className = 'recommend-icon recommend-letter';
+    applyAssetLogo(icon, asset.quoteSymbol, asset.symbol.slice(0, 1), asset.assetType);
 
     const symbolEl = document.createElement('span');
     symbolEl.className = 'recommend-symbol';
