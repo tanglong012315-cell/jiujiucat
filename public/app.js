@@ -3063,6 +3063,7 @@ mergeHoldingsInput.addEventListener('change', () => {
 document.addEventListener('keydown', event => {
   if (event.key !== 'Escape') return;
   if (!document.querySelector('#delete-confirm-overlay').hidden) return closeDeleteConfirm();
+  if (!document.querySelector('#cat-sheet-overlay').hidden) return closeCatSheet();
   if (!document.querySelector('#profile-sheet-overlay').hidden) return closeProfileSheet();
   if (!document.querySelector('#dividend-frequency-overlay').hidden) return closeDividendFrequencySheet();
   if (!document.querySelector('#asset-search-overlay').hidden) return closeAssetSearch();
@@ -3102,8 +3103,9 @@ const PENDING_LOGIN_KEY = 'jiujiucat-pending-login';
 let currentUser = null;
 let cloudPushTimer = null;
 
+// 同步状态和退出按钮都在个人资料弹层里（顶栏只放头像和名字，不塞状态字）。
 function setSyncStatus(text) {
-  document.querySelector('#account-sync').textContent = text;
+  document.querySelector('#profile-sync').textContent = text;
 }
 
 // 账号条会出现在截图和录屏里，完整邮箱没必要露出来。头尾各留几位是为了让本人
@@ -3128,21 +3130,35 @@ const PROFILE_KEY = 'jiujiucat-profile';
 const DEFAULT_AVATAR = 'ri-bear-smile-line';
 // 头像值会直接当成 <i> 的 class 用，而云端那一行是用户自己可写的 —— 取值必须
 // 限定在这张表里，不能把任意字符串当类名塞进 DOM。
+// 每个头像自带一个纯色底（不带透明度，图标一律白色）—— 一屏十几个圆点，
+// 只靠线条图形分不出谁是谁，颜色才是第一眼的识别位。深浅两个主题共用同一组色：
+// 它们本来就不是从 token 派生的，是身份色。
 const PROFILE_AVATARS = [
-  { icon: 'ri-bear-smile-line', label: '小熊' },
-  { icon: 'ri-mickey-line', label: '米奇' },
-  { icon: 'ri-aliens-line', label: '外星人' },
-  { icon: 'ri-ghost-smile-line', label: '幽灵' },
-  { icon: 'ri-star-smile-line', label: '星星' },
-  { icon: 'ri-emotion-laugh-line', label: '笑脸' },
-  { icon: 'ri-robot-2-line', label: '机器人' },
-  { icon: 'ri-planet-line', label: '星球' },
-  { icon: 'ri-rocket-line', label: '火箭' },
-  { icon: 'ri-flower-line', label: '小花' },
-  { icon: 'ri-fire-line', label: '火苗' },
-  { icon: 'ri-magic-line', label: '魔法棒' }
+  { icon: 'ri-bear-smile-line', label: '小熊', color: '#D9772E' },
+  { icon: 'ri-mickey-line', label: '米奇', color: '#6C5CE7' },
+  { icon: 'ri-aliens-line', label: '外星人', color: '#0E9F6E' },
+  { icon: 'ri-ghost-smile-line', label: '幽灵', color: '#3C7DE0' },
+  { icon: 'ri-star-smile-line', label: '星星', color: '#C08A00' },
+  { icon: 'ri-emotion-laugh-line', label: '笑脸', color: '#D9527A' },
+  { icon: 'ri-robot-2-line', label: '机器人', color: '#1F7FBF' },
+  { icon: 'ri-planet-line', label: '星球', color: '#7A5AF8' },
+  { icon: 'ri-rocket-line', label: '火箭', color: '#E05A3C' },
+  { icon: 'ri-flower-line', label: '小花', color: '#C2478F' },
+  { icon: 'ri-fire-line', label: '火苗', color: '#D2451E' },
+  { icon: 'ri-magic-line', label: '魔法棒', color: '#0E8F8F' }
 ];
+// 未登录时的占位：中性灰，和任何一个已选头像都不一样，一眼能看出「还没设置」。
+const GUEST_AVATAR_COLOR = '#8A8A8F';
 const PROFILE_AVATAR_ICONS = new Set(PROFILE_AVATARS.map(item => item.icon));
+const PROFILE_AVATAR_COLORS = new Map(PROFILE_AVATARS.map(item => [item.icon, item.color]));
+
+// 头像 = 纯色圆底 + 白色图标。四处（顶栏、资料弹层的选项、以后可能还有别处）
+// 共用这一个函数，颜色和图标不会各写各的。
+function applyProfileAvatar(element, icon, color) {
+  element.style.backgroundColor = color || PROFILE_AVATAR_COLORS.get(icon) || GUEST_AVATAR_COLOR;
+  const glyph = element.querySelector('i');
+  if (glyph) glyph.className = icon;
+}
 const PROFILE_NAME_MAX = 20;
 
 function normalizeProfile(raw) {
@@ -3166,18 +3182,23 @@ let profileDraftAvatar = profile.avatar;
 let profileSheetTrigger = null;
 let profileSheetCloseTimer = null;
 
+// 顶栏的身份区：登录后是「头像 + 名字」，没登录只留一个灰色占位头像。
+// 名字优先用自定义用户名，没设就退回脱敏邮箱。
 function renderAccountBar() {
-  const bar = document.querySelector('#account-bar');
-  bar.hidden = !currentUser;
-  if (!currentUser) return;
-  const masked = currentUser.email ? maskEmail(currentUser.email) : '已登录';
-  // 设了用户名就以用户名为准，脱敏邮箱退到资料弹层里 —— 一行 12px 的元信息塞
-  // 两个身份标识，两个都会被挤到省略号。
-  document.querySelector('#account-name').textContent = profile.name || masked;
-  document.querySelector('#account-avatar-icon').className = profile.avatar;
-  document.querySelector('#account-profile-btn')
-    .setAttribute('aria-label', `个人资料：${profile.name || masked}`);
-  document.querySelector('#profile-email').textContent = masked;
+  const signedIn = !!currentUser;
+  const masked = currentUser?.email ? maskEmail(currentUser.email) : '已登录';
+  const name = signedIn ? (profile.name || masked) : '';
+  const avatar = document.querySelector('#header-avatar');
+  const nameEl = document.querySelector('#header-name');
+
+  applyProfileAvatar(avatar, signedIn ? profile.avatar : DEFAULT_AVATAR,
+    signedIn ? undefined : GUEST_AVATAR_COLOR);
+  nameEl.textContent = name;
+  nameEl.hidden = !signedIn;
+  document.querySelector('#header-account-btn')
+    .setAttribute('aria-label', signedIn ? `个人资料：${name}` : '未登录，点按登录');
+
+  document.querySelector('#profile-email').textContent = signedIn ? masked : '—';
 }
 
 async function pullCloudProfile() {
@@ -3237,11 +3258,12 @@ const profileAvatarGrid = document.querySelector('#profile-avatar-grid');
 PROFILE_AVATARS.forEach(({ icon, label }) => {
   const option = document.createElement('button');
   option.type = 'button';
-  option.className = 'profile-avatar-option';
+  option.className = 'avatar-chip profile-avatar-option';
   option.dataset.avatar = icon;
   option.setAttribute('aria-pressed', 'false');
   option.setAttribute('aria-label', `头像 ${label}`);
   option.innerHTML = `<i class="${icon}" aria-hidden="true"></i>`;
+  applyProfileAvatar(option, icon);
   option.addEventListener('click', () => setProfileDraftAvatar(icon));
   profileAvatarGrid.append(option);
 });
@@ -3249,8 +3271,17 @@ PROFILE_AVATARS.forEach(({ icon, label }) => {
 function openProfileSheet() {
   clearTimeout(profileSheetCloseTimer);
   profileSheetTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  // 未登录时资料无处可存，弹层只留一句说明和登录按钮 —— 改了名字和头像却
+  // 存不下来，比不给改更糟。
+  const signedIn = !!currentUser;
+  document.querySelector('#profile-sheet-title').textContent = signedIn ? '个人资料' : '登录';
+  document.querySelector('.profile-signed-in').hidden = !signedIn;
+  document.querySelector('.profile-guest-note').hidden = signedIn;
+  document.querySelector('#profile-submit-btn').hidden = !signedIn;
+  document.querySelector('#profile-login-btn').hidden = signedIn;
   document.querySelector('#profile-name').value = profile.name;
   setProfileDraftAvatar(profile.avatar);
+  renderAccountBar();
   openOverlay(document.querySelector('#profile-sheet-overlay'));
 }
 
@@ -3265,10 +3296,77 @@ function closeProfileSheet(restoreFocus = true) {
   }, 220);
 }
 
-document.querySelector('#account-profile-btn').addEventListener('click', openProfileSheet);
+// 单击开个人资料，双击看猫。双击本身也会先发两次 click，所以单击的动作要
+// 压后一拍再执行，双击到了就把它取消掉。
+let headerAccountClickTimer = null;
+const headerAccountBtn = document.querySelector('#header-account-btn');
+headerAccountBtn.addEventListener('click', () => {
+  clearTimeout(headerAccountClickTimer);
+  headerAccountClickTimer = setTimeout(openProfileSheet, 260);
+});
+headerAccountBtn.addEventListener('dblclick', () => {
+  clearTimeout(headerAccountClickTimer);
+  openCatSheet();
+});
 document.querySelector('#profile-close-btn').addEventListener('click', () => closeProfileSheet());
 [...document.querySelectorAll('[data-close-profile]')]
   .forEach(el => el.addEventListener('click', () => closeProfileSheet()));
+
+// ── 猫（双击顶栏头像）─────────────────────────────────────────────────
+let catSheetTrigger = null;
+let catSheetCloseTimer = null;
+
+// 另外八只还没有照片和名字，先把位置摆出来 —— 空占位比一句「敬请期待」更像
+// 一件正在做的事。
+function renderCatLitter() {
+  const grid = document.querySelector('#cat-litter-grid');
+  if (grid.children.length) return;
+  grid.replaceChildren(...Array.from({ length: 8 }, () => {
+    const cell = document.createElement('figure');
+    cell.className = 'cat-litter-cell';
+    const photo = document.createElement('span');
+    photo.className = 'cat-litter-photo';
+    photo.setAttribute('aria-hidden', 'true');
+    const name = document.createElement('figcaption');
+    name.className = 'cat-litter-name';
+    cell.append(photo, name);
+    return cell;
+  }));
+}
+
+function showCatLitter(show) {
+  document.querySelector('#cat-hero').hidden = show;
+  document.querySelector('#cat-litter').hidden = !show;
+  document.querySelector('#cat-sheet-title').textContent = show ? '其他 8 只' : 'BoBo';
+  document.querySelector('#cat-litter-btn').textContent = show ? '回到 BoBo' : '查看其他 8 只？';
+}
+
+function openCatSheet() {
+  clearTimeout(catSheetCloseTimer);
+  catSheetTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  renderCatLitter();
+  showCatLitter(false);
+  openOverlay(document.querySelector('#cat-sheet-overlay'));
+  document.querySelector('#cat-close-btn').focus();
+}
+
+function closeCatSheet(restoreFocus = true) {
+  const overlay = document.querySelector('#cat-sheet-overlay');
+  overlay.classList.remove('is-open');
+  const trigger = catSheetTrigger;
+  catSheetCloseTimer = setTimeout(() => {
+    overlay.hidden = true;
+    if (restoreFocus && trigger?.isConnected) trigger.focus();
+    catSheetTrigger = null;
+  }, 220);
+}
+
+document.querySelector('#cat-close-btn').addEventListener('click', () => closeCatSheet());
+[...document.querySelectorAll('[data-close-cat]')]
+  .forEach(el => el.addEventListener('click', () => closeCatSheet()));
+document.querySelector('#cat-litter-btn').addEventListener('click', () => {
+  showCatLitter(document.querySelector('#cat-litter').hidden);
+});
 
 document.querySelector('#profile-form').addEventListener('submit', async event => {
   event.preventDefault();
@@ -3351,18 +3449,31 @@ async function handleSignedIn(user) {
   }
   syncProfile();
   setSyncStatus('同步中…');
-  try {
-    holdings = mergeHoldings(holdings, await pullCloudHoldings());
-    // 合并结果直接落盘：走 saveHoldings 会把刚拉下来的远端行当成「刚改过」
-    // 重新盖章，冲突裁判就失效了。
-    resetHoldingFingerprints();
-    localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(holdings));
-    renderHoldings();
-    refreshHoldingPrices();
-    await pushCloudHoldings();
-    setSyncStatus('已同步');
-  } catch {
-    setSyncStatus('同步失败，本地数据仍可用');
+  // 失败重试一次。刷新时如果 access token 刚好过期，第一次查表会吃一个 401，
+  // supabase-js 随后自己刷新了 token，但 onAuthStateChange 只在「换了个人」时
+  // 才重跑 handleSignedIn —— 同一个人的 TOKEN_REFRESHED 不会重来，状态就一直
+  // 挂着「同步失败」。数据其实没丢（之后的改动照样推得上去），但这个状态现在
+  // 显示在个人资料里，挂错了会让人以为云端坏了。
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      holdings = mergeHoldings(holdings, await pullCloudHoldings());
+      // 合并结果直接落盘：走 saveHoldings 会把刚拉下来的远端行当成「刚改过」
+      // 重新盖章，冲突裁判就失效了。
+      resetHoldingFingerprints();
+      localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(holdings));
+      renderHoldings();
+      refreshHoldingPrices();
+      await pushCloudHoldings();
+      setSyncStatus('已同步');
+      return;
+    } catch {
+      if (attempt === 0) {
+        setSyncStatus('同步失败，正在重试…');
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        continue;
+      }
+      setSyncStatus('同步失败，本地数据仍可用');
+    }
   }
 }
 
@@ -3393,7 +3504,7 @@ function unlockPortfolio() {
   refreshRecommendationPrices();
 }
 
-document.querySelector('#portfolio-login-btn').addEventListener('click', async () => {
+async function startGoogleLogin() {
   if (!cloud) {
     // 以前这里会直接放行本地版。但那条旁路同时也是「配置挂了就静默变成免登录」
     // 的后门，持仓页从此不再有这种降级。
@@ -3409,9 +3520,16 @@ document.querySelector('#portfolio-login-btn').addEventListener('click', async (
     sessionStorage.removeItem(PENDING_LOGIN_KEY);
     showToast('登录失败，请稍后重试');
   }
+}
+
+document.querySelector('#portfolio-login-btn').addEventListener('click', startGoogleLogin);
+document.querySelector('#profile-login-btn').addEventListener('click', () => {
+  closeProfileSheet(false);
+  startGoogleLogin();
 });
 
-document.querySelector('#account-signout-btn').addEventListener('click', async () => {
+document.querySelector('#profile-signout-btn').addEventListener('click', async () => {
+  closeProfileSheet(false);
   await cloud?.auth.signOut();
 });
 
@@ -3433,6 +3551,7 @@ if (cloud) {
 // 进来先一律显示登录页。真有会话时，onAuthStateChange 会补发 INITIAL_SESSION
 // 再走 handleSignedIn 解锁 —— 已登录的人只会看到一瞬间的登录页，没登录的人
 // 则不会再被历史标记放行。
+renderAccountBar();
 updateHoldingFormVisibility();
 renderHoldings();
 if (!document.querySelector('#portfolio-app').hidden) refreshRecommendationPrices();

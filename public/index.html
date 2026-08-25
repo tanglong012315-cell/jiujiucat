@@ -19,13 +19,15 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=83" />
+  <link rel="stylesheet" href="styles.css?v=84" />
 </head>
 <body>
   <header class="topbar">
     <div class="header-identity">
-      <a class="brand-mark" href="#" aria-label="JiuJiu生财首页"><img src="avatar.png" alt="" /></a>
-      <h1 class="brand-heading"><a class="brand-title" href="#">JiuJiu生财</a></h1>
+      <button type="button" class="header-account" id="header-account-btn" aria-haspopup="dialog" aria-controls="profile-sheet-overlay">
+        <span class="avatar-chip header-avatar" id="header-avatar"><i class="ri-bear-smile-line" aria-hidden="true"></i></span>
+        <span class="header-name" id="header-name" hidden></span>
+      </button>
     </div>
     <button type="button" class="btc-ticker" title="实时行情" aria-live="off">
       <div class="market-content" id="market-content">
@@ -141,14 +143,6 @@
       </section>
 
       <div id="portfolio-app" hidden>
-        <div class="account-bar" id="account-bar" hidden>
-          <button type="button" class="account-identity" id="account-profile-btn" aria-haspopup="dialog" aria-controls="profile-sheet-overlay">
-            <span class="account-avatar"><i class="ri-bear-smile-line" id="account-avatar-icon" aria-hidden="true"></i></span>
-            <span id="account-name">—</span>
-          </button>
-          <span class="account-sync" id="account-sync" aria-live="polite"></span>
-          <button type="button" class="account-signout" id="account-signout-btn">退出</button>
-        </div>
         <section class="card portfolio-summary" aria-label="持仓概览">
           <div class="portfolio-overview">
             <div class="portfolio-overview-copy">
@@ -216,7 +210,7 @@
     </div>
   </main>
 
-  <footer><span>JiuJiu是我的猫</span><span>© Designed by Long</span></footer>
+  <footer><span>© Designed by Long</span></footer>
 
   <nav class="tabbar" role="tablist" aria-label="主导航">
     <span class="tabbar-beam" aria-hidden="true"></span>
@@ -560,22 +554,55 @@
         <h2 class="sheet-title" id="profile-sheet-title">个人资料</h2>
       </div>
       <div class="sheet-body profile-sheet-body" data-dialog-scroll>
-        <div class="field">
-          <label class="field-label" for="profile-name">用户名</label>
-          <div class="input-shell">
-            <input id="profile-name" type="text" autocomplete="nickname" maxlength="20" placeholder="未设置时显示邮箱" />
+        <div class="profile-signed-in">
+          <div class="field">
+            <label class="field-label" for="profile-name">用户名</label>
+            <div class="input-shell">
+              <input id="profile-name" type="text" autocomplete="nickname" maxlength="20" placeholder="未设置时显示邮箱" />
+            </div>
           </div>
+          <fieldset class="field profile-avatar-field">
+            <legend class="field-label">头像</legend>
+            <div class="profile-avatar-grid" id="profile-avatar-grid"></div>
+          </fieldset>
+          <div class="profile-account-card">
+            <div><dt>登录账号</dt><dd id="profile-email">—</dd></div>
+            <div><dt>云端同步</dt><dd id="profile-sync" aria-live="polite">—</dd></div>
+          </div>
+          <button type="button" class="profile-signout-btn" id="profile-signout-btn">退出登录</button>
         </div>
-        <fieldset class="field profile-avatar-field">
-          <legend class="field-label">头像</legend>
-          <div class="profile-avatar-grid" id="profile-avatar-grid"></div>
-        </fieldset>
-        <p class="profile-account-line">登录账号 <span id="profile-email">—</span></p>
+        <p class="profile-guest-note">登录后可以自定义用户名和头像，持仓也会同步到云端。</p>
       </div>
       <div class="sheet-footer">
         <button type="submit" class="calculate-btn" id="profile-submit-btn">保存</button>
+        <button type="button" class="calculate-btn" id="profile-login-btn">登录</button>
       </div>
     </form>
+  </div>
+
+  <div class="sheet-overlay cat-sheet-overlay" id="cat-sheet-overlay" hidden>
+    <div class="sheet-scrim" data-close-cat></div>
+    <section class="sheet-panel cat-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="cat-sheet-title">
+      <div class="sheet-grabber"></div>
+      <div class="sheet-head">
+        <h2 class="sheet-title" id="cat-sheet-title">BoBo</h2>
+        <button type="button" class="sheet-close-btn" id="cat-close-btn" aria-label="关闭">
+          <i class="ri-close-line" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="sheet-body cat-sheet-body" data-dialog-scroll>
+        <figure class="cat-hero" id="cat-hero">
+          <img src="avatar.png" alt="我们家的猫 BoBo" />
+          <figcaption>这是我们猫 BoBo，它很可爱</figcaption>
+        </figure>
+        <div class="cat-litter" id="cat-litter" hidden>
+          <div class="cat-litter-grid" id="cat-litter-grid"></div>
+        </div>
+      </div>
+      <div class="sheet-footer">
+        <button type="button" class="calculate-btn" id="cat-litter-btn">查看其他 8 只？</button>
+      </div>
+    </section>
   </div>
 
   <div class="confirm-overlay" id="delete-confirm-overlay" hidden>
@@ -593,6 +620,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
-  <script src="app.js?v=84"></script>
+  <script src="app.js?v=86"></script>
 </body>
 </html>

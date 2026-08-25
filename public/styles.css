@@ -145,10 +145,28 @@ img { max-width: 100%; }
   border-block-end: 1px solid var(--ink-10);
 }
 .header-identity { min-width: 0; flex: 1 1 auto; display: flex; align-items: center; gap: 8px; }
-.brand-mark { width: 24px; height: 24px; flex: 0 0 24px; display: block; overflow: hidden; border-radius: 50%; }
-.brand-mark img { width: 100%; height: 100%; display: block; object-fit: cover; }
-.brand-heading { min-width: 0; margin: 0; font-size: 14px; line-height: 20px; font-weight: 400; }
-.brand-title { display: block; overflow: hidden; color: var(--ink); text-decoration: none; white-space: nowrap; text-overflow: ellipsis; }
+/* 顶栏原来是「猫头像 + JiuJiu生财」，现在换成当前账号的身份。单击开个人资料，
+   双击弹出那只猫（见 app.js 里的 headerAccountClickTimer）。 */
+.header-account {
+  min-width: 0; display: flex; align-items: center; gap: 8px;
+  padding: 0; border: 0; border-radius: 999px; background: none; color: var(--ink);
+  font-size: 14px; line-height: 20px; text-align: start; cursor: pointer;
+  transition-property: opacity; transition-duration: 150ms;
+  -webkit-user-select: none; user-select: none;
+}
+@media (hover: hover) { .header-account:hover { opacity: .7; } }
+.header-account:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.header-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.header-name[hidden] { display: none; }
+/* 头像统一长这样：纯色圆底 + 白色图标。底色由 JS 按头像写在 style 上
+   （见 applyProfileAvatar），这里只管几何和图标颜色。 */
+.avatar-chip {
+  flex: 0 0 auto; display: grid; place-items: center;
+  border: 0; border-radius: 50%; color: #ffffff; padding: 0;
+}
+.avatar-chip > i { line-height: 1; }
+.header-avatar { width: 28px; height: 28px; }
+.header-avatar > i { font-size: 17px; }
 
 /* Ticker — direction reads from the arrow glyph, never from color (SnowUI) */
 /* 从 div 改成 button：键盘可聚焦、Enter/Space 自动生效、屏幕阅读器会报成
@@ -439,43 +457,6 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .gate-card .calculate-btn { margin-top: 6px; }
 .google-signin-btn { gap: 10px; }
 /* Google 的品牌规范要求这个 mark 保持原色，所以它不跟随主题反色。 */
-/* 图标字体版：跟随按钮文字色，不需要原来给多色 SVG 衬的白色圆底。 */
-.google-mark { flex: 0 0 auto; font-size: 18px; line-height: 1; }
-
-.account-bar {
-  display: flex; align-items: center; gap: 10px;
-  /* #portfolio-app 是 32px gap 的 grid，这行只是条元信息，不需要卡片之间那么
-     宽的间距，用负 margin 把它拉回紧贴概览卡。 */
-  margin-bottom: -18px; padding: 0 4px;
-  color: var(--ink-40); font-size: 12px; line-height: 16px;
-}
-.account-bar[hidden] { display: none; }
-/* 身份区现在是打开个人资料弹层的按钮。视觉要和原来那行纯文本一模一样，所以按钮
-   自带的边框/背景/内距全部抹掉，只留 hover 与 focus 的可点提示。 */
-.account-identity {
-  display: flex; align-items: center; gap: 8px; min-width: 0;
-  padding: 0; border: 0; border-radius: 8px; background: none;
-  color: inherit; font-size: inherit; line-height: inherit; text-align: start;
-  cursor: pointer; transition-property: opacity; transition-duration: 150ms;
-}
-.account-identity > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (hover: hover) { .account-identity:hover { opacity: .7; } }
-.account-identity:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
-.account-avatar {
-  flex: 0 0 auto; width: 24px; height: 24px; border-radius: 999px;
-  display: grid; place-items: center; background: var(--ink-4); color: var(--ink-80);
-}
-.account-avatar i { font-size: 15px; line-height: 1; }
-.account-sync { margin-left: auto; flex: 0 0 auto; opacity: .8; }
-.account-signout {
-  flex: 0 0 auto; padding: 4px 10px; border: 0; border-radius: 8px;
-  color: var(--ink-80); background: var(--ink-4);
-  font-size: 12px; line-height: 16px; cursor: pointer;
-  transition-property: opacity; transition-duration: 150ms;
-}
-@media (hover: hover) { .account-signout:hover { opacity: .7; } }
-.account-signout:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-
 /* ── Portfolio — holdings ─────────────────────────────────
    概览采用单块账本式布局；持仓行的视觉抄 .fx-row（同款 tint 背景、
    hover/active/focus 处理），换成两行信息 + 徽标。 */
@@ -824,18 +805,41 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 /* 固定 6 列而不是 auto-fill：12 个头像正好排成两整行，列数随宽度变的话最后
    一行会剩下参差的两三个。 */
 .profile-avatar-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
-/* 圆形是因为它就是头像：账号条上那个 24px 的圆点，在这里放大成可选项。 */
+/* 圆形是因为它就是头像：顶栏那个 28px 的圆点，在这里放大成可选项。
+   底色是各自的身份色（JS 写在 style 上），所以选中态不能再靠换底色表达 ——
+   改成一圈描边。 */
 .profile-avatar-option {
-  position: relative; aspect-ratio: 1; min-width: 0; padding: 0;
-  border: 0; border-radius: 999px; display: grid; place-items: center;
-  color: var(--ink-80); background: var(--ink-4); cursor: pointer;
-  transition-property: color, background-color; transition-duration: 150ms;
+  position: relative; aspect-ratio: 1; min-width: 0; cursor: pointer;
+  transition-property: scale; transition-duration: 150ms;
 }
-.profile-avatar-option i { font-size: clamp(20px, 4.6vw, 26px); line-height: 1; }
-@media (hover: hover) { .profile-avatar-option:hover { background: var(--ink-10); } }
-.profile-avatar-option[aria-pressed="true"] { color: var(--on-tint); background: var(--tint-blue); }
-.profile-avatar-option:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.profile-account-line { margin: 0; color: var(--ink-40); font-size: 12px; line-height: 16px; }
+.profile-avatar-option i { font-size: clamp(20px, 4.6vw, 26px); }
+@media (hover: hover) { .profile-avatar-option:hover { scale: 1.06; } }
+.profile-avatar-option[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 3px; }
+.profile-avatar-option:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.profile-signed-in { display: flex; flex-direction: column; gap: 16px; }
+.profile-signed-in[hidden], .profile-guest-note[hidden] { display: none; }
+.profile-guest-note { margin: 0; padding-block: 8px; color: var(--ink-40); font-size: 13px; line-height: 20px; }
+/* 「登录账号 / 云端同步」这两条是状态不是操作，收进一张不描边的填充块里，
+   和上面的输入项区分开。 */
+.profile-account-card {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 8px;
+  padding: 12px 16px; border-radius: var(--radius-card); background: var(--ink-4);
+}
+.profile-account-card > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.profile-account-card dt { color: var(--ink-40); font-size: 11px; line-height: 16px; }
+.profile-account-card dd {
+  overflow: hidden; margin: 0; font-size: 12px; line-height: 18px; font-weight: 600;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.profile-signout-btn {
+  min-height: 44px; padding: 0 16px; border: 0; border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--loss) 10%, transparent); color: var(--loss);
+  font-size: 14px; line-height: 20px; font-weight: 600; cursor: pointer;
+  transition-property: opacity; transition-duration: 150ms;
+}
+@media (hover: hover) { .profile-signout-btn:hover { opacity: .8; } }
+.profile-signout-btn:focus-visible { outline: 2px solid var(--loss); outline-offset: 2px; }
+.sheet-footer .calculate-btn[hidden] { display: none; }
 #holding-form {
   min-height: 0; flex: 1 1 auto; overflow: hidden;
   display: flex; flex-direction: column; gap: 0;
@@ -971,6 +975,24 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 @media (hover: hover) { .dividend-record-delete:hover { background: color-mix(in srgb, var(--loss) 10%, transparent); } }
 .dividend-record-delete:focus-visible { outline: 2px solid var(--loss); outline-offset: 1px; }
 .dividend-record-delete > i { font-size: 18px; line-height: 1; }
+/* ── 猫 ───────────────────────────────────────────────── */
+.cat-sheet-body { display: flex; flex-direction: column; gap: 16px; }
+.cat-hero { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.cat-hero[hidden], .cat-litter[hidden] { display: none; }
+.cat-hero img {
+  width: min(260px, 68vw); aspect-ratio: 1; border-radius: 28px;
+  object-fit: cover; background: var(--ink-4);
+}
+.cat-hero figcaption { color: var(--ink-80); font-size: 15px; line-height: 22px; text-align: center; }
+.cat-litter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 8px; }
+.cat-litter-cell { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+/* 照片和名字都还没有：占位保持和真内容一样的尺寸，将来填上不会跳版。 */
+.cat-litter-photo { aspect-ratio: 1; border-radius: 16px; background: var(--ink-4); }
+.cat-litter-name { min-height: 16px; font-size: 11px; line-height: 16px; text-align: center; }
+.cat-litter-name:empty::after {
+  content: ""; display: block; width: 60%; height: 8px; margin: 4px auto 0;
+  border-radius: 999px; background: var(--ink-10);
+}
 .records-more-note { margin: 0; padding-block: 14px; color: var(--ink-40); font-size: 11px; line-height: 16px; text-align: center; }
 .dividend-records-empty { margin: 0; padding-block: 28px; color: var(--ink-40); font-size: 13px; line-height: 20px; text-align: center; }
 /* 利息按天列，一个月就是 30 条。月份小标题吸顶，滚到哪个月一眼看得到；
@@ -1363,9 +1385,10 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .tabbar-item:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
 .tabbar-icon { width: 22px; height: 22px; display: grid; place-items: center; font-size: 22px; line-height: 1; }
 
+/* 分割线随「JiuJiu是我的猫」那行一起去掉了：只剩一行版权时，一条横贯全宽的
+   发丝线比它本身还显眼。 */
 footer {
   padding: 16px 28px 28px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;
-  border-block-start: 1px solid var(--ink-10);
   color: var(--ink-40); font-size: 12px; line-height: 16px;
 }
 body:has(#panel-portfolio:not([hidden])) footer,
