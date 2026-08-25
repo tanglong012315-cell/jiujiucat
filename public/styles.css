@@ -152,6 +152,8 @@ img { max-width: 100%; }
   padding: 0; border: 0; border-radius: 999px; background: none; color: var(--ink);
   font-size: 14px; line-height: 20px; text-align: start; cursor: pointer;
   transition-property: opacity; transition-duration: 150ms;
+  /* 双击要能用：不加这条的话移动端会把第二下当成「双击缩放」吃掉。 */
+  touch-action: manipulation;
   -webkit-user-select: none; user-select: none;
 }
 @media (hover: hover) { .header-account:hover { opacity: .7; } }
@@ -817,20 +819,10 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .profile-avatar-option[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 3px; }
 .profile-avatar-option:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 .profile-signed-in { display: flex; flex-direction: column; gap: 16px; }
+/* 登录账号退成退出按钮下面的一行小字：它是「确认自己是谁」用的，不是操作。 */
+.profile-account-line { margin: -8px 0 0; color: var(--ink-40); font-size: 11px; line-height: 16px; text-align: center; }
 .profile-signed-in[hidden], .profile-guest-note[hidden] { display: none; }
 .profile-guest-note { margin: 0; padding-block: 8px; color: var(--ink-40); font-size: 13px; line-height: 20px; }
-/* 「登录账号 / 云端同步」这两条是状态不是操作，收进一张不描边的填充块里，
-   和上面的输入项区分开。 */
-.profile-account-card {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 8px;
-  padding: 12px 16px; border-radius: var(--radius-card); background: var(--ink-4);
-}
-.profile-account-card > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.profile-account-card dt { color: var(--ink-40); font-size: 11px; line-height: 16px; }
-.profile-account-card dd {
-  overflow: hidden; margin: 0; font-size: 12px; line-height: 18px; font-weight: 600;
-  text-overflow: ellipsis; white-space: nowrap;
-}
 .profile-signout-btn {
   min-height: 44px; padding: 0 16px; border: 0; border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--loss) 10%, transparent); color: var(--loss);
@@ -851,7 +843,11 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .holding-kind-field[hidden] { display: none; }
 .holding-kind-segmented { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .holding-conditional[hidden] { display: none; }
-#holding-form .input-shell input {
+/* 这条重置原来只写了 #holding-form —— 个人资料弹层里的用户名输入框吃不到，
+   于是露出了浏览器默认的 2px inset 边框和白底，套在 .input-shell 的填充里
+   变成「框中框」。凡是放进 .input-shell 的输入框都要吃到这条。 */
+#holding-form .input-shell input,
+#profile-form .input-shell input {
   min-width: 0; width: 100%; flex: 1; appearance: none;
   margin: 0; padding: 0; border: 0; outline: 0; background: transparent;
   color: var(--ink); font-size: 16px; line-height: 24px; font-weight: 500;

@@ -3103,23 +3103,22 @@ const PENDING_LOGIN_KEY = 'jiujiucat-pending-login';
 let currentUser = null;
 let cloudPushTimer = null;
 
-// 同步状态和退出按钮都在个人资料弹层里（顶栏只放头像和名字，不塞状态字）。
-function setSyncStatus(text) {
-  document.querySelector('#profile-sync').textContent = text;
+// 同步状态不再常驻显示。「已同步」这三个字挂在那里几乎永远为真，属于噪音；
+// 真正要让人知道的只有失败，那用 toast 说一次就够了。
+function reportSyncFailure(message) {
+  showToast(message);
 }
 
-// 账号条会出现在截图和录屏里，完整邮箱没必要露出来。头尾各留几位是为了让本人
-// 一眼认出是哪个账号，中间和域名后缀遮掉。本地部分短于 6 位时不留尾巴 ——
-// 那种长度下"前三后二"几乎等于把整个地址原样显示。
+// 身份会出现在截图和录屏里，完整邮箱没必要露出来。头尾各留几位是为了让本人
+// 一眼认出是哪个账号，中间遮掉，**域名整段不显示** —— 「@gmail」对本人没有
+// 任何信息量（自己用哪个邮箱当然知道），对别人反而是一条线索。
+// 本地部分短于 6 位时不留尾巴：那种长度下「前三后二」几乎等于原样显示。
 function maskEmail(email) {
   const at = email.lastIndexOf('@');
-  if (at < 1) return email;
-  const local = email.slice(0, at);
-  const domain = email.slice(at + 1).split('.')[0];
-  const masked = local.length > 5
+  const local = at < 1 ? email : email.slice(0, at);
+  return local.length > 5
     ? `${local.slice(0, 3)}***${local.slice(-2)}`
     : `${local.slice(0, 1)}***`;
-  return `${masked}@${domain}`;
 }
 
 // ── 个人资料（用户名 + 头像）─────────────────────────────────────────
@@ -3296,16 +3295,29 @@ function closeProfileSheet(restoreFocus = true) {
   }, 220);
 }
 
-// 单击开个人资料，双击看猫。双击本身也会先发两次 click，所以单击的动作要
-// 压后一拍再执行，双击到了就把它取消掉。
+// 单击开个人资料，双击看猫。
+//
+// 自己数 click 次数，不用原生的 dblclick 事件：触屏上 dblclick 各家实现不一
+// （iOS 上双击优先被当成缩放手势，很多时候根本不发这个事件），只靠它会出现
+// 「怎么双击都出不来」。click 在触屏和鼠标上都稳定触发，数两次就行。
+// 窗口给到 320ms —— 260ms 对不少人的双击来说偏紧，第一下的动作已经跑掉了。
+// 配套还需要 CSS 的 touch-action: manipulation，否则移动端的双击缩放会把
+// 第二下吞掉。
+const HEADER_DOUBLE_CLICK_MS = 320;
 let headerAccountClickTimer = null;
+let headerAccountClicks = 0;
 const headerAccountBtn = document.querySelector('#header-account-btn');
 headerAccountBtn.addEventListener('click', () => {
+  headerAccountClicks += 1;
+  if (headerAccountClicks === 1) {
+    headerAccountClickTimer = setTimeout(() => {
+      headerAccountClicks = 0;
+      openProfileSheet();
+    }, HEADER_DOUBLE_CLICK_MS);
+    return;
+  }
   clearTimeout(headerAccountClickTimer);
-  headerAccountClickTimer = setTimeout(openProfileSheet, 260);
-});
-headerAccountBtn.addEventListener('dblclick', () => {
-  clearTimeout(headerAccountClickTimer);
+  headerAccountClicks = 0;
   openCatSheet();
 });
 document.querySelector('#profile-close-btn').addEventListener('click', () => closeProfileSheet());
@@ -3417,12 +3429,10 @@ function queueCloudPush() {
   if (!cloud || !currentUser) return;
   clearTimeout(cloudPushTimer);
   cloudPushTimer = setTimeout(async () => {
-    setSyncStatus('同步中…');
     try {
       await pushCloudHoldings();
-      setSyncStatus('已同步');
     } catch {
-      setSyncStatus('同步失败');
+      reportSyncFailure('云端同步失败，改动已存在本机');
     }
   }, 800);
 }
@@ -3448,7 +3458,6 @@ async function handleSignedIn(user) {
     document.querySelector('#tab-portfolio').click();
   }
   syncProfile();
-  setSyncStatus('同步中…');
   // 失败重试一次。刷新时如果 access token 刚好过期，第一次查表会吃一个 401，
   // supabase-js 随后自己刷新了 token，但 onAuthStateChange 只在「换了个人」时
   // 才重跑 handleSignedIn —— 同一个人的 TOKEN_REFRESHED 不会重来，状态就一直
@@ -3464,15 +3473,13 @@ async function handleSignedIn(user) {
       renderHoldings();
       refreshHoldingPrices();
       await pushCloudHoldings();
-      setSyncStatus('已同步');
       return;
     } catch {
       if (attempt === 0) {
-        setSyncStatus('同步失败，正在重试…');
         await new Promise(resolve => setTimeout(resolve, 3000));
         continue;
       }
-      setSyncStatus('同步失败，本地数据仍可用');
+      reportSyncFailure('云端同步失败，本地数据仍可用');
     }
   }
 }

@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=84" />
+  <link rel="stylesheet" href="styles.css?v=86" />
 </head>
 <body>
   <header class="topbar">
@@ -565,11 +565,8 @@
             <legend class="field-label">头像</legend>
             <div class="profile-avatar-grid" id="profile-avatar-grid"></div>
           </fieldset>
-          <div class="profile-account-card">
-            <div><dt>登录账号</dt><dd id="profile-email">—</dd></div>
-            <div><dt>云端同步</dt><dd id="profile-sync" aria-live="polite">—</dd></div>
-          </div>
           <button type="button" class="profile-signout-btn" id="profile-signout-btn">退出登录</button>
+          <p class="profile-account-line">登录账号 <span id="profile-email">—</span></p>
         </div>
         <p class="profile-guest-note">登录后可以自定义用户名和头像，持仓也会同步到云端。</p>
       </div>
@@ -620,6 +617,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
-  <script src="app.js?v=86"></script>
+  <script src="app.js?v=88"></script>
 </body>
 </html>
