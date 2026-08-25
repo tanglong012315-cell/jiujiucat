@@ -643,6 +643,8 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
    放在段前会让第二行以一个孤零零的「·」开头，放在段后则是行尾挂一个点。
    每段自带「份 / 成本 / 本金」这样的词，靠 10px 间距已经分得开。 */
 .holding-qty > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* .holding-qty 是 display:flex，会盖过浏览器对 [hidden] 的默认 display:none。 */
+.holding-qty[hidden] { display: none; }
 .holding-right { min-width: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .holding-value { font-size: 14px; line-height: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
 /* 整行 nowrap 时，一笔十倍仓位的「+$30,236.00 (+3023.60%)」会强占整行宽度，
@@ -655,7 +657,6 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   font-size: 11px; line-height: 16px; font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.holding-pl-label { color: var(--ink-40); font-weight: 400; }
 .holding-pl-value, .holding-pl-pct { white-space: nowrap; }
 .holding-pl.is-gain { color: var(--gain); }
 .holding-pl.is-loss { color: var(--loss); }

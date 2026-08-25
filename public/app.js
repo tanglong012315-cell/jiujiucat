@@ -1577,13 +1577,11 @@ function holdingRowModel(holding) {
   // 分段而不是拼成一整串：窄屏上这行要能按「份数 / 成本 / 年化」这种语义边界
   // 折行，一整串就只能从中间截断，被截掉的往往正是成本。
   let detail;
-  // 成本只在点开后的盈亏明细里给（弹层底部那行）。持仓行留「本金 / 份数」这个
-  // 最能一眼认出仓位大小的字段就够了 —— 六七个字段挤一行，窄屏怎么排都是坏的。
-  if (metrics.kind === 'interest') {
-    detail = [`本金 ${money.format(metrics.cost)}`];
-  } else {
-    detail = [`${metrics.quantity} 份`];
-  }
+  // 成本只在点开后的盈亏明细里给。行里留「有多少」这一个字段：市价持仓是份数，
+  // 生息持仓是本金金额 —— 后者不带「本金」两个字，一列金额自己说得清。
+  detail = metrics.kind === 'interest'
+    ? [money.format(metrics.cost)]
+    : [`${metrics.quantity} 份`];
   // 除息日 / 派息日 / 分红频率不再挤在持仓行里 —— 一行塞六七个字段，窄屏上
   // 怎么排都是坏的。它们移到点开后的盈亏明细弹层（#profit-event-card）。
   return {
@@ -1597,7 +1595,7 @@ function holdingRowModel(holding) {
     hasValue: metrics.hasValue,
     profitLabel: metrics.kind === 'interest' ? '利息' : '盈亏',
     typeTag: metrics.kind === 'interest'
-      ? (holding.interestMode === 'compound' ? '每日复利' : '单利')
+      ? (holding.interestMode === 'compound' ? '复利' : '单利')
       : null,
     // 年化跟在代号后面当数字芯片，标签词省掉 —— 下面那行就只剩本金/成本了。
     rateTag: (metrics.kind === 'interest' || metrics.kind === 'hybrid') && annualRate > 0
@@ -1651,6 +1649,8 @@ function appendHoldingRowContent(row, model, expandable = false) {
     segment.textContent = part;
     return segment;
   }));
+  // 没有可写的字段时（生息持仓）连这个空元素都不要，否则会撑出一段空行高。
+  detail.hidden = !model.detail.length;
   meta.append(titleLine, detail);
   const right = document.createElement('span');
   right.className = 'holding-right';
@@ -1661,13 +1661,13 @@ function appendHoldingRowContent(row, model, expandable = false) {
     const pl = document.createElement('span');
     const profit = Number(model.profit) || 0;
     pl.className = `holding-pl ${movementTone(profit)}`;
-    const plLabel = document.createElement('span');
-    plLabel.className = 'holding-pl-label';
-    plLabel.textContent = model.profitLabel;
+    // 「盈亏」「利息」这两个词不显示 —— 带正负号的绿/红金额已经说明了它是什么。
+    // 但读屏拿到的是一串裸数字，所以补一个 aria-label 把词说回来。
+    pl.setAttribute('aria-label', `${model.profitLabel} ${signedMoney(profit)}`);
     const plValue = document.createElement('span');
     plValue.className = 'holding-pl-value';
     plValue.textContent = signedMoney(profit);
-    pl.append(plLabel, plValue);
+    pl.append(plValue);
     if (model.profitLabel !== '利息') {
       const plPercent = document.createElement('span');
       plPercent.className = 'holding-pl-pct';
@@ -1715,7 +1715,7 @@ function mergedHoldingModel(group) {
   const allStable = metrics.every(item => item.kind === 'interest');
   const allMarketBased = marketMetrics.length === metrics.length;
   const detail = allStable
-    ? [`本金 ${money.format(totalCost)}`]
+    ? [money.format(totalCost)]
     : allMarketBased && totalQuantity > 0
       ? [`${totalQuantity} 份`]
       : [`综合成本 ${money.format(totalCost)}`];
@@ -1734,10 +1734,12 @@ function mergedHoldingModel(group) {
     hasValue: Number.isFinite(totalValue),
     profitLabel: allStable ? '利息' : '盈亏',
     // 合并组里计息方式可能不一致，那就别谎报成其中一种。
+    // 合并的几笔计息方式不一致时不给标签 —— 挑一个是谎报，写「稳定生息」又是
+    // 一句不含信息的废话。展开后每一笔各自标着自己的方式。
     typeTag: allStable
-      ? (group.every(item => item.interestMode === 'compound') ? '每日复利'
+      ? (group.every(item => item.interestMode === 'compound') ? '复利'
         : group.every(item => item.interestMode !== 'compound') ? '单利'
-        : '稳定生息')
+        : null)
       : null
   };
 }
@@ -1956,8 +1958,8 @@ function openProfitSheet(items, action) {
   const interestHoldings = holdingsForBreakdown.filter(isInterestHolding);
   interestRow.hidden = !interestHoldings.length;
   if (interestHoldings.length) {
-    const modes = new Set(interestHoldings.map(holding => holding.interestMode === 'compound' ? '每日复利' : '单利'));
-    const modeLabel = modes.size === 1 ? [...modes][0] : '单利 + 每日复利';
+    const modes = new Set(interestHoldings.map(holding => holding.interestMode === 'compound' ? '复利' : '单利'));
+    const modeLabel = modes.size === 1 ? [...modes][0] : '单利 + 复利';
     document.querySelector('#profit-interest-detail').textContent = `${modeLabel} · 每日北京时间 16:00 更新`;
   }
   annualRateRow.hidden = !stableOnly;
@@ -1998,7 +2000,7 @@ function openProfitSheet(items, action) {
     : null;
   document.querySelector('#profit-sheet-foot').textContent = [
     unitCost === null ? null : `${holdingsForBreakdown.length > 1 ? '均价' : '成本'} ${money.format(unitCost)}/份`,
-    `持仓成本 ${money.format(totalCost)}`,
+    `${stableOnly ? '本金' : '持仓成本'} ${money.format(totalCost)}`,
     `当前资产 ${Number.isFinite(totalValue) ? money.format(totalValue) : '$—'}`
   ].filter(Boolean).join(' · ');
   document.querySelector('#profit-edit-btn').textContent = action?.label || '编辑持仓';
@@ -2129,7 +2131,7 @@ function interestRecordRow({ holding, date, amount }) {
   const copy = document.createElement('span');
   copy.className = 'dividend-record-copy';
   const title = document.createElement('strong');
-  const mode = holding.interestMode === 'compound' ? '每日复利' : '单利';
+  const mode = holding.interestMode === 'compound' ? '复利' : '单利';
   title.textContent = `${holding.symbol} · ${mode}`;
   const detail = document.createElement('small');
   detail.textContent = `结算日 ${formatPortfolioDate(date)} · 本金 ${money.format(holdingInterestPrincipal(holding))}`;
