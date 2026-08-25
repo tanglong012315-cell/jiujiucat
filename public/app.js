@@ -3178,15 +3178,15 @@ const GUEST_AVATAR_COLOR = '#8A8A8F';
 // **file 为 null 表示照片还没到**：那一格只画一个带色边框的空位，不可选，
 // 免得存进一个加载不出来的头像。图片放在 public/ 下，名字填进 file 即可。
 const CAT_AVATARS = [
-  { id: 'bobo', name: 'BoBo', desc: '它很可爱', file: 'avatar.png', color: '#D9772E' },
-  { id: 'cat2', name: '', desc: '', file: null, color: '#6C5CE7' },
-  { id: 'cat3', name: '', desc: '', file: null, color: '#0E9F6E' },
-  { id: 'cat4', name: '', desc: '', file: null, color: '#3C7DE0' },
-  { id: 'cat5', name: '', desc: '', file: null, color: '#C08A00' },
-  { id: 'cat6', name: '', desc: '', file: null, color: '#D9527A' },
-  { id: 'cat7', name: '', desc: '', file: null, color: '#7A5AF8' },
-  { id: 'cat8', name: '', desc: '', file: null, color: '#0E8F8F' },
-  { id: 'cat9', name: '', desc: '', file: null, color: '#D2451E' }
+  { id: 'bobo', name: 'BoBo', desc: '它很可爱', file: 'avatar.png' },
+  { id: 'cat2', name: '', desc: '', file: null },
+  { id: 'cat3', name: '', desc: '', file: null },
+  { id: 'cat4', name: '', desc: '', file: null },
+  { id: 'cat5', name: '', desc: '', file: null },
+  { id: 'cat6', name: '', desc: '', file: null },
+  { id: 'cat7', name: '', desc: '', file: null },
+  { id: 'cat8', name: '', desc: '', file: null },
+  { id: 'cat9', name: '', desc: '', file: null }
 ];
 const CAT_AVATAR_PREFIX = 'cat:';
 const CATS_BY_ID = new Map(CAT_AVATARS.map(cat => [cat.id, cat]));
@@ -3209,7 +3209,7 @@ function applyProfileAvatar(element, avatar, color) {
   if (cat) {
     element.style.backgroundColor = 'transparent';
     element.style.backgroundImage = `url("${cat.file}")`;
-    element.style.borderColor = cat.color;
+    element.style.borderColor = '';   // 白边交给 .is-photo
     if (glyph) glyph.className = '';
     return;
   }
@@ -3406,8 +3406,6 @@ function renderCatGrid() {
 
     const photo = document.createElement('span');
     photo.className = 'cat-photo';
-    // 白边是相片本身，颜色退到白边外面那圈 outline。
-    photo.style.outlineColor = cat.color;
     if (cat.file) photo.style.backgroundImage = `url("${cat.file}")`;
 
     const name = document.createElement('span');
