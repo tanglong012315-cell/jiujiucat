@@ -164,8 +164,11 @@ img { max-width: 100%; }
    （见 applyProfileAvatar），这里只管几何和图标颜色。 */
 .avatar-chip {
   flex: 0 0 auto; display: grid; place-items: center;
-  border: 0; border-radius: 50%; color: #ffffff; padding: 0;
+  border: 2px solid transparent; border-radius: 50%; color: #ffffff; padding: 0;
+  background-size: cover; background-position: center;
 }
+/* 头像是猫照片时：描边用那只猫的颜色（JS 写在 style 上），不再有图标。 */
+.avatar-chip.is-photo { color: transparent; }
 .avatar-chip > i { line-height: 1; }
 .header-avatar { width: 28px; height: 28px; }
 .header-avatar > i { font-size: 17px; }
@@ -979,20 +982,28 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .dividend-record-delete > i { font-size: 18px; line-height: 1; }
 /* ── 猫 ───────────────────────────────────────────────── */
 .cat-sheet-body { display: flex; flex-direction: column; gap: 16px; }
-.cat-hero { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 16px; }
-.cat-hero[hidden], .cat-litter[hidden] { display: none; }
-.cat-hero img {
-  width: min(260px, 68vw); aspect-ratio: 1; border-radius: 28px;
-  object-fit: cover; background: var(--ink-4);
+.cat-sheet-note { margin: 0; color: var(--ink-40); font-size: 13px; line-height: 20px; text-align: center; }
+.cat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px; }
+.cat-cell {
+  min-width: 0; padding: 0; border: 0; background: none; color: var(--ink);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  font: inherit; cursor: pointer;
+  transition-property: scale; transition-duration: 150ms;
 }
-.cat-hero figcaption { color: var(--ink-80); font-size: 15px; line-height: 22px; text-align: center; }
-.cat-litter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 8px; }
-.cat-litter-cell { margin: 0; display: flex; flex-direction: column; gap: 6px; }
-/* 照片和名字都还没有：占位保持和真内容一样的尺寸，将来填上不会跳版。 */
-.cat-litter-photo { aspect-ratio: 1; border-radius: 16px; background: var(--ink-4); }
-.cat-litter-name { min-height: 16px; font-size: 11px; line-height: 16px; text-align: center; }
-.cat-litter-name:empty::after {
-  content: ""; display: block; width: 60%; height: 8px; margin: 4px auto 0;
+.cat-cell:disabled { cursor: default; }
+@media (hover: hover) { .cat-cell:not(:disabled):hover { scale: 1.04; } }
+.cat-cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; border-radius: 20px; }
+/* 每只猫一圈自己的 2px 描边 —— 九宫格摆在一起就是九种颜色，氛围全靠它。
+   没照片的格子只剩这圈颜色和一块底，位置先占住。 */
+.cat-photo {
+  width: 100%; aspect-ratio: 1; border: 2px solid var(--ink-10); border-radius: 20px;
+  background-color: var(--ink-4); background-size: cover; background-position: center;
+}
+/* 选中：在彩色描边外面再套一圈墨色环，中间用页面底色隔开，两圈不会糊在一起。 */
+.cat-cell[aria-pressed="true"] .cat-photo { box-shadow: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--ink); }
+.cat-name { min-height: 16px; font-size: 12px; line-height: 16px; font-weight: 550; }
+.cat-name:empty::after {
+  content: ""; display: block; width: 32px; height: 8px; margin: 4px auto 0;
   border-radius: 999px; background: var(--ink-10);
 }
 .records-more-note { margin: 0; padding-block: 14px; color: var(--ink-40); font-size: 11px; line-height: 16px; text-align: center; }

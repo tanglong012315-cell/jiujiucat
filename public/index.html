@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=87" />
+  <link rel="stylesheet" href="styles.css?v=88" />
 </head>
 <body>
   <header class="topbar">
@@ -582,22 +582,14 @@
     <section class="sheet-panel cat-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="cat-sheet-title">
       <div class="sheet-grabber"></div>
       <div class="sheet-head">
-        <h2 class="sheet-title" id="cat-sheet-title">BoBo</h2>
+        <h2 class="sheet-title" id="cat-sheet-title">我们家的猫</h2>
         <button type="button" class="sheet-close-btn" id="cat-close-btn" aria-label="关闭">
           <i class="ri-close-line" aria-hidden="true"></i>
         </button>
       </div>
       <div class="sheet-body cat-sheet-body" data-dialog-scroll>
-        <figure class="cat-hero" id="cat-hero">
-          <img src="avatar.png" alt="我们家的猫 BoBo" />
-          <figcaption>这是我们猫 BoBo，它很可爱</figcaption>
-        </figure>
-        <div class="cat-litter" id="cat-litter" hidden>
-          <div class="cat-litter-grid" id="cat-litter-grid"></div>
-        </div>
-      </div>
-      <div class="sheet-footer">
-        <button type="button" class="calculate-btn" id="cat-litter-btn">查看其他 8 只？</button>
+        <p class="cat-sheet-note" id="cat-sheet-note">这是我们家的九只猫。点一只，把它设成头像。</p>
+        <div class="cat-grid" id="cat-grid"></div>
       </div>
     </section>
   </div>
@@ -617,6 +609,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
-  <script src="app.js?v=90"></script>
+  <script src="app.js?v=91"></script>
 </body>
 </html>

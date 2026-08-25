@@ -3173,22 +3173,58 @@ const PROFILE_AVATARS = [
 ];
 // 未登录时的占位：中性灰，和任何一个已选头像都不一样，一眼能看出「还没设置」。
 const GUEST_AVATAR_COLOR = '#8A8A8F';
+
+// 猫。头像除了上面那 12 个图标，也可以是其中一只 —— 存成 'cat:<id>'。
+// **file 为 null 表示照片还没到**：那一格只画一个带色边框的空位，不可选，
+// 免得存进一个加载不出来的头像。图片放在 public/ 下，名字填进 file 即可。
+const CAT_AVATARS = [
+  { id: 'bobo', name: 'BoBo', file: 'avatar.png', color: '#D9772E' },
+  { id: 'cat2', name: '', file: null, color: '#6C5CE7' },
+  { id: 'cat3', name: '', file: null, color: '#0E9F6E' },
+  { id: 'cat4', name: '', file: null, color: '#3C7DE0' },
+  { id: 'cat5', name: '', file: null, color: '#C08A00' },
+  { id: 'cat6', name: '', file: null, color: '#D9527A' },
+  { id: 'cat7', name: '', file: null, color: '#7A5AF8' },
+  { id: 'cat8', name: '', file: null, color: '#0E8F8F' },
+  { id: 'cat9', name: '', file: null, color: '#D2451E' }
+];
+const CAT_AVATAR_PREFIX = 'cat:';
+const CATS_BY_ID = new Map(CAT_AVATARS.map(cat => [cat.id, cat]));
+
+// 只认「照片已经就位」的猫：值是从云端读回来的，不能拿它去拼一个不存在的图片。
+function catAvatar(value) {
+  if (typeof value !== 'string' || !value.startsWith(CAT_AVATAR_PREFIX)) return null;
+  const cat = CATS_BY_ID.get(value.slice(CAT_AVATAR_PREFIX.length));
+  return cat?.file ? cat : null;
+}
 const PROFILE_AVATAR_ICONS = new Set(PROFILE_AVATARS.map(item => item.icon));
 const PROFILE_AVATAR_COLORS = new Map(PROFILE_AVATARS.map(item => [item.icon, item.color]));
 
-// 头像 = 纯色圆底 + 白色图标。四处（顶栏、资料弹层的选项、以后可能还有别处）
-// 共用这一个函数，颜色和图标不会各写各的。
-function applyProfileAvatar(element, icon, color) {
-  element.style.backgroundColor = color || PROFILE_AVATAR_COLORS.get(icon) || GUEST_AVATAR_COLOR;
+// 头像有两种：图标（纯色圆底 + 白色图标）和猫（照片铺满 + 那只猫的颜色描边）。
+// 顶栏、资料弹层的选项、猫弹层都走这一个函数，两种形态不会各写各的。
+function applyProfileAvatar(element, avatar, color) {
+  const cat = catAvatar(avatar);
+  element.classList.toggle('is-photo', !!cat);
   const glyph = element.querySelector('i');
-  if (glyph) glyph.className = icon;
+  if (cat) {
+    element.style.backgroundColor = 'transparent';
+    element.style.backgroundImage = `url("${cat.file}")`;
+    element.style.borderColor = cat.color;
+    if (glyph) glyph.className = '';
+    return;
+  }
+  element.style.backgroundImage = '';
+  element.style.borderColor = 'transparent';
+  element.style.backgroundColor = color || PROFILE_AVATAR_COLORS.get(avatar) || GUEST_AVATAR_COLOR;
+  if (glyph) glyph.className = avatar;
 }
 const PROFILE_NAME_MAX = 20;
 
 function normalizeProfile(raw) {
+  const avatar = raw?.avatar;
   return {
     name: typeof raw?.name === 'string' ? raw.name.trim().slice(0, PROFILE_NAME_MAX) : '',
-    avatar: PROFILE_AVATAR_ICONS.has(raw?.avatar) ? raw.avatar : DEFAULT_AVATAR,
+    avatar: PROFILE_AVATAR_ICONS.has(avatar) || catAvatar(avatar) ? avatar : DEFAULT_AVATAR,
     updatedAt: Number(raw?.updatedAt) || 0
   };
 }
@@ -3272,7 +3308,9 @@ async function syncProfile() {
 }
 
 function setProfileDraftAvatar(icon) {
-  profileDraftAvatar = PROFILE_AVATAR_ICONS.has(icon) ? icon : DEFAULT_AVATAR;
+  // 当前头像是猫时，图标里没有一个该是选中的 —— 传进来的值原样保留判断，
+  // 别硬拉回默认的小熊。
+  profileDraftAvatar = PROFILE_AVATAR_ICONS.has(icon) || catAvatar(icon) ? icon : DEFAULT_AVATAR;
   document.querySelectorAll('.profile-avatar-option').forEach(option => {
     option.setAttribute('aria-pressed', String(option.dataset.avatar === profileDraftAvatar));
   });
@@ -3353,36 +3391,58 @@ document.querySelector('#profile-close-btn').addEventListener('click', () => clo
 let catSheetTrigger = null;
 let catSheetCloseTimer = null;
 
-// 另外八只还没有照片和名字，先把位置摆出来 —— 空占位比一句「敬请期待」更像
-// 一件正在做的事。
-function renderCatLitter() {
-  const grid = document.querySelector('#cat-litter-grid');
-  if (grid.children.length) return;
-  grid.replaceChildren(...Array.from({ length: 8 }, () => {
-    const cell = document.createElement('figure');
-    cell.className = 'cat-litter-cell';
+function renderCatGrid() {
+  const grid = document.querySelector('#cat-grid');
+  grid.replaceChildren(...CAT_AVATARS.map(cat => {
+    const value = `${CAT_AVATAR_PREFIX}${cat.id}`;
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'cat-cell';
+    cell.dataset.cat = cat.id;
+    cell.setAttribute('aria-pressed', String(profile.avatar === value));
+    // 照片还没到的格子只是占位，不给点 —— 存进去会得到一个加载不出来的头像。
+    cell.disabled = !cat.file;
+    cell.setAttribute('aria-label', cat.file ? `把头像换成 ${cat.name}` : '这只猫的照片还没上传');
+
     const photo = document.createElement('span');
-    photo.className = 'cat-litter-photo';
-    photo.setAttribute('aria-hidden', 'true');
-    const name = document.createElement('figcaption');
-    name.className = 'cat-litter-name';
+    photo.className = 'cat-photo';
+    photo.style.borderColor = cat.color;
+    if (cat.file) photo.style.backgroundImage = `url("${cat.file}")`;
+
+    const name = document.createElement('span');
+    name.className = 'cat-name';
+    name.textContent = cat.name;
+
     cell.append(photo, name);
+    if (cat.file) cell.addEventListener('click', () => chooseCatAvatar(cat));
     return cell;
   }));
 }
 
-function showCatLitter(show) {
-  document.querySelector('#cat-hero').hidden = show;
-  document.querySelector('#cat-litter').hidden = !show;
-  document.querySelector('#cat-sheet-title').textContent = show ? '其他 8 只' : 'BoBo';
-  document.querySelector('#cat-litter-btn').textContent = show ? '回到 BoBo' : '查看其他 8 只？';
+async function chooseCatAvatar(cat) {
+  // 头像属于账号资料，没登录就没地方存 —— 和资料弹层里那条规则保持一致。
+  if (!currentUser) return showToast('登录后可以把猫设成头像');
+  profile = normalizeProfile({
+    name: profile.name,
+    avatar: `${CAT_AVATAR_PREFIX}${cat.id}`,
+    updatedAt: Date.now()
+  });
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  profileDraftAvatar = profile.avatar;
+  renderAccountBar();
+  renderCatGrid();
+  showToast(`头像已换成 ${cat.name}`);
+  try {
+    await pushCloudProfile();
+  } catch {
+    showToast('头像已存在本机，云端同步失败');
+  }
 }
 
 function openCatSheet() {
   clearTimeout(catSheetCloseTimer);
   catSheetTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  renderCatLitter();
-  showCatLitter(false);
+  renderCatGrid();
   openOverlay(document.querySelector('#cat-sheet-overlay'));
   document.querySelector('#cat-close-btn').focus();
 }
@@ -3401,9 +3461,6 @@ function closeCatSheet(restoreFocus = true) {
 document.querySelector('#cat-close-btn').addEventListener('click', () => closeCatSheet());
 [...document.querySelectorAll('[data-close-cat]')]
   .forEach(el => el.addEventListener('click', () => closeCatSheet()));
-document.querySelector('#cat-litter-btn').addEventListener('click', () => {
-  showCatLitter(document.querySelector('#cat-litter').hidden);
-});
 
 document.querySelector('#profile-form').addEventListener('submit', async event => {
   event.preventDefault();
