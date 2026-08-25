@@ -3178,15 +3178,15 @@ const GUEST_AVATAR_COLOR = '#8A8A8F';
 // **file 为 null 表示照片还没到**：那一格只画一个带色边框的空位，不可选，
 // 免得存进一个加载不出来的头像。图片放在 public/ 下，名字填进 file 即可。
 const CAT_AVATARS = [
-  { id: 'bobo', name: 'BoBo', file: 'avatar.png', color: '#D9772E' },
-  { id: 'cat2', name: '', file: null, color: '#6C5CE7' },
-  { id: 'cat3', name: '', file: null, color: '#0E9F6E' },
-  { id: 'cat4', name: '', file: null, color: '#3C7DE0' },
-  { id: 'cat5', name: '', file: null, color: '#C08A00' },
-  { id: 'cat6', name: '', file: null, color: '#D9527A' },
-  { id: 'cat7', name: '', file: null, color: '#7A5AF8' },
-  { id: 'cat8', name: '', file: null, color: '#0E8F8F' },
-  { id: 'cat9', name: '', file: null, color: '#D2451E' }
+  { id: 'bobo', name: 'BoBo', desc: '它很可爱', file: 'avatar.png', color: '#D9772E' },
+  { id: 'cat2', name: '', desc: '', file: null, color: '#6C5CE7' },
+  { id: 'cat3', name: '', desc: '', file: null, color: '#0E9F6E' },
+  { id: 'cat4', name: '', desc: '', file: null, color: '#3C7DE0' },
+  { id: 'cat5', name: '', desc: '', file: null, color: '#C08A00' },
+  { id: 'cat6', name: '', desc: '', file: null, color: '#D9527A' },
+  { id: 'cat7', name: '', desc: '', file: null, color: '#7A5AF8' },
+  { id: 'cat8', name: '', desc: '', file: null, color: '#0E8F8F' },
+  { id: 'cat9', name: '', desc: '', file: null, color: '#D2451E' }
 ];
 const CAT_AVATAR_PREFIX = 'cat:';
 const CATS_BY_ID = new Map(CAT_AVATARS.map(cat => [cat.id, cat]));
@@ -3413,7 +3413,12 @@ function renderCatGrid() {
     name.className = 'cat-name';
     name.textContent = cat.name;
 
-    cell.append(photo, name);
+    // 一句话介绍，五六个字。还没写的显示成一条灰条占位，位置先留着。
+    const desc = document.createElement('span');
+    desc.className = 'cat-desc';
+    desc.textContent = cat.desc || '';
+
+    cell.append(photo, name, desc);
     if (cat.file) cell.addEventListener('click', () => chooseCatAvatar(cat));
     return cell;
   }));

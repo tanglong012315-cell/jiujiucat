@@ -1001,11 +1001,23 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 }
 /* 选中：在彩色描边外面再套一圈墨色环，中间用页面底色隔开，两圈不会糊在一起。 */
 .cat-cell[aria-pressed="true"] .cat-photo { box-shadow: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--ink); }
+.cat-cell { gap: 6px; }
 .cat-name { min-height: 16px; font-size: 12px; line-height: 16px; font-weight: 550; }
-.cat-name:empty::after {
-  content: ""; display: block; width: 32px; height: 8px; margin: 4px auto 0;
+/* 介绍是次要信息：小一号、淡一档，和名字拉开层级。 */
+.cat-desc {
+  min-height: 16px; max-width: 100%; overflow: hidden;
+  color: var(--ink-40); font-size: 11px; line-height: 16px;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+/* 还没填的名字和介绍都用灰条占位，宽度按各自的字数给（名字两三个字、介绍
+   五六个字），照片补齐时不会整片跳版。 */
+.cat-name:empty::after,
+.cat-desc:empty::after {
+  content: ""; display: block; height: 8px; margin: 4px auto 0;
   border-radius: 999px; background: var(--ink-10);
 }
+.cat-name:empty::after { width: 32px; }
+.cat-desc:empty::after { width: 60px; background: var(--ink-4); }
 .records-more-note { margin: 0; padding-block: 14px; color: var(--ink-40); font-size: 11px; line-height: 16px; text-align: center; }
 .dividend-records-empty { margin: 0; padding-block: 28px; color: var(--ink-40); font-size: 13px; line-height: 20px; text-align: center; }
 /* 利息按天列，一个月就是 30 条。月份小标题吸顶，滚到哪个月一眼看得到；
