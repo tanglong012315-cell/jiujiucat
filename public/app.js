@@ -1577,12 +1577,12 @@ function holdingRowModel(holding) {
   // 分段而不是拼成一整串：窄屏上这行要能按「份数 / 成本 / 年化」这种语义边界
   // 折行，一整串就只能从中间截断，被截掉的往往正是成本。
   let detail;
+  // 成本只在点开后的盈亏明细里给（弹层底部那行）。持仓行留「本金 / 份数」这个
+  // 最能一眼认出仓位大小的字段就够了 —— 六七个字段挤一行，窄屏怎么排都是坏的。
   if (metrics.kind === 'interest') {
     detail = [`本金 ${money.format(metrics.cost)}`];
-  } else if (metrics.kind === 'hybrid') {
-    detail = [`${metrics.quantity} 份`, `成本 ${money.format(metrics.costPerShare)}`];
   } else {
-    detail = [`${metrics.quantity} 份`, `成本 ${money.format(metrics.costPerShare)}`];
+    detail = [`${metrics.quantity} 份`];
   }
   // 除息日 / 派息日 / 分红频率不再挤在持仓行里 —— 一行塞六七个字段，窄屏上
   // 怎么排都是坏的。它们移到点开后的盈亏明细弹层（#profit-event-card）。
@@ -1717,7 +1717,7 @@ function mergedHoldingModel(group) {
   const detail = allStable
     ? [`本金 ${money.format(totalCost)}`]
     : allMarketBased && totalQuantity > 0
-      ? [`${totalQuantity} 份`, `均价 ${money.format(totalCost / totalQuantity)}`]
+      ? [`${totalQuantity} 份`]
       : [`综合成本 ${money.format(totalCost)}`];
   const rates = new Set(group.filter(isInterestHolding).map(item => Number(item.annualRate) || 0));
   return {
@@ -1989,7 +1989,18 @@ function openProfitSheet(items, action) {
   interestRecordsButton.hidden = !interestHoldings.length;
   document.querySelector('#profit-interest-records-count').textContent = `${interestRecordCount} 条记录`;
 
-  document.querySelector('#profit-sheet-foot').textContent = `持仓成本 ${money.format(totalCost)} · 当前资产 ${Number.isFinite(totalValue) ? money.format(totalValue) : '$—'}`;
+  // 每份成本从持仓行搬到这里。多笔合并时它是按份数加权的均价，标签也跟着改，
+  // 免得看成「其中某一笔的成本」。
+  const costMetrics = metrics.filter(metric => metric.kind !== 'interest');
+  const costQuantity = costMetrics.reduce((sum, metric) => sum + (Number(metric.quantity) || 0), 0);
+  const unitCost = costQuantity > 0
+    ? costMetrics.reduce((sum, metric) => sum + (Number(metric.cost) || 0), 0) / costQuantity
+    : null;
+  document.querySelector('#profit-sheet-foot').textContent = [
+    unitCost === null ? null : `${holdingsForBreakdown.length > 1 ? '均价' : '成本'} ${money.format(unitCost)}/份`,
+    `持仓成本 ${money.format(totalCost)}`,
+    `当前资产 ${Number.isFinite(totalValue) ? money.format(totalValue) : '$—'}`
+  ].filter(Boolean).join(' · ');
   document.querySelector('#profit-edit-btn').textContent = action?.label || '编辑持仓';
   openOverlay(document.querySelector('#profit-sheet-overlay'));
   document.querySelector('#profit-close-btn').focus();

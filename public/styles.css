@@ -13,6 +13,10 @@
   --ink-4: rgba(0, 0, 0, .04);
   --tint-blue: #e6f1fd;
   --tint-purple: #edeefc;
+  /* 生息类持仓的标签色。前景 #0f6d36 压在 #e3f5e9 上是 5.67:1；直接用 --gain
+     的 #12803f 只有 4.41:1，10px 的小字过不了 AA。 */
+  --tint-green: #e3f5e9;
+  --on-tint-green: #0f6d36;
   /* 染色卡片上的前景色。浅色下是黑字；深色下由深色块里改写，不再写死 #000。 */
   --on-tint: #000000;
   --on-tint-tag: #4b449f;
@@ -72,6 +76,9 @@
      刺眼的白板（底部玻璃导航被削顶成白条也是这个原因）。 */
   --tint-blue: rgba(125, 187, 255, .16);
   --tint-purple: rgba(184, 153, 235, .18);
+  /* 同色相低透明度铺在暗底上。合成后是 #294234，配 #3ddc84 为 6.04:1。 */
+  --tint-green: rgba(61, 220, 132, .16);
+  --on-tint-green: #3ddc84;
   --on-tint: #ffffff;
   --on-tint-tag: #c6c2ff;
   --thumb-ring: #1c1c1c;
@@ -616,11 +623,11 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   font-size: 10px; line-height: 14px; font-weight: 600; white-space: nowrap;
 }
 /* 年化做成代号后面的数字芯片，把「年化 8.00%」从下面那行挪上来省一段宽度。
-   几何和类型标签一致，但用中性色：紫色那枚是身份标签（单利/每日复利），
-   这枚是数值，两个都染紫会分不清主次。 */
+   染绿：这个列表里绿色本来就代表「在生钱」，和盈亏的 --gain 同一套语义。
+   紫色那枚留给身份标签（单利 / 每日复利），两枚同色会分不清主次。 */
 .holding-rate-tag {
   flex: 0 0 auto; padding: 1px 5px; border-radius: 6px;
-  background: var(--ink-10); color: var(--ink-80);
+  background: var(--tint-green); color: var(--on-tint-green);
   font-size: 10px; line-height: 14px; font-weight: 600; white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
