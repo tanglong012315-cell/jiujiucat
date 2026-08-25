@@ -99,24 +99,28 @@ const CRYPTO_ID_TTL = 24 * 60 * 60 * 1000;
 function loadCachedCryptoIds() {
   try {
     const cached = JSON.parse(localStorage.getItem(CRYPTO_ID_KEY) || 'null');
-    if (cached?.ids && Date.now() - Number(cached.savedAt) < CRYPTO_ID_TTL) return cached.ids;
+    // 老版本缓存的是一张扁平的 {代码: ID}，没有 names —— 当过期处理，重新拉一次。
+    if (cached?.map?.ids && Date.now() - Number(cached.savedAt) < CRYPTO_ID_TTL) return cached.map;
   } catch {
     // 缓存坏了当没有，下面会重新拉。
   }
   return null;
 }
 
-let cryptoLogoIds = loadCachedCryptoIds() || {};
+let cryptoLogoIds = loadCachedCryptoIds() || { ids: {}, names: {} };
 
 async function refreshCryptoLogoIds() {
   if (loadCachedCryptoIds()) return;
   try {
-    const response = await fetch('/api/crypto-logos', { cache: 'no-store' });
+    // ?v=2 是给边缘缓存换个键：返回结构从扁平的 {代码: ID} 变成了
+    // { ids, names }，不换键的话新前端会在长达 6 小时里读到旧结构的缓存，
+    // 校验不过就整轮退回 CoinCap。以后再改结构，记得同步递增这个数。
+    const response = await fetch('/api/crypto-logos?v=2', { cache: 'no-store' });
     if (!response.ok) throw new Error('crypto logo map failed');
-    const ids = await response.json();
-    if (!ids || typeof ids !== 'object' || Array.isArray(ids)) throw new Error('bad crypto logo map');
-    cryptoLogoIds = ids;
-    localStorage.setItem(CRYPTO_ID_KEY, JSON.stringify({ savedAt: Date.now(), ids }));
+    const map = await response.json();
+    if (!map?.ids || typeof map.ids !== 'object' || Array.isArray(map.ids)) throw new Error('bad crypto logo map');
+    cryptoLogoIds = { ids: map.ids, names: map.names && typeof map.names === 'object' ? map.names : {} };
+    localStorage.setItem(CRYPTO_ID_KEY, JSON.stringify({ savedAt: Date.now(), map: cryptoLogoIds }));
     // 表通常比首屏晚到：清掉已经落到 CoinCap 的解析结果，重渲染一次换成 CMC 的图。
     assetLogoStatus.clear();
     persistAssetLogoCache();
@@ -140,11 +144,22 @@ const parqetLogo = symbol => `https://assets.parqet.com/logos/symbol/${encodeURI
 // 稳定生息持仓的「标的名」是用户手打的，可能是 USDT、USDG 这类代码，也可能是
 // 「活期」这种词。不像代码的就一个候选都不给，直接退首字母 —— 拿它去拼图片地址
 // 只会白打两次 404。
-const TICKER_PATTERN = /^[A-Z0-9]{1,12}$/;
+// 放到 20 位是因为 Yahoo 会给重名的币加数字后缀（FARTCOIN34814），12 位卡不住。
+const TICKER_PATTERN = /^[A-Z0-9]{1,20}$/;
 
-function cryptoLogoCandidates(bare) {
+// 和 Worker 里的 normalizeCoinName 必须保持一致，两边都要能把
+// Yahoo 的 "Render USD" 和 CMC 的 "Render" 归一成同一个 render。
+function normalizeCoinName(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/usd$/, '');
+}
+
+// 先按代码查，查不到再按名称查。**名称这条是给代码对不上的情况准备的**：
+// Yahoo 会给重名的币加数字后缀（FARTCOIN34814-USD），CMC 那边也可能改过代码
+// （RNDR 现在叫 RENDER）—— 这两种情况下代码永远对不上，名字却是对得上的。
+function cryptoLogoCandidates(bare, name) {
   if (!TICKER_PATTERN.test(bare)) return [];
-  const id = Number(cryptoLogoIds[bare]);
+  const byName = Number(cryptoLogoIds.names?.[normalizeCoinName(name)]);
+  const id = Number(cryptoLogoIds.ids?.[bare]) || byName;
   // 校验成正整数再拼进 URL：这张表是从网络上拿的，别把任意内容拼进地址里。
   const cmc = Number.isInteger(id) && id > 0 ? [cmcLogo(id)] : [];
   return [...cmc, coinCapLogo(bare), cryptoIconsLogo(bare)];
@@ -153,9 +168,9 @@ function cryptoLogoCandidates(bare) {
 // 判断是不是加密货币不能只看 assetType：旧持仓里的加密货币没存 -USD 后缀，
 // normalizeAsset 只能按后缀猜，ETH 这种会被判成 EQUITY（loadHoldings 的兼容
 // 特判只覆盖了 BTC）。所以两条候选都给出去，按序试第一个能加载的。
-function assetLogoCandidates(quoteSymbol, assetType) {
+function assetLogoCandidates(quoteSymbol, assetType, name) {
   const bare = quoteSymbol.replace(/-USD$/, '').toUpperCase();
-  const crypto = cryptoLogoCandidates(bare);
+  const crypto = cryptoLogoCandidates(bare, name);
   const stock = parqetLogo(quoteSymbol);
   // 稳定生息持仓的 assetType 是 'STABLE'，填的标的名就是 USDT / USDG 这类稳定币
   // ——它们在 Parqet（股票/ETF 源）永远 404，得和加密货币一样先走加密源。
@@ -168,7 +183,7 @@ function assetLogoCandidates(quoteSymbol, assetType) {
   return [stock, ...crypto];
 }
 
-function applyAssetLogo(element, quoteSymbol, fallbackText, assetType) {
+function applyAssetLogo(element, quoteSymbol, fallbackText, assetType, name) {
   element.textContent = fallbackText;
   element.classList.remove('has-logo');
   element.style.backgroundImage = '';
@@ -180,7 +195,7 @@ function applyAssetLogo(element, quoteSymbol, fallbackText, assetType) {
     element.style.backgroundImage = `url("${url}")`;
   };
 
-  const candidates = assetLogoCandidates(quoteSymbol, assetType);
+  const candidates = assetLogoCandidates(quoteSymbol, assetType, name);
   const resolve = () => {
     (function tryNext(i) {
       if (i >= candidates.length) return rememberAssetLogo(quoteSymbol, 'fail');
@@ -316,7 +331,7 @@ function renderMarketSession(asset) {
 }
 
 function renderMarketTicker(asset) {
-  applyAssetLogo(document.querySelector('#market-icon'), asset.quoteSymbol, asset.symbol.slice(0, 1), asset.assetType);
+  applyAssetLogo(document.querySelector('#market-icon'), asset.quoteSymbol, asset.symbol.slice(0, 1), asset.assetType, asset.name);
   document.querySelector('#market-name').textContent = asset.name;
   document.querySelector('#market-price').textContent = Number.isFinite(asset.price) ? btcMoney.format(asset.price) : '$—';
   const changeLabel = document.querySelector('#market-change');
@@ -1656,6 +1671,8 @@ function holdingRowModel(holding) {
     symbol: holding.symbol,
     quoteSymbol: holding.quoteSymbol,
     assetType: holding.assetType,
+    // 名称是 logo 解析按名字兜底用的（代码对不上时），不显示在行里。
+    name: holding.name,
     detail,
     value: metrics.value,
     profit: metrics.profit,
@@ -1675,7 +1692,7 @@ function holdingRowModel(holding) {
 function appendHoldingRowContent(row, model, expandable = false) {
   const logo = document.createElement('span');
   logo.className = 'holding-logo';
-  applyAssetLogo(logo, model.quoteSymbol, model.symbol.slice(0, 2), model.assetType);
+  applyAssetLogo(logo, model.quoteSymbol, model.symbol.slice(0, 2), model.assetType, model.name);
 
   const meta = document.createElement('span');
   meta.className = 'holding-meta';
@@ -1792,6 +1809,7 @@ function mergedHoldingModel(group) {
     symbol: group[0].symbol,
     quoteSymbol: group[0].quoteSymbol,
     assetType: group[0].assetType,
+    name: group[0].name,
     detail,
     // 合并的几笔年化不一致时不显示 —— 挑其中一个当代表就是谎报。
     rateTag: allStable && rates.size === 1 && [...rates][0] > 0 ? `${[...rates][0].toFixed(2)}%` : null,
@@ -1892,7 +1910,7 @@ function renderPortfolioRecommend() {
     // 字段（仅 BTC 有），其余一律首字母。
     const icon = document.createElement('span');
     icon.className = 'recommend-icon recommend-letter';
-    applyAssetLogo(icon, asset.quoteSymbol, asset.symbol.slice(0, 1), asset.assetType);
+    applyAssetLogo(icon, asset.quoteSymbol, asset.symbol.slice(0, 1), asset.assetType, asset.name);
 
     const symbolEl = document.createElement('span');
     symbolEl.className = 'recommend-symbol';
@@ -2550,7 +2568,7 @@ function renderAssetResults(results, query) {
 
     const mark = document.createElement('span');
     mark.className = 'asset-result-mark';
-    applyAssetLogo(mark, asset.quoteSymbol, asset.symbol.slice(0, 2), asset.assetType);
+    applyAssetLogo(mark, asset.quoteSymbol, asset.symbol.slice(0, 2), asset.assetType, asset.name);
     const copy = document.createElement('span');
     copy.className = 'asset-result-copy';
     const name = document.createElement('span');

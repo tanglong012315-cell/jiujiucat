@@ -67,6 +67,18 @@ async function handleQuote(url) {
 //
 // 用的是 CMC 站内的非公开接口，随时可能变。挂了就返回 502，前端会继续用
 // CoinCap —— logo 不在关键路径上。
+// 名称索引是给「代码对不上」的情况兜底的。Yahoo 给重名的币加数字后缀
+// （Fartcoin 是 FARTCOIN-USD，另一个同名的就成了 FARTCOIN34814-USD），这种代码
+// 在 CMC 那边永远查不到；改过代码的币也一样（RNDR 在 CMC 已经叫 RENDER）。
+// 但两边的「名字」是对得上的：Yahoo 的 "Render USD" 和 CMC 的 "Render" 归一化
+// 之后都是 render。归一化 = 转小写 + 去掉所有非字母数字 + 去掉结尾的 usd。
+function normalizeCoinName(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .replace(/usd$/, '');
+}
+
 async function handleCryptoLogos() {
   const upstream =
     'https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing' +
@@ -94,16 +106,18 @@ async function handleCryptoLogos() {
   }
 
   const ids = {};
+  const names = {};
   for (const coin of list) {
-    const symbol = String(coin?.symbol || '').toUpperCase();
+    if (!Number.isInteger(coin?.id) || coin.id <= 0) continue;
+    const symbol = String(coin.symbol || '').toUpperCase();
     // 同一个代码会被多个币占用（山寨币蹭代码）。列表按市值降序，先出现的那个
-    // 才是用户想看到的那一个，所以只认第一次出现。
-    if (symbol && Number.isInteger(coin?.id) && coin.id > 0 && !(symbol in ids)) {
-      ids[symbol] = coin.id;
-    }
+    // 才是用户想看到的那一个，所以只认第一次出现。名称索引同理。
+    if (symbol && !(symbol in ids)) ids[symbol] = coin.id;
+    const name = normalizeCoinName(coin.name);
+    if (name && !(name in names)) names[name] = coin.id;
   }
 
-  return Response.json(ids, {
+  return Response.json({ ids, names }, {
     headers: { 'Cache-Control': 'public, max-age=21600' }
   });
 }
