@@ -33,12 +33,57 @@ const metricCny = value => (Math.abs(value) >= 10000 ? cnyWhole : cnyMoney).form
 // 两家查不到时都返回 404 而不是占位图，所以「加载失败」可以放心当成
 // 「这个标的没有 logo」，直接回退首字母。
 //
-// 结果按 quoteSymbol 记住：持仓页每 60 秒重渲染一次，没有这层缓存的话
-// 没 logo 的标的会反复打 404，有 logo 的则每次都先闪一下首字母。
+// 结果按 quoteSymbol 记住，**并且落到 localStorage**：持仓页每 60 秒重渲染一次，
+// 没有缓存的话没 logo 的标的会反复打 404、有 logo 的每次都先闪一下首字母。只放
+// 内存里还不够 —— 每次刷新都要重新按序试一遍候选，哪个源当时慢/连不上，这一轮
+// 就落到下一个源，同一个币今天是新图明天是旧图，看起来就是「logo 不稳定」。
+// 存下命中的地址后，之后每次刷新都直接铺同一张，只有它真的加载失败才重新找。
+//
+// 「查不到」的结论也存，但只存一天：新上市的币过阵子就会有图了。
 //
 // 这一整块必须留在 marketAssets 之前：renderMarketTicker 在模块顶层就被调用，
 // 而 assetLogoStatus 是 const，定义在后面会直接抛 TDZ 错误。
-const assetLogoStatus = new Map();
+const ASSET_LOGO_CACHE_KEY = 'jiujiucat-asset-logos';
+const ASSET_LOGO_TTL = 7 * 24 * 60 * 60 * 1000;
+const ASSET_LOGO_FAIL_TTL = 24 * 60 * 60 * 1000;
+
+function loadAssetLogoCache() {
+  const cache = new Map();
+  try {
+    const saved = JSON.parse(localStorage.getItem(ASSET_LOGO_CACHE_KEY) || '{}');
+    const now = Date.now();
+    for (const [symbol, entry] of Object.entries(saved)) {
+      const url = entry?.url;
+      const savedAt = Number(entry?.savedAt);
+      if (typeof url !== 'string' || !Number.isFinite(savedAt)) continue;
+      if (now - savedAt >= (url === 'fail' ? ASSET_LOGO_FAIL_TTL : ASSET_LOGO_TTL)) continue;
+      cache.set(symbol, { url, savedAt });
+    }
+  } catch {
+    // 缓存坏了就从空的开始，重新解析一遍即可。
+  }
+  return cache;
+}
+
+const assetLogoStatus = loadAssetLogoCache();
+
+function persistAssetLogoCache() {
+  try {
+    localStorage.setItem(ASSET_LOGO_CACHE_KEY, JSON.stringify(Object.fromEntries(assetLogoStatus)));
+  } catch {
+    // 存不下（隐私模式/配额满）就退化成纯内存缓存，功能不受影响。
+  }
+}
+
+function rememberAssetLogo(quoteSymbol, url) {
+  assetLogoStatus.set(quoteSymbol, { url, savedAt: Date.now() });
+  persistAssetLogoCache();
+}
+
+function forgetAssetLogo(quoteSymbol) {
+  assetLogoStatus.delete(quoteSymbol);
+  persistAssetLogoCache();
+}
 
 // 加密货币优先用 CoinMarketCap 的图：它跟着品牌更新，CoinCap 那套还停在几年前
 // （OKB 2025 年已经换成黑底棋盘格，CoinCap 至今给的是旧的蓝色渐变图）。
@@ -74,6 +119,7 @@ async function refreshCryptoLogoIds() {
     localStorage.setItem(CRYPTO_ID_KEY, JSON.stringify({ savedAt: Date.now(), ids }));
     // 表通常比首屏晚到：清掉已经落到 CoinCap 的解析结果，重渲染一次换成 CMC 的图。
     assetLogoStatus.clear();
+    persistAssetLogoCache();
     renderMarketTicker(marketAssets[currentMarketIndex]);
     if (!document.querySelector('#portfolio-app').hidden) renderHoldings();
   } catch {
@@ -83,6 +129,12 @@ async function refreshCryptoLogoIds() {
 
 const cmcLogo = id => `https://s2.coinmarketcap.com/static/img/coins/64x64/${id}.png`;
 const coinCapLogo = bare => `https://assets.coincap.io/assets/icons/${bare.toLowerCase()}@2x.png`;
+// 最后一道兜底：Cryptofonts/cryptoicons（jsDelivr 直连 GitHub，按代码索引）。
+// 只放在最后 —— 这套图风格不统一，有的是画好底色的圆形徽标（USDT/USDG），有的
+// 是纯色字形不带底（BTC 只有一个橙色 ₿），OKB 那张甚至整张都是白色，铺在浅色
+// 背景上等于看不见。仓库本身也早就不更新了，OKB 还是换标之前的老图。所以它只
+// 用来救「CMC 和 CoinCap 都没有」的长尾币 —— 那种情况本来只能显示首字母。
+const cryptoIconsLogo = bare => `https://cdn.jsdelivr.net/gh/Cryptofonts/cryptoicons@master/SVG/${bare.toLowerCase()}.svg`;
 const parqetLogo = symbol => `https://assets.parqet.com/logos/symbol/${encodeURIComponent(symbol)}?format=png`;
 
 // 稳定生息持仓的「标的名」是用户手打的，可能是 USDT、USDG 这类代码，也可能是
@@ -94,7 +146,8 @@ function cryptoLogoCandidates(bare) {
   if (!TICKER_PATTERN.test(bare)) return [];
   const id = Number(cryptoLogoIds[bare]);
   // 校验成正整数再拼进 URL：这张表是从网络上拿的，别把任意内容拼进地址里。
-  return Number.isInteger(id) && id > 0 ? [cmcLogo(id), coinCapLogo(bare)] : [coinCapLogo(bare)];
+  const cmc = Number.isInteger(id) && id > 0 ? [cmcLogo(id)] : [];
+  return [...cmc, coinCapLogo(bare), cryptoIconsLogo(bare)];
 }
 
 // 判断是不是加密货币不能只看 assetType：旧持仓里的加密货币没存 -USD 后缀，
@@ -127,21 +180,36 @@ function applyAssetLogo(element, quoteSymbol, fallbackText, assetType) {
     element.style.backgroundImage = `url("${url}")`;
   };
 
-  // 缓存存的是「哪个 URL 成功了」，命中就同步铺上，不必再等一次 onload
-  // （图片本身走浏览器缓存）。'fail' 表示所有候选都试过且都没有。
-  const cached = assetLogoStatus.get(quoteSymbol);
-  if (cached === 'fail') return;
-  if (cached) return show(cached);
-
   const candidates = assetLogoCandidates(quoteSymbol, assetType);
-  (function tryNext(i) {
-    if (i >= candidates.length) return assetLogoStatus.set(quoteSymbol, 'fail');
-    const url = candidates[i];
-    const probe = new Image();
-    probe.onload = () => { assetLogoStatus.set(quoteSymbol, url); show(url); };
-    probe.onerror = () => tryNext(i + 1);
-    probe.src = url;
-  })(0);
+  const resolve = () => {
+    (function tryNext(i) {
+      if (i >= candidates.length) return rememberAssetLogo(quoteSymbol, 'fail');
+      const url = candidates[i];
+      const probe = new Image();
+      probe.onload = () => { rememberAssetLogo(quoteSymbol, url); show(url); };
+      probe.onerror = () => tryNext(i + 1);
+      probe.src = url;
+    })(0);
+  };
+
+  // 缓存存的是「哪个 URL 成功过」，命中就同步铺上，不必再等一次 onload
+  // （图片本身走浏览器缓存）。'fail' 表示所有候选都试过且都没有。
+  const cached = assetLogoStatus.get(quoteSymbol)?.url;
+  if (cached === 'fail') return;
+  if (!cached) return resolve();
+
+  show(cached);
+  // 缓存的地址也有今天打不开的时候（源站故障、被墙）。那就当没缓存过：擦掉这条
+  // 记录、退回首字母、重新按序试一遍候选，而不是留一个空白的圆圈在那里。
+  const verify = new Image();
+  verify.onerror = () => {
+    forgetAssetLogo(quoteSymbol);
+    element.textContent = fallbackText;
+    element.classList.remove('has-logo');
+    element.style.backgroundImage = '';
+    resolve();
+  };
+  verify.src = cached;
 }
 
 // quoteSymbol / assetType 是给 applyAssetLogo 用的：行情条的图标和持仓、搜索、
