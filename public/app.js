@@ -1071,13 +1071,25 @@ const CMC_COIN_IDS = {
   PEPE: 24478, TON: 11419, HBAR: 4642, VET: 3077, INJ: 7226, AAVE: 7278
 };
 
-function assetLogoUrl(quoteSymbol, assetType) {
-  // Crypto 的 quoteSymbol 形如 BTC-USD，取前半段查 CMC。
-  if (assetType === 'CRYPTOCURRENCY') {
-    const coinId = CMC_COIN_IDS[quoteSymbol.replace(/-USD$/, '').toUpperCase()];
-    return coinId ? `https://s2.coinmarketcap.com/static/img/coins/128x128/${coinId}.png` : null;
+// 返回候选 URL 列表，按序尝试第一个能加载的。
+//
+// 为什么不是单个 URL：真实数据有两种情况会漏。一是旧持仓里的加密货币没存
+// -USD 后缀，normalizeAsset 只能按后缀猜类型，ETH 这种会被判成 EQUITY
+// （loadHoldings 的特判只覆盖了 BTC）。二是 CMC 要数字 ID，不在表里的币
+// 直接没有 URL 可用。两种情况下都还有别的源值得一试，不该直接放弃。
+function assetLogoCandidates(quoteSymbol, assetType) {
+  const bare = quoteSymbol.replace(/-USD$/, '').toUpperCase();
+  const coinId = CMC_COIN_IDS[bare];
+  const cmc = coinId ? `https://s2.coinmarketcap.com/static/img/coins/128x128/${coinId}.png` : null;
+  const parqet = `https://assets.parqet.com/logos/symbol/${encodeURIComponent(quoteSymbol)}?format=png`;
+
+  // 认作加密货币的条件放宽：类型字段说是，或者代码本身就是已知币种代码
+  // ——后者专门用来救没有 -USD 后缀的旧数据。
+  if (assetType === 'CRYPTOCURRENCY' || coinId) {
+    // 冷门币走不到 CMC，仍让 Parqet 试一次再回退首字母。
+    return [cmc, parqet].filter(Boolean);
   }
-  return `https://assets.parqet.com/logos/symbol/${encodeURIComponent(quoteSymbol)}?format=png`;
+  return [parqet];
 }
 
 function applyAssetLogo(element, quoteSymbol, fallbackText, assetType) {
@@ -1086,23 +1098,27 @@ function applyAssetLogo(element, quoteSymbol, fallbackText, assetType) {
   element.style.backgroundImage = '';
   if (!quoteSymbol) return;
 
-  const status = assetLogoStatus.get(quoteSymbol);
-  if (status === 'fail') return;
-
-  const url = assetLogoUrl(quoteSymbol, assetType);
-  if (!url) return;
-  const show = () => {
+  const show = url => {
     element.textContent = '';
     element.classList.add('has-logo');
     element.style.backgroundImage = `url("${url}")`;
   };
-  // 已知可用就同步铺上，不必再等一次 onload（图片本身走浏览器缓存）。
-  if (status === 'ok') return show();
 
-  const probe = new Image();
-  probe.onload = () => { assetLogoStatus.set(quoteSymbol, 'ok'); show(); };
-  probe.onerror = () => { assetLogoStatus.set(quoteSymbol, 'fail'); };
-  probe.src = url;
+  // 缓存存的是「哪个 URL 成功了」，命中就同步铺上，不必再等一次 onload
+  // （图片本身走浏览器缓存）。'fail' 表示所有候选都试过且都没有。
+  const cached = assetLogoStatus.get(quoteSymbol);
+  if (cached === 'fail') return;
+  if (cached) return show(cached);
+
+  const candidates = assetLogoCandidates(quoteSymbol, assetType);
+  (function tryNext(i) {
+    if (i >= candidates.length) return assetLogoStatus.set(quoteSymbol, 'fail');
+    const url = candidates[i];
+    const probe = new Image();
+    probe.onload = () => { assetLogoStatus.set(quoteSymbol, url); show(url); };
+    probe.onerror = () => tryNext(i + 1);
+    probe.src = url;
+  })(0);
 }
 
 function isInterestHolding(holding) {
