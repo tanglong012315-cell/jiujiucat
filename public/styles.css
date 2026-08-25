@@ -585,8 +585,13 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .holdings-list { display: flex; flex-direction: column; gap: 8px; }
 .holdings-list[hidden] { display: none; }
 .holdings-empty { margin: 0; padding-block: 16px 8px; color: var(--ink-40); font-size: 13px; line-height: 1.5; text-align: center; }
+/* 三列网格：logo | 主信息 | 金额。以前是 flex，带股息日期的行还要开 flex-wrap
+   才放得下那条 100% 宽的日期带 —— 副作用是主信息一长，右边的金额整块被挤到
+   下一行去（2026-08-25 的 MSTR 就是这么烂掉的）。网格里日期带自己占满一行，
+   金额永远待在第三列，不会被挤走。 */
 .holding-row {
-  display: flex; align-items: center; gap: 12px; width: 100%; text-align: start;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center; column-gap: 12px; width: 100%; text-align: start;
   padding: 12px 16px; border: 0; border-radius: var(--radius-card);
   background: var(--ink-4); color: var(--ink); cursor: pointer;
   transition-property: opacity, scale; transition-duration: 150ms;
@@ -600,13 +605,9 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   background: var(--ink-10); color: inherit;
   font-size: 11px; font-weight: 700; letter-spacing: .01em;
 }
-/* min-width 是这行能不能折的关键：flex-basis 为 0 时左栏永远只拿"剩下的"，
-   右栏按 max-content 占满、压根轮不到收缩，盈亏那串再长也不会折行，被牺牲的
-   总是左边的「份数 · 成本」。
-   下限取 min-content（即左栏自身内容的完整宽度）而不是某个百分比：百分比是
-   拍脑袋的固定值，会让「+$37.83 (+1.83%)」这种明明放得下的短数值也被迫折行。
-   min-content 表达的才是真实意图 —— 左栏不许截断，右栏按需折。 */
-.holding-meta { min-width: min-content; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+/* 左栏不截断也不撑破：它按语义分段折行（见 .holding-qty），右栏则靠自身的
+   wrap 让百分比掉到第二行。两边都不用牺牲信息。 */
+.holding-meta { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .holding-title-line { min-width: 0; display: flex; align-items: center; gap: 4px; }
 .holding-symbol { min-width: 0; overflow: hidden; font-size: 14px; line-height: 20px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .holding-type-tag {
@@ -614,29 +615,28 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   background: var(--tint-purple); color: var(--on-tint-tag);
   font-size: 10px; line-height: 14px; font-weight: 600; white-space: nowrap;
 }
-.holding-qty { overflow: hidden; opacity: .55; font-size: 11px; line-height: 16px; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.holding-row.has-dividend-dates { flex-wrap: wrap; }
-.holding-dividend-dates {
-  /* 允许折行：最窄的 320px 屏上，两个日期加一个「每月两次分红」是排不下的，
-     不折行的话这一行会顶破卡片（各段自身都是 nowrap，缩不动）。折行后频率
-     掉到第二行、仍然靠右。 */
-  flex: 0 0 100%; display: flex; flex-wrap: wrap; align-items: baseline;
-  justify-content: flex-start; gap: 2px 6px;
-  padding-top: 10px; border-top: 1px solid var(--ink-10);
-  color: var(--ink-40); font-size: 11px; line-height: 16px; font-variant-numeric: tabular-nums;
+/* 年化做成代号后面的数字芯片，把「年化 8.00%」从下面那行挪上来省一段宽度。
+   几何和类型标签一致，但用中性色：紫色那枚是身份标签（单利/每日复利），
+   这枚是数值，两个都染紫会分不清主次。 */
+.holding-rate-tag {
+  flex: 0 0 auto; padding: 1px 5px; border-radius: 6px;
+  background: var(--ink-10); color: var(--ink-80);
+  font-size: 10px; line-height: 14px; font-weight: 600; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
-.holding-dividend-dates > span { min-width: 0; display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
-.holding-dividend-dates > span + span::before { content: "·"; margin-inline-end: 2px; color: var(--ink-40); }
-/* 频率排在最右端：靠 auto margin 推过去，它就不再是紧跟着日期的一段，
-   所以那个分隔点也要一并吃掉，否则右侧会孤零零挂一个「·」。 */
-.holding-dividend-frequency { margin-inline-start: auto; }
-.holding-dividend-dates > span + .holding-dividend-frequency::before { content: none; margin-inline-end: 0; }
-.holding-dividend-dates small { flex: 0 0 auto; color: inherit; font: inherit; }
-.holding-dividend-dates strong {
-  overflow: hidden; color: var(--ink); font-size: 11px; font-weight: 550;
-  text-overflow: ellipsis; white-space: nowrap;
+/* 「82.61993616 份 · 成本 $79,041.85」在 375px 屏上放不下。以前是整行省略号，
+   截掉的正好是成本；现在按段折行，每段自身仍不折，分隔点由 CSS 生成，
+   所以折到第二行时行尾不会挂一个孤零零的「·」。 */
+.holding-qty {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;
+  min-width: 0; opacity: .55; font-size: 11px; line-height: 16px;
+  font-variant-numeric: tabular-nums;
 }
-.holding-right { min-width: 0; flex: 0 1 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+/* 段与段之间只留空隙、不放「·」：这行会折行，而分隔点没法只在同一行时出现 ——
+   放在段前会让第二行以一个孤零零的「·」开头，放在段后则是行尾挂一个点。
+   每段自带「份 / 成本 / 本金」这样的词，靠 10px 间距已经分得开。 */
+.holding-qty > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.holding-right { min-width: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .holding-value { font-size: 14px; line-height: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
 /* 整行 nowrap 时，一笔十倍仓位的「+$30,236.00 (+3023.60%)」会强占整行宽度，
    把左边的「100 份 · 成本 $1.00」挤成省略号 —— 被截掉的恰恰是成本，而盈亏
@@ -660,7 +660,9 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .holding-group-lots[hidden] { display: none; }
 .holding-subrow { background: transparent; box-shadow: inset 0 0 0 1px var(--ink-10); }
 .holding-expand {
-  display: inline-flex; align-items: center; gap: 4px; color: var(--ink-40);
+  /* 不参与收缩：窄屏上它会被压到「3」和「笔」上下断开。 */
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px;
+  color: var(--ink-40); white-space: nowrap;
   font-size: 11px; line-height: 16px; font-weight: 500;
 }
 .holding-expand i { width: 12px; height: 12px; font-size: 12px; line-height: 1; transition: rotate 150ms ease-out; }
@@ -669,8 +671,13 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
    一个箭头，引着用户点进去手动补一个价格，而不是空着或显示一堆 0。 */
 .holding-price-hint { display: inline-flex; align-items: center; gap: 2px; color: var(--ink-40); font-size: 11px; line-height: 16px; white-space: nowrap; }
 .holding-price-hint > i { font-size: 12px; line-height: 1; }
+/* 320px 屏上「$583,343.03 / 利息 +$523.43」这一列光自己就要 130px，三列并排
+   会把左边的份数和成本压成省略号（连代号都能被截成「US…」）。这个宽度下改成
+   两行：金额整块落到主信息下面，改左对齐，一列到底，谁都不用截断。 */
 @media (max-width: 359px) {
-  .holding-row { gap: 8px; padding-inline: 12px; }
+  .holding-row { grid-template-columns: auto minmax(0, 1fr); gap: 6px 8px; padding-inline: 12px; }
+  .holding-right { grid-column: 2 / -1; align-items: flex-start; }
+  .holding-pl { justify-content: flex-start; }
 }
 
 /* ── 盈亏明细 ───────────────────────────────────────────── */
@@ -704,7 +711,9 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .profit-event-card { padding: 14px 16px; border: 1px solid var(--ink-10); border-radius: 18px; }
 .profit-event-card[hidden] { display: none; }
 .profit-event-card > strong { display: block; margin-bottom: 10px; font-size: 13px; line-height: 18px; font-weight: 650; }
-.profit-event-card dl { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+/* 固定两列 = 四个字段（频率/每股/除息/派息）排成整齐的 2×2。auto-fit 在 375px
+   下只放得进三列，第四个就单独吊在第二行。 */
+.profit-event-card dl { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 8px; }
 .profit-event-card dl div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .profit-event-card dt { color: var(--ink-40); font-size: 11px; line-height: 16px; }
 .profit-event-card dd { overflow: hidden; margin: 0; font-size: 12px; line-height: 18px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }

@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=72" />
+  <link rel="stylesheet" href="styles.css?v=78" />
 </head>
 <body>
   <header class="topbar">
@@ -501,8 +501,11 @@
         </div>
       </div>
       <div class="profit-event-card" id="profit-event-card" hidden>
-        <strong>股息记录</strong>
+        <!-- 下面还有一个同名的「股息记录」按钮（进历史列表），这里改叫「最近一次分红」
+             以示区别：这张卡讲的是最新那一笔。 -->
+        <strong>最近一次分红</strong>
         <dl>
+          <div><dt>分红频率</dt><dd id="profit-dividend-frequency">—</dd></div>
           <div><dt>每股股息</dt><dd id="profit-dividend-per-share">—</dd></div>
           <div><dt>除息日</dt><dd id="profit-ex-date">—</dd></div>
           <div><dt>派息日</dt><dd id="profit-pay-date">—</dd></div>
@@ -590,6 +593,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
-  <script src="app.js?v=70"></script>
+  <script src="app.js?v=73"></script>
 </body>
 </html>

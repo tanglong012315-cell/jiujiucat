@@ -1574,32 +1574,18 @@ function renderPortfolioSummary() {
 function holdingRowModel(holding) {
   const metrics = holdingMetrics(holding);
   const annualRate = Number(holding.annualRate) || 0;
+  // 分段而不是拼成一整串：窄屏上这行要能按「份数 / 成本 / 年化」这种语义边界
+  // 折行，一整串就只能从中间截断，被截掉的往往正是成本。
   let detail;
   if (metrics.kind === 'interest') {
-    detail = `本金 ${money.format(metrics.cost)} · 年化 ${annualRate.toFixed(2)}%`;
+    detail = [`本金 ${money.format(metrics.cost)}`];
   } else if (metrics.kind === 'hybrid') {
-    detail = `${metrics.quantity} 份 · 成本 ${money.format(metrics.costPerShare)} · 年化 ${annualRate.toFixed(2)}%`;
-  } else if (metrics.kind === 'dividend') {
-    detail = `${metrics.quantity} 份 · 成本 ${money.format(metrics.costPerShare)}`;
+    detail = [`${metrics.quantity} 份`, `成本 ${money.format(metrics.costPerShare)}`];
   } else {
-    detail = `${metrics.quantity} 份 · 成本 ${money.format(metrics.costPerShare)}`;
+    detail = [`${metrics.quantity} 份`, `成本 ${money.format(metrics.costPerShare)}`];
   }
-  let dividendDates = null;
-  const dividendRecord = metrics.kind === 'dividend' ? latestDividendRecord(holding) : null;
-  const frequencyLabel = metrics.kind === 'dividend'
-    ? `${DIVIDEND_FREQUENCY_LABELS[holding.dividendFrequency] || '不固定'}分红`
-    : null;
-  if (dividendRecord) {
-    dividendDates = {
-      frequency: frequencyLabel,
-      exDate: formatPortfolioDate(dividendRecord.exDate),
-      payDate: formatPortfolioDate(dividendRecord.payDate)
-    };
-  } else if (frequencyLabel) {
-    // 记录被删光时下面那行不出现，频率就没地方放了 —— 退回到成本那行，
-    // 而不是为一个词单独撑起一条带分隔线的空行。
-    detail += ` · ${frequencyLabel}`;
-  }
+  // 除息日 / 派息日 / 分红频率不再挤在持仓行里 —— 一行塞六七个字段，窄屏上
+  // 怎么排都是坏的。它们移到点开后的盈亏明细弹层（#profit-event-card）。
   return {
     symbol: holding.symbol,
     quoteSymbol: holding.quoteSymbol,
@@ -1613,7 +1599,10 @@ function holdingRowModel(holding) {
     typeTag: metrics.kind === 'interest'
       ? (holding.interestMode === 'compound' ? '每日复利' : '单利')
       : null,
-    dividendDates
+    // 年化跟在代号后面当数字芯片，标签词省掉 —— 下面那行就只剩本金/成本了。
+    rateTag: (metrics.kind === 'interest' || metrics.kind === 'hybrid') && annualRate > 0
+      ? `${annualRate.toFixed(2)}%`
+      : null
   };
 }
 
@@ -1636,6 +1625,14 @@ function appendHoldingRowContent(row, model, expandable = false) {
     typeTag.textContent = model.typeTag;
     titleLine.append(typeTag);
   }
+  if (model.rateTag) {
+    const rateTag = document.createElement('span');
+    rateTag.className = 'holding-rate-tag';
+    rateTag.textContent = model.rateTag;
+    // 只有数字，读屏时补一句它是什么。
+    rateTag.setAttribute('aria-label', `年化 ${model.rateTag}`);
+    titleLine.append(rateTag);
+  }
   if (expandable) {
     const expand = document.createElement('span');
     expand.className = 'holding-expand';
@@ -1649,7 +1646,11 @@ function appendHoldingRowContent(row, model, expandable = false) {
   }
   const detail = document.createElement('span');
   detail.className = 'holding-qty';
-  detail.textContent = model.detail;
+  detail.replaceChildren(...model.detail.map(part => {
+    const segment = document.createElement('span');
+    segment.textContent = part;
+    return segment;
+  }));
   meta.append(titleLine, detail);
   const right = document.createElement('span');
   right.className = 'holding-right';
@@ -1685,30 +1686,6 @@ function appendHoldingRowContent(row, model, expandable = false) {
   }
 
   row.append(logo, meta, right);
-  if (model.dividendDates) {
-    row.classList.add('has-dividend-dates');
-
-    const dates = document.createElement('span');
-    dates.className = 'holding-dividend-dates';
-
-    // 用 <small>（标签档：400 字重 + --ink-40）而不是 <strong>（值档：550 + 全墨）。
-    // 这行里它是唯一没有配套标签的裸值，按值的样式排会比旁边的「除息日」重一档。
-    const frequency = document.createElement('span');
-    frequency.className = 'holding-dividend-frequency';
-    const frequencyLabel = document.createElement('small');
-    frequencyLabel.textContent = model.dividendDates.frequency;
-    frequency.append(frequencyLabel);
-
-    const exDate = document.createElement('span');
-    exDate.innerHTML = `<small>除息日</small><strong>${model.dividendDates.exDate}</strong>`;
-
-    const payDate = document.createElement('span');
-    payDate.innerHTML = `<small>派息日</small><strong>${model.dividendDates.payDate}</strong>`;
-
-    // 日期在左、频率靠右（CSS 里用 auto margin 推过去，并吃掉它前面的分隔点）。
-    dates.append(exDate, payDate, frequency);
-    row.append(dates);
-  }
 }
 
 function createHoldingRow(holding, className = 'holding-row') {
@@ -1738,15 +1715,18 @@ function mergedHoldingModel(group) {
   const allStable = metrics.every(item => item.kind === 'interest');
   const allMarketBased = marketMetrics.length === metrics.length;
   const detail = allStable
-    ? `本金 ${money.format(totalCost)}`
+    ? [`本金 ${money.format(totalCost)}`]
     : allMarketBased && totalQuantity > 0
-      ? `${totalQuantity} 份 · 均价 ${money.format(totalCost / totalQuantity)}`
-      : `综合成本 ${money.format(totalCost)}`;
+      ? [`${totalQuantity} 份`, `均价 ${money.format(totalCost / totalQuantity)}`]
+      : [`综合成本 ${money.format(totalCost)}`];
+  const rates = new Set(group.filter(isInterestHolding).map(item => Number(item.annualRate) || 0));
   return {
     symbol: group[0].symbol,
     quoteSymbol: group[0].quoteSymbol,
     assetType: group[0].assetType,
     detail,
+    // 合并的几笔年化不一致时不显示 —— 挑其中一个当代表就是谎报。
+    rateTag: allStable && rates.size === 1 && [...rates][0] > 0 ? `${[...rates][0].toFixed(2)}%` : null,
     count: group.length,
     value: totalValue,
     profit: totalProfit,
@@ -1992,6 +1972,8 @@ function openProfitSheet(items, action) {
   const latestRecord = dividendHoldings.length === 1 ? latestDividendRecord(dividendHoldings[0]) : null;
   eventCard.hidden = !latestRecord;
   if (latestRecord) {
+    document.querySelector('#profit-dividend-frequency').textContent =
+      `${DIVIDEND_FREQUENCY_LABELS[latestRecord.frequency || dividendHoldings[0].dividendFrequency] || '不固定'}分红`;
     document.querySelector('#profit-dividend-per-share').textContent = money.format(Number(latestRecord.perShare) || 0);
     document.querySelector('#profit-ex-date').textContent = formatPortfolioDate(latestRecord.exDate);
     document.querySelector('#profit-pay-date').textContent = formatPortfolioDate(latestRecord.payDate);
