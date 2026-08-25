@@ -3178,16 +3178,20 @@ const GUEST_AVATAR_COLOR = '#8A8A8F';
 // 猫。头像除了上面那 12 个图标，也可以是其中一只 —— 存成 'cat:<id>'。
 // **file 为 null 表示照片还没到**：那一格只画一个带色边框的空位，不可选，
 // 免得存进一个加载不出来的头像。图片放在 public/ 下，名字填进 file 即可。
+// 顺序是主人定的：Puffy 是元老，BoBo 最小，排最后。
+// 照片统一压到 800×800 的 JPEG（原图是 1200 的 PNG，九张加起来 16MB，
+// 压完 1.2MB）—— 格子最大也就 300px 左右，大图 520px，800 足够，
+// **以后换图记得也过一遍这道压缩**。
 const CAT_AVATARS = [
-  { id: 'bobo', name: 'BoBo', desc: '它很可爱', file: 'avatar.png' },
-  { id: 'cat2', name: '', desc: '', file: null },
-  { id: 'cat3', name: '', desc: '', file: null },
-  { id: 'cat4', name: '', desc: '', file: null },
-  { id: 'cat5', name: '', desc: '', file: null },
-  { id: 'cat6', name: '', desc: '', file: null },
-  { id: 'cat7', name: '', desc: '', file: null },
-  { id: 'cat8', name: '', desc: '', file: null },
-  { id: 'cat9', name: '', desc: '', file: null }
+  { id: 'puffy', name: 'Puffy', desc: '元老教母', file: 'cats/puffy.jpg' },
+  { id: 'nono', name: 'NoNo', desc: '不喜欢同性', file: 'cats/nono.jpg' },
+  { id: 'jiujiu', name: 'JiuJiu', desc: '大眼萌妹', file: 'cats/jiujiu.jpg' },
+  { id: 'liz', name: 'Liz', desc: '别名 Mini', file: 'cats/liz.jpg' },
+  { id: 'pudding', name: 'Pudding', desc: '娘娘腔，种公', file: 'cats/pudding.jpg' },
+  { id: 'zhezhe', name: 'ZheZhe', desc: '疯P', file: 'cats/zhezhe.jpg' },
+  { id: 'coco', name: 'CoCo', desc: '脾气暴躁', file: 'cats/coco.jpg' },
+  { id: 'momo', name: 'MoMo', desc: '小公主', file: 'cats/momo.jpg' },
+  { id: 'bobo', name: 'BoBo', desc: '小少爷', file: 'cats/bobo.jpg' }
 ];
 const CAT_AVATAR_PREFIX = 'cat:';
 const CATS_BY_ID = new Map(CAT_AVATARS.map(cat => [cat.id, cat]));
