@@ -1075,6 +1075,8 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   font-size: 15px; line-height: 22px; font-weight: 600;
 }
 .photo-viewer-frame span { color: rgba(255, 255, 255, .7); font-size: 12px; line-height: 18px; }
+.photo-viewer-meta { color: rgba(255, 255, 255, .5); font-variant-numeric: tabular-nums; }
+.photo-viewer-meta:empty { display: none; }
 .records-more-note { margin: 0; padding-block: 14px; color: var(--ink-40); font-size: 11px; line-height: 16px; text-align: center; }
 .dividend-records-empty { margin: 0; padding-block: 28px; color: var(--ink-40); font-size: 13px; line-height: 20px; text-align: center; }
 /* 利息按天列，一个月就是 30 条。月份小标题吸顶，滚到哪个月一眼看得到；

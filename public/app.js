@@ -3185,17 +3185,42 @@ const GUEST_AVATAR_COLOR = '#8A8A8F';
 // sex: 'female' | 'male'，名字后面跟一个小图标。全部经主人确认过：介绍里能读出
 // 来的（教母/萌妹/公主是母，种公/少爷是公）之外，NoNo 和 ZheZhe 是公、
 // Liz 和 CoCo 是母。
+// birth: 'YYYY-MM-DD'；只知道年份就写 'YYYY'，不知道就 null —— 三种情况在
+// catAgeText 里分别给出「几岁」「哪年生」「年龄未知」，不要为了凑格式编日期。
 const CAT_AVATARS = [
-  { id: 'puffy', name: 'Puffy', desc: '元老教母', sex: 'female', file: 'cats/puffy.jpg' },
-  { id: 'nono', name: 'NoNo', desc: '不喜欢同性', sex: 'male', file: 'cats/nono.jpg' },
-  { id: 'jiujiu', name: 'JiuJiu', desc: '大眼萌妹', sex: 'female', file: 'cats/jiujiu.jpg' },
-  { id: 'liz', name: 'Liz', desc: '别名 Mini', sex: 'female', file: 'cats/liz.jpg' },
-  { id: 'pudding', name: 'Pudding', desc: '娘娘腔，种公', sex: 'male', file: 'cats/pudding.jpg' },
-  { id: 'zhezhe', name: 'ZheZhe', desc: '疯P', sex: 'male', file: 'cats/zhezhe.jpg' },
-  { id: 'coco', name: 'CoCo', desc: '脾气暴躁', sex: 'female', file: 'cats/coco.jpg' },
-  { id: 'momo', name: 'MoMo', desc: '小公主', sex: 'female', file: 'cats/momo.jpg' },
-  { id: 'bobo', name: 'BoBo', desc: '小少爷', sex: 'male', file: 'cats/bobo.jpg' }
+  { id: 'puffy', name: 'Puffy', desc: '元老教母', sex: 'female', birth: '2017-09-17', file: 'cats/puffy.jpg' },
+  { id: 'nono', name: 'NoNo', desc: '不喜欢同性', sex: 'male', birth: '2022-05-17', file: 'cats/nono.jpg' },
+  { id: 'jiujiu', name: 'JiuJiu', desc: '大眼萌妹', sex: 'female', birth: '2022-10-03', file: 'cats/jiujiu.jpg' },
+  { id: 'liz', name: 'Liz', desc: '别名 Mini', sex: 'female', birth: '2023-10-15', file: 'cats/liz.jpg' },
+  { id: 'pudding', name: 'Pudding', desc: '娘娘腔，种公', sex: 'male', birth: '2023-03-02', file: 'cats/pudding.jpg' },
+  { id: 'zhezhe', name: 'ZheZhe', desc: '疯P', sex: 'male', birth: '2025', file: 'cats/zhezhe.jpg' },
+  { id: 'coco', name: 'CoCo', desc: '脾气暴躁', sex: 'female', birth: '2024-01-15', file: 'cats/coco.jpg' },
+  { id: 'momo', name: 'MoMo', desc: '小公主', sex: 'female', birth: '2025-11-09', file: 'cats/momo.jpg' },
+  { id: 'bobo', name: 'BoBo', desc: '小少爷', sex: 'male', birth: '2025-11-09', file: 'cats/bobo.jpg' }
 ];
+
+// 不满一岁按月说、一两岁带上月份、再大就只说岁 —— 小猫差一个月是另一个样子，
+// 八岁的猫差一个月没人在意。
+function catAgeText(birth) {
+  if (!birth) return '年龄未知';
+  const [year, month, day] = String(birth).split('-').map(Number);
+  if (!Number.isFinite(month)) return `${year} 年生`;
+  const now = new Date();
+  let months = (now.getFullYear() - year) * 12 + (now.getMonth() + 1 - month);
+  if (now.getDate() < day) months -= 1;
+  if (months < 0) return `${year}.${String(month).padStart(2, '0')} 生`;
+  const years = Math.floor(months / 12);
+  const rest = months % 12;
+  if (years < 1) return `${months} 个月大`;
+  if (years < 2) return rest ? `${years} 岁 ${rest} 个月` : `${years} 岁`;
+  return `${years} 岁`;
+}
+
+function catBirthText(birth) {
+  if (!birth) return '';
+  const [year, month, day] = String(birth).split('-');
+  return month && day ? `${year}.${month}.${day} 生` : '';
+}
 const CAT_SEX = {
   female: { icon: 'ri-women-line', label: '母猫' },
   male: { icon: 'ri-men-line', label: '公猫' }
@@ -3420,18 +3445,11 @@ function renderCatGrid() {
     photo.className = 'cat-photo';
     if (cat.file) photo.style.backgroundImage = `url("${cat.file}")`;
 
+    // 九宫格里只放名字和一句介绍。性别和年龄留到长按的大图里 —— 一格 90px 宽，
+    // 名字后面再挂个图标就开始换行了。
     const name = document.createElement('span');
     name.className = 'cat-name';
-    const sex = CAT_SEX[cat.sex];
-    name.append(cat.name);
-    if (sex) {
-      const mark = document.createElement('i');
-      mark.className = `${sex.icon} cat-sex is-${cat.sex}`;
-      // 图标本身不带语义，读屏要能读出「母猫/公猫」。
-      mark.setAttribute('role', 'img');
-      mark.setAttribute('aria-label', sex.label);
-      name.append(mark);
-    }
+    name.textContent = cat.name;
 
     // 一句话介绍，五六个字。还没写的显示成一条灰条占位，位置先留着。
     const desc = document.createElement('span');
@@ -3485,11 +3503,14 @@ function openCatPhoto(cat) {
   viewerName.replaceChildren(cat.name);
   if (sex) {
     const mark = document.createElement('i');
+    // 图标本身不带语义，读屏要能读出「母猫/公猫」。
     mark.className = `${sex.icon} cat-sex is-${cat.sex}`;
     mark.setAttribute('role', 'img');
     mark.setAttribute('aria-label', sex.label);
     viewerName.append(mark);
   }
+  document.querySelector('#cat-photo-viewer-meta').textContent =
+    [catAgeText(cat.birth), catBirthText(cat.birth)].filter(Boolean).join(' · ');
   document.querySelector('#cat-photo-viewer-desc').textContent = cat.desc || '';
   openOverlay(document.querySelector('#cat-photo-viewer'));
   document.querySelector('.photo-viewer-scrim').focus();
