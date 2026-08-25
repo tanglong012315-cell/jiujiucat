@@ -22,10 +22,77 @@ const cnyWhole = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: '
 // Cents are false precision past five figures, and they cost the row a type size.
 const metricMoney = value => (Math.abs(value) >= 10000 ? moneyWhole : money).format(value);
 const metricCny = value => (Math.abs(value) >= 10000 ? cnyWhole : cnyMoney).format(value);
+// ── 资产 logo ────────────────────────────────────────────────────────
+// 全站四处共用：顶部行情条、持仓行、资产搜索结果、快捷添加推荐区。
+// 两个源分工，都是「按圆形满铺设计」的图标，不往仓库里塞图片：
+//   股票 / ETF → Parqet   加密货币 → CoinCap
+// 为什么不用 FMP：它给的是原始品牌图片而非图标——有的自带白底、有的是方形带
+// 底色、有的是透明背景的纯文字（Vanguard 在深色模式下几乎看不见）。拼在一排
+// 圆形容器里必然参差。Parqet / CoinCap 都已经做成统一的圆形图标。
+//
+// 两家查不到时都返回 404 而不是占位图，所以「加载失败」可以放心当成
+// 「这个标的没有 logo」，直接回退首字母。
+//
+// 结果按 quoteSymbol 记住：持仓页每 60 秒重渲染一次，没有这层缓存的话
+// 没 logo 的标的会反复打 404，有 logo 的则每次都先闪一下首字母。
+//
+// 这一整块必须留在 marketAssets 之前：renderMarketTicker 在模块顶层就被调用，
+// 而 assetLogoStatus 是 const，定义在后面会直接抛 TDZ 错误。
+const assetLogoStatus = new Map();
+
+// 加密货币走 CoinCap：它按「代码」索引，不需要维护代码→数字 ID 的映射表。
+// 之前用 CMC 时硬编码了 34 个主流币的 ID，OKB 这类没列进去的就只能显示首字母
+// ——那张表既漏又要人手维护，换成代码索引后整张表都不需要了。
+const coinCapLogo = bare => `https://assets.coincap.io/assets/icons/${bare.toLowerCase()}@2x.png`;
+const parqetLogo = symbol => `https://assets.parqet.com/logos/symbol/${encodeURIComponent(symbol)}?format=png`;
+
+// 判断是不是加密货币不能只看 assetType：旧持仓里的加密货币没存 -USD 后缀，
+// normalizeAsset 只能按后缀猜，ETH 这种会被判成 EQUITY（loadHoldings 的兼容
+// 特判只覆盖了 BTC）。所以两条候选都给出去，按序试第一个能加载的。
+function assetLogoCandidates(quoteSymbol, assetType) {
+  const bare = quoteSymbol.replace(/-USD$/, '').toUpperCase();
+  const crypto = coinCapLogo(bare);
+  const stock = parqetLogo(quoteSymbol);
+  // 明确是加密货币就先试 CoinCap；否则先试股票源，失败再按「可能是漏判类型的
+  // 旧数据」补试一次加密源。
+  return assetType === 'CRYPTOCURRENCY' ? [crypto, stock] : [stock, crypto];
+}
+
+function applyAssetLogo(element, quoteSymbol, fallbackText, assetType) {
+  element.textContent = fallbackText;
+  element.classList.remove('has-logo');
+  element.style.backgroundImage = '';
+  if (!quoteSymbol) return;
+
+  const show = url => {
+    element.textContent = '';
+    element.classList.add('has-logo');
+    element.style.backgroundImage = `url("${url}")`;
+  };
+
+  // 缓存存的是「哪个 URL 成功了」，命中就同步铺上，不必再等一次 onload
+  // （图片本身走浏览器缓存）。'fail' 表示所有候选都试过且都没有。
+  const cached = assetLogoStatus.get(quoteSymbol);
+  if (cached === 'fail') return;
+  if (cached) return show(cached);
+
+  const candidates = assetLogoCandidates(quoteSymbol, assetType);
+  (function tryNext(i) {
+    if (i >= candidates.length) return assetLogoStatus.set(quoteSymbol, 'fail');
+    const url = candidates[i];
+    const probe = new Image();
+    probe.onload = () => { assetLogoStatus.set(quoteSymbol, url); show(url); };
+    probe.onerror = () => tryNext(i + 1);
+    probe.src = url;
+  })(0);
+}
+
+// quoteSymbol / assetType 是给 applyAssetLogo 用的：行情条的图标和持仓、搜索、
+// 推荐区走同一套解析，不再各自维护仓库里的 svg。
 const marketAssets = [
-  { symbol: 'BTC', name: 'Bitcoin', icon: 'btc-icon.svg', basis: '北京时间今日', price: null, change: null, series: [], cached: false, status: '获取中' },
-  { symbol: 'MSTR', name: 'MSTR', icon: 'mstr-icon.svg', basis: '北京时间今日', price: null, change: null, series: [], cached: false, status: '获取中', equity: true },
-  { symbol: 'QQQ', name: 'QQQ', icon: 'qqq-icon.svg', basis: '北京时间今日', price: null, change: null, series: [], cached: false, status: '获取中', equity: true }
+  { symbol: 'BTC', quoteSymbol: 'BTC-USD', assetType: 'CRYPTOCURRENCY', name: 'Bitcoin', basis: '北京时间今日', price: null, change: null, series: [], cached: false, status: '获取中' },
+  { symbol: 'MSTR', quoteSymbol: 'MSTR', assetType: 'EQUITY', name: 'MSTR', basis: '北京时间今日', price: null, change: null, series: [], cached: false, status: '获取中', equity: true },
+  { symbol: 'QQQ', quoteSymbol: 'QQQ', assetType: 'EQUITY', name: 'QQQ', basis: '北京时间今日', price: null, change: null, series: [], cached: false, status: '获取中', equity: true }
 ];
 let currentMarketIndex = 0;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -124,7 +191,7 @@ function renderMarketSession(asset) {
 }
 
 function renderMarketTicker(asset) {
-  document.querySelector('#market-icon').src = asset.icon;
+  applyAssetLogo(document.querySelector('#market-icon'), asset.quoteSymbol, asset.symbol.slice(0, 1), asset.assetType);
   document.querySelector('#market-name').textContent = asset.name;
   document.querySelector('#market-price').textContent = Number.isFinite(asset.price) ? btcMoney.format(asset.price) : '$—';
   const changeLabel = document.querySelector('#market-change');
@@ -1047,66 +1114,6 @@ let dividendFrequencyCloseTimer = null;
 // 分开存，因为后者是给顶部轮播用的固定三项，这里是用户自己输入的任意集合。
 const holdingPrices = new Map();
 
-// ── 资产 logo ────────────────────────────────────────────────────────
-// 两个源分工，都是「按圆形满铺设计」的图标，不往仓库里塞图片：
-//   股票 / ETF → Parqet   加密货币 → CoinMarketCap
-// 为什么不用 FMP：它给的是原始品牌图片而非图标——有的自带白底、有的是方形带
-// 底色、有的是透明背景的纯文字（Vanguard 在深色模式下几乎看不见）。拼在一排
-// 圆形容器里必然参差。Parqet / CMC 这两家都已经做成统一的圆形图标。
-//
-// 两家查不到时都返回 404 而不是占位图，所以「加载失败」可以放心当成
-// 「这个标的没有 logo」，直接回退首字母。
-//
-// 结果按 quoteSymbol 记住：持仓页每 60 秒重渲染一次，没有这层缓存的话
-// 没 logo 的标的会反复打 404，有 logo 的则每次都先闪一下首字母。
-const assetLogoStatus = new Map();
-
-// 加密货币走 CoinCap：它按「代码」索引，不需要维护代码→数字 ID 的映射表。
-// 之前用 CMC 时硬编码了 34 个主流币的 ID，OKB 这类没列进去的就只能显示首字母
-// ——那张表既漏又要人手维护，换成代码索引后整张表都不需要了。
-const coinCapLogo = bare => `https://assets.coincap.io/assets/icons/${bare.toLowerCase()}@2x.png`;
-const parqetLogo = symbol => `https://assets.parqet.com/logos/symbol/${encodeURIComponent(symbol)}?format=png`;
-
-// 判断是不是加密货币不能只看 assetType：旧持仓里的加密货币没存 -USD 后缀，
-// normalizeAsset 只能按后缀猜，ETH 这种会被判成 EQUITY（loadHoldings 的兼容
-// 特判只覆盖了 BTC）。所以两条候选都给出去，按序试第一个能加载的。
-function assetLogoCandidates(quoteSymbol, assetType) {
-  const bare = quoteSymbol.replace(/-USD$/, '').toUpperCase();
-  const crypto = coinCapLogo(bare);
-  const stock = parqetLogo(quoteSymbol);
-  // 明确是加密货币就先试 CoinCap；否则先试股票源，失败再按「可能是漏判类型的
-  // 旧数据」补试一次加密源。
-  return assetType === 'CRYPTOCURRENCY' ? [crypto, stock] : [stock, crypto];
-}
-
-function applyAssetLogo(element, quoteSymbol, fallbackText, assetType) {
-  element.textContent = fallbackText;
-  element.classList.remove('has-logo');
-  element.style.backgroundImage = '';
-  if (!quoteSymbol) return;
-
-  const show = url => {
-    element.textContent = '';
-    element.classList.add('has-logo');
-    element.style.backgroundImage = `url("${url}")`;
-  };
-
-  // 缓存存的是「哪个 URL 成功了」，命中就同步铺上，不必再等一次 onload
-  // （图片本身走浏览器缓存）。'fail' 表示所有候选都试过且都没有。
-  const cached = assetLogoStatus.get(quoteSymbol);
-  if (cached === 'fail') return;
-  if (cached) return show(cached);
-
-  const candidates = assetLogoCandidates(quoteSymbol, assetType);
-  (function tryNext(i) {
-    if (i >= candidates.length) return assetLogoStatus.set(quoteSymbol, 'fail');
-    const url = candidates[i];
-    const probe = new Image();
-    probe.onload = () => { assetLogoStatus.set(quoteSymbol, url); show(url); };
-    probe.onerror = () => tryNext(i + 1);
-    probe.src = url;
-  })(0);
-}
 
 function isInterestHolding(holding) {
   return holding.holdingKind === 'interest' || holding.holdingKind === 'hybrid';

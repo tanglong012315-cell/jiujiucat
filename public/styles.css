@@ -165,7 +165,12 @@ img { max-width: 100%; }
 .market-content.is-leaving { opacity: 0; translate: 0 -6px; }
 .market-content.is-entering { opacity: 0; translate: 0 6px; }
 .market-content.is-resetting { transition-duration: 0ms; }
-.btc-icon { width: 16px; height: 16px; flex: 0 0 auto; display: block; }
+.btc-icon {
+  width: 16px; height: 16px; flex: 0 0 auto;
+  display: grid; place-items: center; border-radius: 50%;
+  background: var(--ink-10); color: var(--ink);
+  font-size: 8px; line-height: 1; font-weight: 750;
+}
 .btc-copy { min-width: 0; display: flex; align-items: center; gap: 8px; }
 .btc-name { overflow: hidden; max-width: 88px; color: var(--ink); font-size: 12px; line-height: 16px; text-overflow: ellipsis; white-space: nowrap; }
 .btc-quote { min-width: 0; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
@@ -1027,7 +1032,8 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
    双层圆环，正是之前那股复古味的来源。 */
 .holding-logo.has-logo,
 .asset-result-mark.has-logo,
-.recommend-icon.has-logo {
+.recommend-icon.has-logo,
+.btc-icon.has-logo {
   background-color: transparent;
   background-repeat: no-repeat;
   background-position: center;
