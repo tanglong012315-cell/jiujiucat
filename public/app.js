@@ -2432,7 +2432,11 @@ function updateHoldingYieldPreview() {
       : '填写本金与年化利率后显示预计收益';
     return;
   }
-  preview.textContent = `预计每日收益 ${money.format(principal * rate / 100 / 365)} · 每日 16:00（北京时间）更新`;
+  const startDate = document.querySelector('#holding-start-date').value;
+  const pending = startDate && startDate > beijingDateString()
+    ? ` · ${formatPortfolioDate(startDate)} 起息`
+    : '';
+  preview.textContent = `预计每日收益 ${money.format(principal * rate / 100 / 365)} · 每日 16:00（北京时间）更新${pending}`;
 }
 
 function updateHoldingSubmitState() {
@@ -2789,7 +2793,10 @@ document.querySelector('#holding-symbol-manual').addEventListener('input', event
     updateHoldingSubmitState();
   });
 });
-document.querySelector('#holding-start-date').addEventListener('change', updateHoldingSubmitState);
+document.querySelector('#holding-start-date').addEventListener('change', () => {
+  updateHoldingYieldPreview();
+  updateHoldingSubmitState();
+});
 ['holding-dividend-frequency', 'holding-ex-dividend-date', 'holding-dividend-pay-date'].forEach(id => {
   document.querySelector(`#${id}`).addEventListener('change', () => {
     updateHoldingYieldPreview();
@@ -2833,7 +2840,6 @@ function openHoldingSheet(id = null, presetAsset = null) {
   document.querySelector('#holding-rate').value = holding && isInterestHolding(holding) ? holding.annualRate : '';
   document.querySelector(`input[name="holding-interest-mode"][value="${holding?.interestMode === 'compound' ? 'compound' : 'simple'}"]`).checked = true;
   const startDate = document.querySelector('#holding-start-date');
-  startDate.max = beijingDateString();
   startDate.value = holding && isInterestHolding(holding) ? holding.interestStartDate : beijingDateString();
   document.querySelector('#holding-dividend-per-share').value = holding && isDividendHolding(holding) && Number(holding.dividendPerShare) > 0 ? holding.dividendPerShare : '';
   setDividendFrequency(holding && isDividendHolding(holding) && DIVIDEND_FREQUENCY_LABELS[holding.dividendFrequency]
@@ -2916,7 +2922,9 @@ document.querySelector('#holding-form').addEventListener('submit', async event =
       document.querySelector('#holding-rate').focus();
       return showToast('请输入 0–1000% 的年化利率');
     }
-    if (!interestStartDate || interestStartDate > beijingDateString()) {
+    // 起息日允许是未来：银行/理财常见 T+1、T+2 才起息，先按约定日期建仓，
+    // 结算天数从起息日次日 16:00 起算，未到就是 0 天。
+    if (!interestStartDate) {
       document.querySelector('#holding-start-date').focus();
       return showToast('请选择有效的起息日期');
     }
