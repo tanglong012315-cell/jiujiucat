@@ -152,11 +152,14 @@ img { max-width: 100%; }
   align-items: flex-end;
   justify-content: center;
   padding-bottom: calc(56px + env(safe-area-inset-bottom));
-  background-color: #111214;
   /* 竖屏用 9:16 那版，横屏换 16:9 那版 —— 同一张构图出了两个比例的成品图，
      比拿一张去 cover 硬裁另一个方向好：竖版在宽屏上只能露出中间很窄一条。
      媒体查询保证浏览器只下载匹配的那一张。 */
   background-image: url('splash-bg.jpg');
+  /* 两版都按 cover 全屏铺满。「镜头拉远」是做进素材本身的（2026-08-26 用户
+     重出了竖版），不要再用 CSS 去缩放留白 —— 那样顶部会多出一段纯色，反而
+     把设计好的构图割成两块。兜底色取图顶的近黑色，只在图加载完成前的一瞬可见。*/
+  background-color: #060606;
   background-size: cover;
   background-position: 50% 50%;
   background-repeat: no-repeat;
@@ -164,7 +167,7 @@ img { max-width: 100%; }
   transition: opacity .4s ease;
 }
 @media (orientation: landscape) {
-  .app-splash { background-image: url('splash-bg-wide.jpg'); }
+  .app-splash { background-image: url('splash-bg-wide.jpg'); background-color: #111214; }
 }
 .app-splash.is-hidden { opacity: 0; pointer-events: none; }
 /* 底部那行字正好压在雪山的高光上，白字叠白雪光靠 text-shadow 读不出来。
