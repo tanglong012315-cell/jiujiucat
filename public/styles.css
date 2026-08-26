@@ -652,6 +652,22 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   display: flex; flex-direction: column; gap: 4px; padding-inline-start: 20px;
 }
 .holding-group-lots[hidden] { display: none; }
+/* 合并组展开后垫在子行下面的一条利息小结。缩进跟着 .holding-group-lots 走，
+   所以它自己不再另加左边距。 */
+.holding-group-interest {
+  margin: 0; padding: 12px 14px; border-radius: var(--radius-card); background: var(--ink-4);
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px;
+}
+.holding-group-interest div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.holding-group-interest dt { color: var(--ink-40); font-size: 11px; line-height: 16px; }
+.holding-group-interest dd {
+  overflow: hidden; margin: 0; font-size: 13px; line-height: 18px; font-weight: 650;
+  text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.holding-group-interest dd.is-gain { color: var(--gain); }
+.holding-group-interest dd.is-loss { color: var(--loss); }
+.holding-group-interest dd.is-flat { color: var(--flat); }
+@media (max-width: 359px) { .holding-group-interest { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* 子行没有 logo（见 appendHoldingRowContent），所以少一列 —— 不改列定义的话
    第一条轨道会空着，只留下一段说不清来历的缩进。 */
 .holding-subrow {
@@ -698,8 +714,11 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   display: flex; flex-direction: column;
 }
 .profit-breakdown-row { min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.profit-breakdown-row + .profit-breakdown-row { border-top: 1px solid var(--ink-10); }
-.profit-breakdown-list.is-stable-only #profit-interest-row { border-top: 0; }
+/* 用 `:not([hidden]) ~ :not([hidden])` 而不是 `+`：`+` 只看 DOM 相邻，隐藏的行
+   照样算数，于是第一条可见的行会莫名顶着一条分隔线（原来靠给利息行单独清零来
+   打补丁，现在行的显隐组合多了，补不过来）。~ 配 :not([hidden]) 的意思正好是
+   「前面还有可见的行」。 */
+.profit-breakdown-row:not([hidden]) ~ .profit-breakdown-row:not([hidden]) { border-top: 1px solid var(--ink-10); }
 .profit-breakdown-row[hidden] { display: none; }
 .profit-breakdown-row > span { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .profit-breakdown-row strong { font-size: 14px; line-height: 20px; font-weight: 600; }
@@ -729,7 +748,6 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .profit-records-btn small, .holding-records-link small { color: var(--ink-40); font-size: 11px; line-height: 16px; }
 .profit-records-btn > i, .holding-records-link > i { flex: 0 0 auto; color: var(--ink-40); font-size: 20px; line-height: 1; }
 .profit-records-btn:focus-visible, .holding-records-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.profit-sheet-foot { margin: -4px 0 0; color: var(--ink-40); font-size: 12px; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums; }
 .profit-edit-btn { margin-top: 0; }
 
 .add-holding-btn {

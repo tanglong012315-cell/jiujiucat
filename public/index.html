@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=98" />
+  <link rel="stylesheet" href="styles.css?v=99" />
 </head>
 <body>
   <header class="topbar">
@@ -486,21 +486,37 @@
         <small id="profit-sheet-total-label">总盈亏</small>
       </div>
       <div class="profit-breakdown-list">
+        <div class="profit-breakdown-row" id="profit-value-row">
+          <span><strong>总资产</strong><small id="profit-value-detail">按最新价计算</small></span>
+          <b id="profit-value-value">$0.00</b>
+        </div>
         <div class="profit-breakdown-row" id="profit-market-row">
           <span><strong>持仓盈亏</strong><small id="profit-market-detail">当前市值减去持仓成本</small></span>
           <b id="profit-market-value">$0.00</b>
         </div>
-        <div class="profit-breakdown-row" id="profit-dividend-row">
-          <span><strong>分红收益</strong><small id="profit-dividend-detail">暂无已确认分红</small></span>
-          <b id="profit-dividend-value">$0.00</b>
-        </div>
-        <div class="profit-breakdown-row" id="profit-interest-row" hidden>
-          <span><strong>利息收益</strong><small id="profit-interest-detail">收益每日于北京时间 16:00 更新</small></span>
-          <b id="profit-interest-value">$0.00</b>
+        <div class="profit-breakdown-row" id="profit-unit-cost-row" hidden>
+          <span><strong id="profit-unit-cost-label">成本价</strong><small id="profit-unit-cost-detail">每份买入成本</small></span>
+          <b id="profit-unit-cost-value">$0.00</b>
         </div>
         <div class="profit-breakdown-row" id="profit-annual-rate-row" hidden>
           <span><strong>年化收益率（APR）</strong><small id="profit-annual-rate-detail">当前持仓设置</small></span>
           <b id="profit-annual-rate-value">0.00%</b>
+        </div>
+        <div class="profit-breakdown-row" id="profit-daily-interest-row" hidden>
+          <span><strong>每日预计利息</strong><small id="profit-daily-interest-detail">下次结算北京时间 16:00</small></span>
+          <b id="profit-daily-interest-value">$0.00</b>
+        </div>
+        <div class="profit-breakdown-row" id="profit-last-interest-row" hidden>
+          <span><strong>昨日实现利息</strong><small id="profit-last-interest-detail">暂无已结算利息</small></span>
+          <b id="profit-last-interest-value">$0.00</b>
+        </div>
+        <div class="profit-breakdown-row" id="profit-interest-row" hidden>
+          <span><strong>总实现利息</strong><small id="profit-interest-detail">收益每日于北京时间 16:00 更新</small></span>
+          <b id="profit-interest-value">$0.00</b>
+        </div>
+        <div class="profit-breakdown-row" id="profit-dividend-row">
+          <span><strong>分红收益</strong><small id="profit-dividend-detail">暂无已确认分红</small></span>
+          <b id="profit-dividend-value">$0.00</b>
         </div>
       </div>
       <div class="profit-event-card" id="profit-event-card" hidden>
@@ -522,7 +538,6 @@
         <span><strong>利息发放记录</strong><small id="profit-interest-records-count">0 条记录</small></span>
         <i class="ri-arrow-right-s-line" aria-hidden="true"></i>
       </button>
-      <p class="profit-sheet-foot" id="profit-sheet-foot">持仓成本 $0.00 · 当前资产 $0.00</p>
       </div>
       <div class="sheet-footer">
         <button type="button" class="calculate-btn profit-edit-btn" id="profit-edit-btn">编辑持仓</button>
@@ -630,6 +645,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
-  <script src="app.js?v=101"></script>
+  <script src="app.js?v=102"></script>
 </body>
 </html>

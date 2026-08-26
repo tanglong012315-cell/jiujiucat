@@ -1513,6 +1513,47 @@ function interestRecordEntries(holding, timestamp = Date.now()) {
   return entries;
 }
 
+// 下一次结算会发多少：直接问计息模型「结算完是多少」减「现在是多少」——
+// 跳过的日子、还没生效的加减仓、复利滚动都已经算在里面，不必另写一套公式。
+function nextInterestSettlement(holding, timestamp = Date.now()) {
+  const first = firstInterestSettlement(holding.interestStartDate);
+  if (!Number.isFinite(first) || !(Number(holding.annualRate) > 0)) return null;
+  const time = first + settledInterestDays(holding, timestamp) * DAY_MS;
+  return {
+    time,
+    date: beijingDateString(time),
+    amount: holdingAccruedInterest(holding, time) - holdingAccruedInterest(holding, timestamp)
+  };
+}
+
+// 最近一次结算发了多少：拿「现在」和「24 小时前」的累计利息相减 —— 结算之间
+// 正好隔 24 小时，这个窗口里最多只有一次结算，那天被删掉的话差值自然是 0。
+function lastInterestSettlement(holding, timestamp = Date.now()) {
+  const first = firstInterestSettlement(holding.interestStartDate);
+  const count = settledInterestDays(holding, timestamp);
+  if (!Number.isFinite(first) || count <= 0) return null;
+  return {
+    date: beijingDateString(first + (count - 1) * DAY_MS),
+    amount: holdingAccruedInterest(holding, timestamp) - holdingAccruedInterest(holding, timestamp - DAY_MS)
+  };
+}
+
+// 一组生息持仓的三个数：下一次会发多少、最近一次发了多少、一共发了多少。
+// 所有持仓的结算都落在同一个时刻（北京时间 16:00），所以几笔直接相加。
+function interestSettlementSummary(items, timestamp = Date.now()) {
+  const list = (Array.isArray(items) ? items : [items]).filter(isInterestHolding);
+  const next = list.map(holding => nextInterestSettlement(holding, timestamp)).filter(Boolean);
+  const last = list.map(holding => lastInterestSettlement(holding, timestamp)).filter(Boolean);
+  return {
+    daily: next.reduce((sum, item) => sum + item.amount, 0),
+    // 还没起息的那几笔结算日更晚，取最近的一次当「下一次」。
+    nextDate: next.length ? next.reduce((a, b) => (a.time <= b.time ? a : b)).date : null,
+    last: last.reduce((sum, item) => sum + item.amount, 0),
+    lastDate: last.map(item => item.date).sort().at(-1) || null,
+    total: list.reduce((sum, holding) => sum + holdingAccruedInterest(holding, timestamp), 0)
+  };
+}
+
 function holdingDividendIncome(holding, timestamp = Date.now()) {
   if (!isDividendHolding(holding)) return 0;
   return confirmedDividendRecords(holding, timestamp)
@@ -1901,6 +1942,28 @@ function mergedHoldingModel(group) {
   };
 }
 
+function createGroupInterestSummary(group) {
+  const summary = interestSettlementSummary(group);
+  const card = document.createElement('dl');
+  card.className = 'holding-group-interest';
+  card.setAttribute('aria-label', `${group[0].symbol} 合并后的利息`);
+  [
+    ['每日预计利息', summary.daily],
+    ['昨日实现利息', summary.last],
+    ['总实现利息', summary.total]
+  ].forEach(([label, value]) => {
+    const cell = document.createElement('div');
+    const term = document.createElement('dt');
+    term.textContent = label;
+    const amount = document.createElement('dd');
+    amount.textContent = signedMoney(value);
+    amount.className = movementTone(value);
+    cell.append(term, amount);
+    card.append(cell);
+  });
+  return card;
+}
+
 // 展开状态记在渲染之外：持仓列表每 60 秒整体重建一次（renderHoldings 用
 // replaceChildren），状态挂在 DOM 上的话展开的组会自己合上。
 const expandedHoldingGroups = new Set();
@@ -1916,6 +1979,10 @@ function createMergedHoldingGroup(group, key) {
   const lots = document.createElement('div');
   lots.className = 'holding-group-lots';
   lots.replaceChildren(...group.map(holding => createHoldingRow(holding, 'holding-row holding-subrow')));
+  // 合并卡本身只有一个总数。展开后在子行下面补一条这一组的利息小结 —— 单笔的
+  // 三个数在各自的盈亏明细里，合并后的没地方看。
+  const interestLots = group.filter(isInterestHolding);
+  if (interestLots.length) lots.append(createGroupInterestSummary(interestLots));
 
   // 合并卡点开是展开这一组的明细，不再是盈亏弹层：合并后用户想看的是「这几笔
   // 分别是什么」，单笔的盈亏明细在展开后的子行上照样点得到。
@@ -2109,7 +2176,6 @@ function openProfitSheet(items, action) {
 
   const interestRow = document.querySelector('#profit-interest-row');
   const annualRateRow = document.querySelector('#profit-annual-rate-row');
-  document.querySelector('.profit-breakdown-list').classList.toggle('is-stable-only', stableOnly);
   document.querySelector('#profit-market-row').hidden = stableOnly;
   document.querySelector('#profit-dividend-row').hidden = stableOnly;
   const interestHoldings = holdingsForBreakdown.filter(isInterestHolding);
@@ -2119,6 +2185,17 @@ function openProfitSheet(items, action) {
     const modeLabel = modes.size === 1 ? [...modes][0] : '单利 + 复利';
     document.querySelector('#profit-interest-detail').textContent = `${modeLabel} · 每日北京时间 16:00 更新`;
   }
+  const interestSummary = interestSettlementSummary(interestHoldings);
+  document.querySelector('#profit-daily-interest-row').hidden = !interestHoldings.length;
+  document.querySelector('#profit-last-interest-row').hidden = !interestHoldings.length;
+  setProfitValue(document.querySelector('#profit-daily-interest-value'), interestSummary.daily);
+  setProfitValue(document.querySelector('#profit-last-interest-value'), interestSummary.last);
+  document.querySelector('#profit-daily-interest-detail').textContent = interestSummary.nextDate
+    ? `下次结算 ${formatPortfolioDate(interestSummary.nextDate)} 16:00`
+    : '起息后开始结算';
+  document.querySelector('#profit-last-interest-detail').textContent = interestSummary.lastDate
+    ? `结算日 ${formatPortfolioDate(interestSummary.lastDate)}`
+    : '暂无已结算利息';
   annualRateRow.hidden = !stableOnly;
   document.querySelector('#profit-annual-rate-value').textContent = Number.isFinite(annualRate)
     ? `${annualRate.toFixed(2)}%`
@@ -2150,18 +2227,29 @@ function openProfitSheet(items, action) {
   interestRecordsButton.hidden = !interestHoldings.length;
   document.querySelector('#profit-interest-records-count').textContent = `${interestRecordCount} 条记录`;
 
-  // 每份成本从持仓行搬到这里。多笔合并时它是按份数加权的均价，标签也跟着改，
-  // 免得看成「其中某一笔的成本」。
+  // 总资产和成本价原来是弹层最下面那行小字，现在和持仓盈亏、分红收益同级。
+  // 持仓成本不再单列：它等于总资产减持仓盈亏，本来就是重复的一个数。
+  document.querySelector('#profit-value-value').textContent =
+    Number.isFinite(totalValue) ? money.format(totalValue) : '$—';
+  document.querySelector('#profit-value-detail').textContent = stableOnly
+    ? '本金加已发放利息'
+    : Number.isFinite(totalValue) ? '按最新价计算' : '获取最新价格后可计算';
+
+  // 每份成本多笔合并时是按份数加权的均价，标签也跟着改，免得看成「其中某一笔
+  // 的成本」。生息持仓没有份数，这一行整行不显示。
   const costMetrics = metrics.filter(metric => metric.kind !== 'interest');
   const costQuantity = costMetrics.reduce((sum, metric) => sum + (Number(metric.quantity) || 0), 0);
   const unitCost = costQuantity > 0
     ? costMetrics.reduce((sum, metric) => sum + (Number(metric.cost) || 0), 0) / costQuantity
     : null;
-  document.querySelector('#profit-sheet-foot').textContent = [
-    unitCost === null ? null : `${holdingsForBreakdown.length > 1 ? '均价' : '成本'} ${money.format(unitCost)}/份`,
-    `${stableOnly ? '本金' : '持仓成本'} ${money.format(totalCost)}`,
-    `当前资产 ${Number.isFinite(totalValue) ? money.format(totalValue) : '$—'}`
-  ].filter(Boolean).join(' · ');
+  document.querySelector('#profit-unit-cost-row').hidden = unitCost === null;
+  if (unitCost !== null) {
+    document.querySelector('#profit-unit-cost-label').textContent = costMetrics.length > 1 ? '成本均价' : '成本价';
+    document.querySelector('#profit-unit-cost-value').textContent = `${money.format(unitCost)}/份`;
+    document.querySelector('#profit-unit-cost-detail').textContent = costMetrics.length > 1
+      ? `${costMetrics.length} 笔持仓按份数加权`
+      : '每份买入成本';
+  }
   document.querySelector('#profit-edit-btn').textContent = action?.label || '编辑持仓';
   openOverlay(document.querySelector('#profit-sheet-overlay'));
   document.querySelector('#profit-close-btn').focus();
