@@ -1815,7 +1815,8 @@ function appendHoldingRowContent(row, model, expandable = false) {
   titleLine.append(symbolEl);
   if (model.typeTag) {
     const typeTag = document.createElement('span');
-    typeTag.className = 'holding-type-tag';
+    // 单利和复利分色：同一个位置、同一种芯片，只靠两个汉字区分太费眼。
+    typeTag.className = `holding-type-tag ${model.typeTag === '复利' ? 'is-compound' : 'is-simple'}`;
     typeTag.textContent = model.typeTag;
     titleLine.append(typeTag);
   }
@@ -1979,10 +1980,11 @@ function createMergedHoldingGroup(group, key) {
   const lots = document.createElement('div');
   lots.className = 'holding-group-lots';
   lots.replaceChildren(...group.map(holding => createHoldingRow(holding, 'holding-row holding-subrow')));
-  // 合并卡本身只有一个总数。展开后在子行下面补一条这一组的利息小结 —— 单笔的
-  // 三个数在各自的盈亏明细里，合并后的没地方看。
+  // 合并卡本身只有一个总数。展开后在子行**上面**补一条这一组的利息小结 ——
+  // 单笔的三个数在各自的盈亏明细里，合并后的没地方看；放在子行之后的话，
+  // 笔数一多就被挤出屏幕，得一路滚到底才看得到。
   const interestLots = group.filter(isInterestHolding);
-  if (interestLots.length) lots.append(createGroupInterestSummary(interestLots));
+  if (interestLots.length) lots.prepend(createGroupInterestSummary(interestLots));
 
   // 合并卡点开是展开这一组的明细，不再是盈亏弹层：合并后用户想看的是「这几笔
   // 分别是什么」，单笔的盈亏明细在展开后的子行上照样点得到。
