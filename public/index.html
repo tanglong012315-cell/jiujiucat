@@ -5,8 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#FFFFFF" />
   <title>JiuJiu生财</title>
-  <link rel="icon" type="image/png" href="avatar.png" />
-  <link rel="apple-touch-icon" href="avatar.png" />
+  <meta name="description" content="JiuJiu 陪你算钱：投资收益计算、持仓管理、实时汇率换算。" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="JiuJiu生财" />
+  <meta property="og:title" content="JiuJiu生财" />
+  <meta property="og:description" content="JiuJiu 陪你算钱：投资收益计算、持仓管理、实时汇率换算。" />
+  <meta property="og:image" content="https://jiujiucat.win/og-image.jpg" />
+  <meta property="og:url" content="https://jiujiucat.win/" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="JiuJiu生财" />
+  <meta name="twitter:description" content="JiuJiu 陪你算钱：投资收益计算、持仓管理、实时汇率换算。" />
+  <meta name="twitter:image" content="https://jiujiucat.win/og-image.jpg" />
   <script>
     (() => {
       const savedTheme = localStorage.getItem('retirement-calculator-theme');
@@ -19,9 +31,28 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=100" />
+  <link rel="stylesheet" href="styles.css?v=102" />
 </head>
 <body>
+  <div class="app-splash" id="app-splash" aria-hidden="true">
+    <p class="app-splash-caption">JiuJiu is my cat · Designed by Long</p>
+  </div>
+  <script>
+    (() => {
+      const splash = document.getElementById('app-splash');
+      const MIN_DISPLAY_MS = 3000;
+      const hide = () => {
+        splash.classList.add('is-hidden');
+        setTimeout(() => splash.remove(), 400);
+      };
+      const shownAt = Date.now();
+      window.addEventListener('load', () => {
+        const elapsed = Date.now() - shownAt;
+        setTimeout(hide, Math.max(0, MIN_DISPLAY_MS - elapsed));
+      });
+      setTimeout(hide, MIN_DISPLAY_MS + 3000);
+    })();
+  </script>
   <header class="topbar">
     <div class="header-identity">
       <button type="button" class="header-account" id="header-account-btn" aria-haspopup="dialog" aria-controls="profile-sheet-overlay">
