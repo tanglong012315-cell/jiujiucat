@@ -1201,6 +1201,20 @@ function normalizeDividendRecords(item) {
   })).filter(record => record.exDate && record.perShare > 0 && record.amount >= 0);
 }
 
+// 本金调整（稳定生息的加减仓）。date 是生效日期，含未来日期；金额一律存正数，
+// 方向由 type 决定。
+function normalizePrincipalAdjustments(item) {
+  const source = Array.isArray(item.principalAdjustments) ? item.principalAdjustments : [];
+  return source.map((record, index) => ({
+    id: record.id || `p_${item.id || 'legacy'}_${index}`,
+    type: record.type === 'reduce' ? 'reduce' : 'add',
+    amount: Math.abs(Number(record.amount) || 0),
+    date: typeof record.date === 'string' ? record.date : '',
+    createdAt: Number(record.createdAt) || Date.now()
+  })).filter(record => /^\d{4}-\d{2}-\d{2}$/.test(record.date) && record.amount > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function loadHoldings() {
   try {
     const parsed = JSON.parse(localStorage.getItem(PORTFOLIO_KEY) || '[]');
@@ -1220,6 +1234,7 @@ function loadHoldings() {
         priceOverride: null,
         interestMode: item.interestMode === 'compound' ? 'compound' : 'simple',
         positionAdjustments: Array.isArray(item.positionAdjustments) ? item.positionAdjustments : [],
+        principalAdjustments: normalizePrincipalAdjustments(item),
         // 被手动删掉的结算日（北京日期串）。删一天等于那天没发利息。
         interestSkips: Array.isArray(item.interestSkips) ? item.interestSkips.filter(date => typeof date === 'string') : [],
         dividendRecords,
@@ -1397,27 +1412,8 @@ function holdingInterestSkips(holding) {
   return Array.isArray(holding.interestSkips) ? [...new Set(holding.interestSkips)] : [];
 }
 
-// 已结算的每一天（北京日期串）。第 k 天 = 起息日次日 16:00 起的第 k 个 24 小时。
-function interestSettlementDates(holding, timestamp = Date.now()) {
-  const first = firstInterestSettlement(holding.interestStartDate);
-  const count = settledInterestDays(holding, timestamp);
-  if (!Number.isFinite(first) || count <= 0) return [];
-  return Array.from({ length: count }, (_, index) => beijingDateString(first + index * DAY_MS));
-}
-
-// 删掉的结算日不计息。**单利和复利都可以归结为「有效天数」**：单利是乘法、
-// 复利是连乘，少一天分别等于少一项、少一个因子，不必逐日累乘回放。
-// 这里不展开整张日期表再取交集 —— 组合走势图会对每个采样点算一次利息，
-// 展开几百个日期串会白白跑上万次。日期串是 YYYY-MM-DD，直接按字典序比区间。
-function skippedInterestDays(holding, timestamp = Date.now()) {
-  const skips = holdingInterestSkips(holding);
-  if (!skips.length) return 0;
-  const first = firstInterestSettlement(holding.interestStartDate);
-  const count = settledInterestDays(holding, timestamp);
-  if (!Number.isFinite(first) || count <= 0) return 0;
-  const firstDate = beijingDateString(first);
-  const lastDate = beijingDateString(first + (count - 1) * DAY_MS);
-  return skips.filter(date => date >= firstDate && date <= lastDate).length;
+function holdingPrincipalAdjustments(holding) {
+  return Array.isArray(holding.principalAdjustments) ? holding.principalAdjustments : [];
 }
 
 function holdingInterestPrincipal(holding) {
@@ -1427,37 +1423,92 @@ function holdingInterestPrincipal(holding) {
   return quantity * costPerShare;
 }
 
-function holdingInterestForDays(holding, days) {
-  const principal = holdingInterestPrincipal(holding);
-  const annualRate = Number(holding.annualRate) / 100;
-  const elapsedDays = Math.max(0, Number(days) || 0);
-  if (!(principal > 0) || !(annualRate > 0) || elapsedDays === 0) return 0;
-  if (holding.interestMode === 'compound') {
-    return principal * (Math.pow(1 + annualRate / 365, elapsedDays) - 1);
+// 加减仓不改写已发放的利息：本金按「生效日次日的那次结算」切段，段内本金恒定。
+// holding.principal（混合持仓则是数量×成本）存的一直是**当前**本金，含还没到
+// 生效日的调整，所以这里从当前值往回倒推每一段 —— 对某一段来说，它之后才生效
+// 的调整等于还没发生。
+// 段数 = 调整次数 + 1，通常就一两段。不逐日展开是因为组合走势图会对 48 个采样
+// 点各算一次利息，逐日循环等于白跑上万次。
+function interestPrincipalSegments(holding, timestamp = Date.now()) {
+  const first = firstInterestSettlement(holding.interestStartDate);
+  const count = settledInterestDays(holding, timestamp);
+  if (!Number.isFinite(first) || count <= 0) return [];
+  // 生效日 c 的调整，第一次受影响的结算就是「c 次日 16:00」那一次 —— 和起息日
+  // 的规则是同一条，所以直接复用 firstInterestSettlement 换算成结算序号。
+  const marks = holdingPrincipalAdjustments(holding)
+    .map(item => ({
+      index: Math.round((firstInterestSettlement(item.date) - first) / DAY_MS),
+      delta: (item.type === 'reduce' ? -1 : 1) * Math.abs(Number(item.amount) || 0)
+    }))
+    .filter(mark => Number.isFinite(mark.index))
+    .map(mark => ({ ...mark, index: Math.min(Math.max(mark.index, 0), count) }))
+    .sort((a, b) => a.index - b.index);
+
+  const segments = [];
+  let principal = holdingInterestPrincipal(holding) - marks.reduce((sum, mark) => sum + mark.delta, 0);
+  let start = 0;
+  for (const mark of marks) {
+    if (mark.index > start) {
+      segments.push({ start, end: mark.index, principal });
+      start = mark.index;
+    }
+    principal += mark.delta;
   }
-  return principal * annualRate * elapsedDays / 365;
+  if (start < count) segments.push({ start, end: count, principal });
+  return segments.map(segment => ({
+    ...segment,
+    principal: Math.max(0, segment.principal),
+    startDate: beijingDateString(first + segment.start * DAY_MS),
+    endDate: beijingDateString(first + (segment.end - 1) * DAY_MS)
+  }));
+}
+
+// 删掉的结算日不计息。日期串是 YYYY-MM-DD，直接按字典序比区间，
+// 不展开整段日期表。
+function segmentEffectiveDays(holding, segment) {
+  const days = Math.max(0, segment.end - segment.start);
+  const skips = holdingInterestSkips(holding);
+  if (!days || !skips.length) return days;
+  return days - skips.filter(date => date >= segment.startDate && date <= segment.endDate).length;
 }
 
 function holdingAccruedInterest(holding, timestamp = Date.now()) {
   if (!isInterestHolding(holding)) return 0;
-  const days = settledInterestDays(holding, timestamp) - skippedInterestDays(holding, timestamp);
-  return holdingInterestForDays(holding, Math.max(0, days));
+  const dailyRate = (Number(holding.annualRate) || 0) / 100 / 365;
+  if (!(dailyRate > 0)) return 0;
+  let interest = 0;
+  for (const segment of interestPrincipalSegments(holding, timestamp)) {
+    const days = segmentEffectiveDays(holding, segment);
+    if (days <= 0) continue;
+    // **单利和复利都可以归结为「有效天数」**：单利是乘法、复利是连乘，少一天
+    // 分别等于少一项、少一个因子，不必逐日累乘回放。复利下滚的是「本金 + 已经
+    // 滚出来的利息」，所以换段时把上一段的利息一起带进下一段的底数。
+    if (holding.interestMode === 'compound') {
+      interest = (segment.principal + interest) * Math.pow(1 + dailyRate, days) - segment.principal;
+    } else {
+      interest += segment.principal * dailyRate * days;
+    }
+  }
+  return interest;
 }
 
-// 逐日的发放明细：第 n 个未跳过的结算日拿到的，是「累计到 n 天」减「累计到
-// n-1 天」。单利下每天一样多，复利下逐日变大 —— 都由同一个公式推出来，
-// 不会和持仓行上那个总数打架。
+// 逐日的发放明细：只有利息记录列表需要一天一条，所以只有这里逐日展开。
+// 每天拿到的都由上面同一套本金分段推出来，不会和持仓行上那个总数打架。
 function interestRecordEntries(holding, timestamp = Date.now()) {
+  const first = firstInterestSettlement(holding.interestStartDate);
+  const dailyRate = (Number(holding.annualRate) || 0) / 100 / 365;
+  const compound = holding.interestMode === 'compound';
   const skips = new Set(holdingInterestSkips(holding));
   const entries = [];
-  let effectiveDays = 0;
-  let accrued = 0;
-  for (const date of interestSettlementDates(holding, timestamp)) {
-    if (skips.has(date)) continue;
-    effectiveDays += 1;
-    const total = holdingInterestForDays(holding, effectiveDays);
-    entries.push({ holding, date, amount: total - accrued });
-    accrued = total;
+  let interest = 0;
+  for (const segment of interestPrincipalSegments(holding, timestamp)) {
+    for (let index = segment.start; index < segment.end; index++) {
+      const date = beijingDateString(first + index * DAY_MS);
+      if (skips.has(date)) continue;
+      const amount = (compound ? segment.principal + interest : segment.principal) * dailyRate;
+      interest += amount;
+      entries.push({ holding, date, principal: segment.principal, amount });
+    }
   }
   return entries;
 }
@@ -2255,7 +2306,7 @@ function renderInterestRecordsSheet() {
   list.replaceChildren(...nodes);
 }
 
-function interestRecordRow({ holding, date, amount }) {
+function interestRecordRow({ holding, date, principal, amount }) {
   const row = document.createElement('div');
   row.className = 'dividend-record-row';
 
@@ -2265,7 +2316,8 @@ function interestRecordRow({ holding, date, amount }) {
   const mode = holding.interestMode === 'compound' ? '复利' : '单利';
   title.textContent = `${holding.symbol} · ${mode}`;
   const detail = document.createElement('small');
-  detail.textContent = `结算日 ${formatPortfolioDate(date)} · 本金 ${money.format(holdingInterestPrincipal(holding))}`;
+  // 本金取这一天生效的那一段，加减仓之后翻回历史记录，看到的仍是当时的本金。
+  detail.textContent = `结算日 ${formatPortfolioDate(date)} · 本金 ${money.format(principal)}`;
   copy.append(title, detail);
 
   const value = document.createElement('span');
@@ -2459,10 +2511,17 @@ function updateHoldingFormVisibility() {
   document.querySelectorAll('[data-holding-yield]').forEach(element => { element.hidden = kind !== 'interest' && kind !== 'hybrid'; });
   document.querySelectorAll('[data-holding-dividend]').forEach(element => { element.hidden = kind !== 'dividend'; });
   const editingHolding = holdings.find(item => item.id === editingHoldingId);
-  const canAdjust = Boolean(editingHolding) && kind !== 'interest';
-  document.querySelector('#holding-adjustment').hidden = !canAdjust;
-  document.querySelector('#holding-qty').disabled = canAdjust;
-  document.querySelector('#holding-qty-hint').hidden = !canAdjust;
+  // 调整持仓只在「表单上的类型和这笔持仓本来的类型一致」时露出：中途切换类型
+  // 时该走保存，而不是往另一种模型上加仓。
+  const editingStable = editingHolding?.holdingKind === 'interest';
+  const stableAdjust = Boolean(editingHolding) && editingStable && kind === 'interest';
+  const marketAdjust = Boolean(editingHolding) && !editingStable && kind !== 'interest';
+  document.querySelector('#holding-adjustment').hidden = !stableAdjust && !marketAdjust;
+  document.querySelector('#holding-qty').disabled = marketAdjust;
+  document.querySelector('#holding-qty-hint').hidden = !marketAdjust;
+  document.querySelector('#holding-principal').disabled = stableAdjust;
+  document.querySelector('#holding-principal-hint').hidden = !stableAdjust;
+  setPositionAdjustmentMode(positionAdjustmentMode);
   const dividendOption = document.querySelector('#holding-dividend-option');
   dividendOption.hidden = !canRecordDividends;
   marketIncomeInput.disabled = !canRecordDividends;
@@ -2482,24 +2541,91 @@ function updateHoldingDividendRecordsLink(holding) {
   if (show) document.querySelector('#holding-dividend-records-count').textContent = `${holdingDividendRecords(holding).length} 条记录`;
 }
 
+// 稳定生息加减仓改的是本金、按生效日期计息，市价持仓改的是份数、按成交价计成
+// 本 —— 同一块面板两套字段，靠这里切换。
+function isStablePositionAdjustment() {
+  const holding = holdings.find(item => item.id === editingHoldingId);
+  return holding?.holdingKind === 'interest' && currentHoldingKind() === 'interest';
+}
+
 function setPositionAdjustmentMode(mode) {
   positionAdjustmentMode = mode === 'reduce' ? 'reduce' : 'add';
   const isAdd = positionAdjustmentMode === 'add';
+  const isStable = isStablePositionAdjustment();
   const addButton = document.querySelector('#holding-add-mode');
   const reduceButton = document.querySelector('#holding-reduce-mode');
   addButton.classList.toggle('is-active', isAdd);
   reduceButton.classList.toggle('is-active', !isAdd);
   addButton.setAttribute('aria-pressed', String(isAdd));
   reduceButton.setAttribute('aria-pressed', String(!isAdd));
+  const amountInput = document.querySelector('#holding-adjustment-qty');
+  document.querySelector('#holding-adjustment-qty-label').textContent = isStable ? '调整金额' : '调整数量';
+  document.querySelector('#holding-adjustment-qty-prefix').hidden = !isStable;
+  amountInput.placeholder = isStable ? '0.00' : '0';
   document.querySelector('#holding-adjustment-submit').textContent = isAdd ? '确认加仓' : '确认减仓';
-  document.querySelector('#holding-adjustment-hint').textContent = isAdd
-    ? '按成交价计入成本；留空使用市场价，操作瞬间总盈亏不变'
-    : '按成交价减持；留空使用市场价，盈亏将按剩余持仓重新计算';
+  document.querySelector('#holding-adjustment-hint').textContent = isStable
+    ? '生效日次日的结算起按新本金计息，已发放的利息不变'
+    : isAdd
+      ? '按成交价计入成本；留空使用市场价，操作瞬间总盈亏不变'
+      : '按成交价减持；留空使用市场价，盈亏将按剩余持仓重新计算';
+}
+
+// 每一次本金变化都记一笔：金额存正数，方向看 type，date 是生效日期。
+// 历史利息就是靠它把「当前本金」倒推回每一段当时的本金的。
+function recordPrincipalAdjustment(holding, delta, date) {
+  if (!Number.isFinite(delta) || Math.abs(delta) < 1e-9) return;
+  if (!Array.isArray(holding.principalAdjustments)) holding.principalAdjustments = [];
+  holding.principalAdjustments.push({
+    id: `p_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    type: delta < 0 ? 'reduce' : 'add',
+    amount: Math.abs(delta),
+    date,
+    createdAt: Date.now()
+  });
+}
+
+function adjustInterestPrincipal(holding) {
+  const amountInput = document.querySelector('#holding-adjustment-qty');
+  const dateInput = document.querySelector('#holding-adjustment-date');
+  const isAdd = positionAdjustmentMode === 'add';
+  const amount = Number(String(amountInput.value).replace(/,/g, ''));
+  const currentPrincipal = Number(holding.principal) || 0;
+  if (!Number.isFinite(amount) || amount <= 0) {
+    amountInput.focus();
+    return showToast('请输入有效的调整金额');
+  }
+  if (!isAdd && amount >= currentPrincipal) {
+    amountInput.focus();
+    return showToast('减仓金额需小于当前本金；全部赎回请删除持仓');
+  }
+  const today = beijingDateString();
+  const effectiveDate = dateInput.value || today;
+  // 生效日不许早于今天：已结算的日子都在今天之前，这样已发放的利息永远不会
+  // 被改写 —— 用户要的「不影响历史」在这一行上就成立了。
+  if (effectiveDate < today) {
+    dateInput.focus();
+    return showToast('生效日期不能早于今天，已发放的利息不会被改写');
+  }
+
+  holding.principal = isAdd ? currentPrincipal + amount : currentPrincipal - amount;
+  recordPrincipalAdjustment(holding, isAdd ? amount : -amount, effectiveDate);
+
+  saveHoldings();
+  renderHoldings();
+  document.querySelector('#holding-principal').value =
+    Number(holding.principal).toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+  amountInput.value = '';
+  dateInput.value = today;
+  updateHoldingYieldPreview();
+  showToast(`已${isAdd ? '加仓' : '减仓'} ${money.format(amount)} · ${
+    effectiveDate > today ? `${formatPortfolioDate(effectiveDate)} 起按新本金计息` : '从明天的结算起按新本金计息'
+  }`);
 }
 
 async function adjustHoldingPosition() {
   const holding = holdings.find(item => item.id === editingHoldingId);
-  if (!holding || holding.holdingKind === 'interest') return;
+  if (!holding) return;
+  if (holding.holdingKind === 'interest') return adjustInterestPrincipal(holding);
   const quantityInput = document.querySelector('#holding-adjustment-qty');
   const priceInput = document.querySelector('#holding-adjustment-price');
   const amount = Number(quantityInput.value);
@@ -2529,12 +2655,18 @@ async function adjustHoldingPosition() {
   }
 
   const costPerShare = Number(holding.costPerShare) || transactionPrice;
+  // 混合持仓的计息本金就是数量×成本，加减仓一样会改动它 —— 同样记一笔，
+  // 免得调完仓位把过去几个月的利息一起改了。
+  const previousPrincipal = holdingInterestPrincipal(holding);
   if (positionAdjustmentMode === 'add') {
     const nextQuantity = currentQuantity + amount;
     holding.costPerShare = ((currentQuantity * costPerShare) + (amount * transactionPrice)) / nextQuantity;
     holding.quantity = nextQuantity;
   } else {
     holding.quantity = currentQuantity - amount;
+  }
+  if (isInterestHolding(holding)) {
+    recordPrincipalAdjustment(holding, holdingInterestPrincipal(holding) - previousPrincipal, beijingDateString());
   }
   if (!Array.isArray(holding.positionAdjustments)) holding.positionAdjustments = [];
   holding.positionAdjustments.push({
@@ -2849,6 +2981,9 @@ function openHoldingSheet(id = null, presetAsset = null) {
   document.querySelector('#holding-dividend-pay-date').value = holding && isDividendHolding(holding) ? holding.dividendPayDate || '' : '';
   document.querySelector('#holding-adjustment-qty').value = '';
   document.querySelector('#holding-adjustment-price').value = '';
+  const adjustmentDate = document.querySelector('#holding-adjustment-date');
+  adjustmentDate.min = beijingDateString();
+  adjustmentDate.value = beijingDateString();
   const currentPrice = holding ? resolveHoldingPrice(holding) : null;
   document.querySelector('#holding-adjustment-price').placeholder = Number.isFinite(currentPrice)
     ? currentPrice.toFixed(2)
@@ -2987,6 +3122,9 @@ document.querySelector('#holding-form').addEventListener('submit', async event =
       const holding = holdings.find(item => item.id === editingHoldingId);
       if (!holding) throw new Error('Holding no longer exists');
       Object.assign(holding, holdingData);
+      // 类型换成不计息的，本金分段就失去意义了；留着的话哪天再换回来会把
+      // 早已作废的加减仓重新算进历史。
+      if (!isInterestHolding(holding)) holding.principalAdjustments = [];
       syncHoldingDividendRecord(holding);
       savedHolding = holding;
     } else {
@@ -2994,6 +3132,7 @@ document.querySelector('#holding-form').addEventListener('submit', async event =
         id: `h_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         ...holdingData,
         positionAdjustments: [],
+        principalAdjustments: [],
         dividendRecords: [],
         dividendRecordId: null,
         createdAt: Date.now()

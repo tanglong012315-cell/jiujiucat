@@ -265,6 +265,14 @@
             <input id="holding-symbol-manual" type="text" inputmode="text" autocapitalize="characters" autocomplete="off" spellcheck="false" maxlength="24" placeholder="例如 USDT、USD" />
           </div>
         </div>
+        <div class="field holding-conditional" data-holding-stable hidden>
+          <label class="field-label" for="holding-principal">投资本金</label>
+          <div class="input-shell money-input">
+            <span class="prefix">$</span>
+            <input id="holding-principal" type="text" inputmode="decimal" placeholder="0.00" />
+          </div>
+          <p class="field-hint" id="holding-principal-hint" hidden>通过下方加仓或减仓调整本金</p>
+        </div>
         <div class="field holding-conditional" data-holding-market>
           <label class="field-label" for="holding-qty">持有数量</label>
           <div class="input-shell">
@@ -280,7 +288,7 @@
           </div>
           <p class="field-hint">不填写时，将使用保存时的最新价格作为成本价</p>
         </div>
-        <section class="holding-adjustment holding-conditional" id="holding-adjustment" data-holding-market hidden aria-label="调整持仓">
+        <section class="holding-adjustment holding-conditional" id="holding-adjustment" hidden aria-label="调整持仓">
           <div class="holding-settings-head">
             <strong>调整持仓</strong>
           </div>
@@ -290,16 +298,24 @@
           </div>
           <div class="holding-adjustment-grid">
             <div class="field">
-              <label class="field-label" for="holding-adjustment-qty">调整数量</label>
-              <div class="input-shell">
+              <label class="field-label" for="holding-adjustment-qty" id="holding-adjustment-qty-label">调整数量</label>
+              <div class="input-shell money-input">
+                <span class="prefix" id="holding-adjustment-qty-prefix" hidden>$</span>
                 <input id="holding-adjustment-qty" type="text" inputmode="decimal" placeholder="0" />
               </div>
             </div>
-            <div class="field">
+            <div class="field holding-conditional" data-holding-market>
               <label class="field-label" for="holding-adjustment-price">成交价格</label>
               <div class="input-shell money-input">
                 <span class="prefix">$</span>
                 <input id="holding-adjustment-price" type="text" inputmode="decimal" placeholder="市场价" />
+              </div>
+            </div>
+            <div class="field holding-conditional" data-holding-stable hidden>
+              <label class="field-label" for="holding-adjustment-date">生效日期</label>
+              <div class="input-shell date-input">
+                <input id="holding-adjustment-date" type="date" />
+                <i class="ri-calendar-line" aria-hidden="true"></i>
               </div>
             </div>
           </div>
@@ -317,13 +333,6 @@
               <strong id="holding-market-income-label">记录分红</strong>
             </span>
           </label>
-        </div>
-        <div class="field holding-conditional" data-holding-stable hidden>
-          <label class="field-label" for="holding-principal">投资本金</label>
-          <div class="input-shell money-input">
-            <span class="prefix">$</span>
-            <input id="holding-principal" type="text" inputmode="decimal" placeholder="0.00" />
-          </div>
         </div>
         <section class="holding-yield-settings holding-conditional" id="holding-yield-settings" data-holding-yield hidden aria-label="生息设置">
           <div class="field">
@@ -621,6 +630,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
-  <script src="app.js?v=100"></script>
+  <script src="app.js?v=101"></script>
 </body>
 </html>
