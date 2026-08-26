@@ -4,20 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#FFFFFF" />
-  <title>JiuJiu生财</title>
-  <meta name="description" content="JiuJiu 陪你算钱：投资收益计算、持仓管理、实时汇率换算。" />
+  <title>PawFolio</title>
+  <meta name="description" content="PawFolio 陪你算钱：投资收益计算、持仓管理、实时汇率换算。" />
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="JiuJiu生财" />
-  <meta property="og:title" content="JiuJiu生财" />
-  <meta property="og:description" content="JiuJiu 陪你算钱：投资收益计算、持仓管理、实时汇率换算。" />
+  <meta property="og:site_name" content="PawFolio" />
+  <meta property="og:title" content="PawFolio" />
+  <meta property="og:description" content="PawFolio 陪你算钱：投资收益计算、持仓管理、实时汇率换算。" />
   <meta property="og:image" content="https://jiujiucat.win/og-image.jpg" />
   <meta property="og:url" content="https://jiujiucat.win/" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="JiuJiu生财" />
-  <meta name="twitter:description" content="JiuJiu 陪你算钱：投资收益计算、持仓管理、实时汇率换算。" />
+  <meta name="twitter:title" content="PawFolio" />
+  <meta name="twitter:description" content="PawFolio 陪你算钱：投资收益计算、持仓管理、实时汇率换算。" />
   <meta name="twitter:image" content="https://jiujiucat.win/og-image.jpg" />
   <script>
     (() => {
@@ -31,7 +31,7 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=102" />
+  <link rel="stylesheet" href="styles.css?v=105" />
 </head>
 <body>
   <div class="app-splash" id="app-splash" aria-hidden="true">
@@ -525,9 +525,17 @@
           <span><strong>持仓盈亏</strong><small id="profit-market-detail">当前市值减去持仓成本</small></span>
           <b id="profit-market-value">$0.00</b>
         </div>
+        <div class="profit-breakdown-row" id="profit-quantity-row" hidden>
+          <span><strong>持有份数</strong><small id="profit-quantity-detail">当前持有数量</small></span>
+          <b id="profit-quantity-value">0</b>
+        </div>
         <div class="profit-breakdown-row" id="profit-unit-cost-row" hidden>
           <span><strong id="profit-unit-cost-label">成本价</strong><small id="profit-unit-cost-detail">每份买入成本</small></span>
           <b id="profit-unit-cost-value">$0.00</b>
+        </div>
+        <div class="profit-breakdown-row" id="profit-latest-price-row" hidden>
+          <span><strong>最新价</strong><small id="profit-latest-price-detail">按最新成交价</small></span>
+          <b id="profit-latest-price-value">$0.00</b>
         </div>
         <div class="profit-breakdown-row" id="profit-annual-rate-row" hidden>
           <span><strong>年化收益率（APR）</strong><small id="profit-annual-rate-detail">当前持仓设置</small></span>
@@ -676,6 +684,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
-  <script src="app.js?v=103"></script>
+  <script src="app.js?v=105"></script>
 </body>
 </html>

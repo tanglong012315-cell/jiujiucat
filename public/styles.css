@@ -12,20 +12,23 @@
   --ink-10: rgba(0, 0, 0, .1);
   --ink-4: rgba(0, 0, 0, .04);
   --tint-blue: #e6f1fd;
-  --tint-purple: #edeefc;
   /* 生息类持仓的标签色。前景 #0f6d36 压在 #e3f5e9 上是 5.67:1；直接用 --gain
      的 #12803f 只有 4.41:1，10px 的小字过不了 AA。 */
   --tint-green: #e3f5e9;
   --on-tint-green: #0f6d36;
+  /* 「每日复利」标签的颜色。2026-08-26 品牌色改蓝后从 --tint-purple 换过来
+     （原紫色的 --tint-purple/--on-tint-tag 已停用），前景 #8a4b00 压在
+     #fbeedd 上是 5.95:1。 */
+  --tint-orange: #fbeedd;
+  --on-tint-orange: #8a4b00;
   /* 染色卡片上的前景色。浅色下是黑字；深色下由深色块里改写，不再写死 #000。 */
   --on-tint: #000000;
-  --on-tint-tag: #4b449f;
   /* 单利那枚身份标签的前景。#0b5cad 压在 #e6f1fd 上是 5.83:1 —— 和 --on-tint-green
      同一个做法：10px 的小字不能直接拿 --accent 顶上去。 */
   --on-tint-blue: #0b5cad;
-  --yield-note-bg: #f0f0fb;
+  --yield-note-bg: #eaf4ff;
   --yield-note-text: #262536;
-  --yield-note-edge: rgba(88, 86, 214, .12);
+  --yield-note-edge: rgba(0, 122, 255, .12);
   --series-blue: #7dbbff;
   --series-cyan: #a0bce8;
   --series-mint: #6be6d3;
@@ -40,7 +43,10 @@
      separates from both the Block and the ink-4 track (1.61:1 light, 1.91:1
      dark) — one step darker than the hairline color, still within the ramp. */
   --segment-active: var(--ink-20);
-  --accent: #5856D6;
+  /* 品牌色 2026-08-26 从靛紫 #5856D6 改成 SnowUI/iOS 的 Secondary/Blue —— 和
+     --tint-blue/--on-tint-blue（单利标签、盘后行情）是同一个蓝色家族但取的
+     是更鲜艳的那支，两者不会撞色。 */
+  --accent: #007aff;
   --gain: #12803f;
   --loss: #c0392b;
   --flat: #6b6b6b;
@@ -78,23 +84,24 @@
      原先深色下 .metric / .fx-row 仍是 #e6f1fd 配强制黑字，在暗页面上是三块
      刺眼的白板（底部玻璃导航被削顶成白条也是这个原因）。 */
   --tint-blue: rgba(125, 187, 255, .16);
-  --tint-purple: rgba(184, 153, 235, .18);
+  /* 同色相低透明度铺在暗底上，合成后 ≈ #40342a，配 #ffb340 为 6.80:1。 */
+  --tint-orange: rgba(255, 179, 64, .16);
+  --on-tint-orange: #ffb340;
   /* 同色相低透明度铺在暗底上。合成后是 #294234，配 #3ddc84 为 6.04:1。 */
   --tint-green: rgba(61, 220, 132, .16);
   --on-tint-green: #3ddc84;
   --on-tint: #ffffff;
-  --on-tint-tag: #c6c2ff;
   --on-tint-blue: #7dbbff;
   --thumb-ring: #1c1c1c;
-  /* #5856D6 sits at ~2.7:1 on the dark Block — same hue, lifted 30% toward white
-     (#8a89e2) to clear AA 4.5:1. */
-  --accent: #8a89e2;
+  /* iOS 系统蓝的暗色值本就是为暗底调过的，在 #1c1c1c 上实测 4.67:1，不用再
+     像旧的 #5856D6 那样另外提亮。 */
+  --accent: #0a84ff;
   --gain: #3ddc84;
   --loss: #f87171;
   --flat: #8e8e8e;
-  --yield-note-bg: rgba(138, 137, 226, .12);
+  --yield-note-bg: rgba(10, 132, 255, .12);
   --yield-note-text: rgba(255, 255, 255, .8);
-  --yield-note-edge: rgba(138, 137, 226, .22);
+  --yield-note-edge: rgba(10, 132, 255, .22);
   --glow-pink: #FF5C7C;
   --glow-teal: #5AC8DE;
   /* 深色底上反过来提亮，同样逐个校验过（最低 5.20:1）。 */
@@ -146,19 +153,38 @@ img { max-width: 100%; }
   justify-content: center;
   padding-bottom: calc(56px + env(safe-area-inset-bottom));
   background-color: #111214;
+  /* 竖屏用 9:16 那版，横屏换 16:9 那版 —— 同一张构图出了两个比例的成品图，
+     比拿一张去 cover 硬裁另一个方向好：竖版在宽屏上只能露出中间很窄一条。
+     媒体查询保证浏览器只下载匹配的那一张。 */
   background-image: url('splash-bg.jpg');
   background-size: cover;
-  background-position: 50% 47%;
+  background-position: 50% 50%;
   background-repeat: no-repeat;
   opacity: 1;
   transition: opacity .4s ease;
 }
+@media (orientation: landscape) {
+  .app-splash { background-image: url('splash-bg-wide.jpg'); }
+}
 .app-splash.is-hidden { opacity: 0; pointer-events: none; }
+/* 底部那行字正好压在雪山的高光上，白字叠白雪光靠 text-shadow 读不出来。
+   压一层由下而上的渐变，只暗底部、不动主体所在的中段。 */
+.app-splash::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 200px;
+  background: linear-gradient(to top, rgba(0, 0, 0, .75), rgba(0, 0, 0, .45) 45%, transparent);
+  pointer-events: none;
+}
 .app-splash-caption {
+  position: relative;
+  z-index: 1;
   margin: 0;
   font-size: 12px;
   letter-spacing: .02em;
-  color: rgba(255, 255, 255, .75);
+  color: rgba(255, 255, 255, .82);
   text-shadow: 0 1px 6px rgba(0, 0, 0, .6);
 }
 
@@ -169,6 +195,7 @@ img { max-width: 100%; }
 /* The header owns the breathing room above its divider; .shell adds no second
    top inset, so the rule remains the single boundary before page content. */
 .topbar {
+  max-width: 1080px; margin-inline: auto;
   padding: 20px 28px 28px;
   display: flex; align-items: center; gap: 8px 20px;
   border-block-end: 1px solid var(--ink-10);
@@ -281,7 +308,7 @@ img { max-width: 100%; }
 
 /* Content begins 16px below the header rule; sections use a 32/16 rhythm:
    32px between modules, 16px within a module. */
-.shell { padding: 16px 28px 28px; }
+.shell { max-width: 1080px; margin-inline: auto; padding: 16px 28px 28px; }
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--gap-grid); }
 /* `display: grid` outranks the [hidden] UA rule, so inactive panels need this. */
 .workspace[hidden] { display: none; }
@@ -441,7 +468,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 
 /* ── Currency converter ─────────────────────────────────── */
 .workspace.fx-workspace { grid-template-columns: minmax(0, 1fr); }
-.fx-card { max-width: 480px; }
+.fx-card { max-width: 480px; margin-inline: auto; width: 100%; }
 .fx-input-shell { gap: 12px; }
 .fx-flag { flex: 0 0 auto; display: block; width: 28px; height: 20px; border-radius: 3px; }
 .fx-input-shell input {
@@ -468,7 +495,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 /* 不再挂 .card：登录页是这个面板的全部内容，再套一层面板底色只是多一圈edge。
    布局属性原本继承自 .card，这里自带。 */
 .gate-card {
-  max-width: 480px; min-width: 0;
+  max-width: 480px; min-width: 0; width: 100%; margin-inline: auto;
   display: flex; flex-direction: column; align-items: center;
   gap: 16px; padding: 32px 24px; text-align: center;
 }
@@ -480,7 +507,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .gate-icon {
   width: 56px; height: 56px; border-radius: 18px; flex: 0 0 auto;
   display: grid; place-items: center;
-  background: var(--tint-purple); color: var(--accent);
+  background: var(--tint-blue); color: var(--accent);
 }
 .gate-icon > i { font-size: 26px; line-height: 1; }
 .gate-title { margin: 0; font-size: 16px; line-height: 22px; font-weight: 600; }
@@ -496,7 +523,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
    hover/active/focus 处理），换成两行信息 + 徽标。 */
 /* --gain / --loss 本身就是随主题切换的 token（见文件顶部两套 :root），
    这里直接用，不需要再叠一层深色覆盖 —— 和 .chart-sub 的做法一致。 */
-#portfolio-app { display: grid; gap: var(--gap-grid); width: 100%; max-width: 720px; }
+#portfolio-app { display: grid; gap: var(--gap-grid); width: 100%; max-width: 720px; margin-inline: auto; }
 #portfolio-app[hidden], .portfolio-summary[hidden] { display: none; }
 /* Portfolio sections share the page surface. Spacing, rather than nested
    containers, separates the overview, recommendations and holdings. */
@@ -632,11 +659,12 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .holding-meta { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .holding-title-line { min-width: 0; display: flex; align-items: center; gap: 4px; }
 .holding-symbol { min-width: 0; overflow: hidden; font-size: 14px; line-height: 20px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-/* 复利留着原来的紫，单利换成蓝：两枚芯片挨在一起（合并组展开后更是上下叠着），
-   同色的话只能逐字读。绿色那枚是年化，不参与这组对比。 */
+/* 复利用橙、单利用蓝：两枚芯片挨在一起（合并组展开后更是上下叠着），
+   同色的话只能逐字读。绿色那枚是年化，不参与这组对比。2026-08-26 品牌色
+   改蓝后复利标签从紫换成橙——蓝已经是品牌色兼单利标签色，不能再给复利用。 */
 .holding-type-tag {
   flex: 0 0 auto; padding: 1px 5px; border-radius: 6px;
-  background: var(--tint-purple); color: var(--on-tint-tag);
+  background: var(--tint-orange); color: var(--on-tint-orange);
   font-size: 10px; line-height: 14px; font-weight: 600; white-space: nowrap;
 }
 .holding-type-tag.is-simple { background: var(--tint-blue); color: var(--on-tint-blue); }
@@ -1522,6 +1550,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 /* 分割线随「JiuJiu是我的猫」那行一起去掉了：只剩一行版权时，一条横贯全宽的
    发丝线比它本身还显眼。 */
 footer {
+  max-width: 1080px; margin-inline: auto;
   padding: 16px 28px 28px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;
   color: var(--ink-40); font-size: 12px; line-height: 16px;
 }

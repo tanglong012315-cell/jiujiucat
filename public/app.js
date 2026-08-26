@@ -2241,6 +2241,13 @@ function openProfitSheet(items, action) {
   // 的成本」。生息持仓没有份数，这一行整行不显示。
   const costMetrics = metrics.filter(metric => metric.kind !== 'interest');
   const costQuantity = costMetrics.reduce((sum, metric) => sum + (Number(metric.quantity) || 0), 0);
+  document.querySelector('#profit-quantity-row').hidden = costMetrics.length === 0;
+  if (costMetrics.length) {
+    document.querySelector('#profit-quantity-value').textContent = `${costQuantity} 份`;
+    document.querySelector('#profit-quantity-detail').textContent = costMetrics.length > 1
+      ? `${costMetrics.length} 笔持仓合计`
+      : '当前持有数量';
+  }
   const unitCost = costQuantity > 0
     ? costMetrics.reduce((sum, metric) => sum + (Number(metric.cost) || 0), 0) / costQuantity
     : null;
@@ -2251,6 +2258,14 @@ function openProfitSheet(items, action) {
     document.querySelector('#profit-unit-cost-detail').textContent = costMetrics.length > 1
       ? `${costMetrics.length} 笔持仓按份数加权`
       : '每份买入成本';
+  }
+
+  // 同一标的的多笔持仓共享同一个最新价（不像成本要按份数加权），取第一笔有效
+  // 报价即可。只有股票/加密（market kind）有市场价，生息持仓没有这个概念。
+  const latestPrice = costMetrics.find(metric => metric.hasValue && Number.isFinite(metric.price))?.price ?? null;
+  document.querySelector('#profit-latest-price-row').hidden = latestPrice === null;
+  if (latestPrice !== null) {
+    document.querySelector('#profit-latest-price-value').textContent = `${money.format(latestPrice)}/份`;
   }
   document.querySelector('#profit-edit-btn').textContent = action?.label || '编辑持仓';
   openOverlay(document.querySelector('#profit-sheet-overlay'));
