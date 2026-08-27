@@ -31,12 +31,10 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=106" />
+  <link rel="stylesheet" href="styles.css?v=116" />
 </head>
 <body>
-  <div class="app-splash" id="app-splash" aria-hidden="true">
-    <p class="app-splash-caption">JiuJiu is my cat · Designed by Long</p>
-  </div>
+  <div class="app-splash" id="app-splash" aria-hidden="true"></div>
   <script>
     (() => {
       const splash = document.getElementById('app-splash');
@@ -56,7 +54,7 @@
   <header class="topbar">
     <div class="header-identity">
       <button type="button" class="header-account" id="header-account-btn" aria-haspopup="dialog" aria-controls="profile-sheet-overlay">
-        <span class="avatar-chip header-avatar" id="header-avatar"><i class="ri-bear-smile-line" aria-hidden="true"></i></span>
+        <span class="avatar-chip header-avatar" id="header-avatar"><i class="ri-user-smile-line" aria-hidden="true"></i></span>
         <span class="header-name" id="header-name" hidden></span>
       </button>
     </div>
@@ -158,9 +156,7 @@
 
     <div class="workspace fx-workspace" id="panel-portfolio" role="tabpanel" aria-labelledby="tab-portfolio" hidden>
       <section class="gate-card" id="portfolio-gate" aria-label="投资组合登录提示">
-        <div class="gate-icon">
-          <i class="ri-lock-2-line" aria-hidden="true"></i>
-        </div>
+        <span class="state-art" data-art="login" role="img" aria-label="未登录"></span>
         <h2 class="gate-title">登录后管理你的持仓</h2>
         <p class="gate-body">随时随地，查看盈利</p>
         <ul class="gate-perks">
@@ -171,24 +167,37 @@
           <i class="ri-google-fill google-mark" aria-hidden="true"></i>
           使用 Google 登录
         </button>
+        <button type="button" class="gate-guest-btn" id="portfolio-guest-btn">先看看</button>
       </section>
 
       <div id="portfolio-app" hidden>
         <section class="card portfolio-summary" aria-label="持仓概览">
           <div class="portfolio-overview">
             <div class="portfolio-overview-copy">
-              <span class="portfolio-overview-label">总资产</span>
+              <span class="portfolio-overview-label" id="pf-total-label">总资产</span>
               <strong id="pf-total-value">$—</strong>
               <div class="portfolio-overview-change is-flat" id="pf-total-performance">
-                <span>总盈亏</span>
+                <span id="pf-total-pl-label">总盈亏</span>
                 <strong id="pf-total-pl">$0.00</strong>
                 <b id="pf-total-pl-pct">(0.00%)</b>
               </div>
             </div>
-            <svg class="portfolio-sparkline is-flat" id="portfolio-sparkline" viewBox="0 0 160 72" preserveAspectRatio="none" role="img" aria-label="近一周总盈亏走势暂无历史数据">
-              <path id="portfolio-sparkline-path" d="M4 36 L156 36" vector-effect="non-scaling-stroke"></path>
-            </svg>
+            <button type="button" class="portfolio-sparkline-btn" id="pf-chart-toggle" aria-hidden="true" tabindex="-1">
+              <canvas class="portfolio-sparkline is-flat" id="pf-sparkline" role="img" aria-label="近 7 天总资产走势暂无历史数据"></canvas>
+            </button>
           </div>
+          <div class="portfolio-chart-panel" id="pf-chart-panel" hidden>
+            <p class="portfolio-chart-stamp" id="pf-chart-stamp">近 7 天</p>
+            <div class="portfolio-chart-wrap" id="pf-chart-wrap">
+              <canvas id="pf-chart"></canvas>
+            </div>
+            <div class="portfolio-chart-axis" id="pf-chart-axis" aria-hidden="true"></div>
+            <p class="portfolio-chart-empty" id="pf-chart-empty" hidden>还没有足够的历史行情，等行情多攒一会儿再看</p>
+            <div class="segmented portfolio-chart-ranges" id="pf-chart-ranges" role="group" aria-label="走势图时间范围"></div>
+          </div>
+          <button type="button" class="portfolio-chart-handle" id="pf-chart-handle" aria-expanded="false" aria-controls="pf-chart-panel" aria-label="展开总资产走势图">
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
         </section>
 
         <section class="card portfolio-recommend-card" id="portfolio-recommend" aria-label="快捷添加">
@@ -214,7 +223,10 @@
             </label>
           </div>
           <div class="holdings-list" id="holdings-list"></div>
-          <p class="holdings-empty" id="holdings-empty" hidden>还没有持仓记录，点下面添加第一笔</p>
+          <div class="holdings-empty" id="holdings-empty" hidden>
+            <span class="state-art" data-art="no_data" role="img" aria-label="暂无持仓"></span>
+            <p>还没有持仓记录，点下面添加第一笔</p>
+          </div>
           <button type="button" class="add-holding-btn" id="add-holding-btn">
             <i class="ri-add-line" aria-hidden="true"></i>
             添加持仓
@@ -232,6 +244,10 @@
             <input id="fx-amount" type="text" inputmode="decimal" value="1000" aria-describedby="fx-base-code" />
             <span class="suffix" id="fx-base-code">CNY</span>
           </div>
+        </div>
+
+        <div class="fx-swap-hint" aria-hidden="true">
+          <i class="ri-arrow-up-down-line"></i>
         </div>
 
         <div class="fx-results" id="fx-results" aria-live="polite"></div>
@@ -329,7 +345,10 @@
           </div>
           <div class="holding-adjustment-grid">
             <div class="field">
-              <label class="field-label" for="holding-adjustment-qty" id="holding-adjustment-qty-label">调整数量</label>
+              <div class="holding-adjustment-qty-head">
+                <label class="field-label" for="holding-adjustment-qty" id="holding-adjustment-qty-label">调整数量</label>
+                <button type="button" class="holding-adjustment-all" id="holding-adjustment-all" hidden>全部</button>
+              </div>
               <div class="input-shell money-input">
                 <span class="prefix" id="holding-adjustment-qty-prefix" hidden>$</span>
                 <input id="holding-adjustment-qty" type="text" inputmode="decimal" placeholder="0" />
@@ -458,7 +477,7 @@
         </form>
         <div class="asset-search-content" id="asset-search-content" aria-live="polite" data-dialog-scroll>
           <div class="asset-search-state">
-            <i class="ri-search-line" aria-hidden="true"></i>
+            <span class="state-art" data-art="search" role="img" aria-label="等待搜索"></span>
             <p>输入代码或名称，按回车开始搜索</p>
             <span>支持 Yahoo Finance 上的股票、ETF 和 Crypto</span>
           </div>
@@ -631,7 +650,10 @@
           <button type="button" class="profile-signout-btn" id="profile-signout-btn">退出登录</button>
           <p class="profile-account-line">登录账号 <span id="profile-email">—</span></p>
         </div>
-        <p class="profile-guest-note">登录后可以自定义用户名和头像，持仓也会同步到云端。</p>
+        <div class="profile-guest-note">
+          <span class="state-art" data-art="login" role="img" aria-label="未登录"></span>
+          <p>登录后可以自定义用户名和头像，持仓也会同步到云端。</p>
+        </div>
       </div>
       <div class="sheet-footer">
         <button type="submit" class="calculate-btn" id="profile-submit-btn">保存</button>
@@ -684,6 +706,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
-  <script src="app.js?v=105"></script>
+  <script src="app.js?v=112"></script>
 </body>
 </html>

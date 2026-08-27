@@ -247,6 +247,7 @@ function applyTheme(theme, persist = false) {
   requestAnimationFrame(() => {
     drawChart();
     fitMetricNumbers();
+    redrawPortfolioChart();
   });
 }
 
@@ -752,6 +753,7 @@ function activateTab(name) {
   localStorage.setItem('jiujiu-active-tab', name);
   // The canvas has no layout size while hidden, so it must redraw on reveal.
   if (name === 'retirement') requestAnimationFrame(() => { drawChart(); fitMetricNumbers(); });
+  if (name === 'portfolio') requestAnimationFrame(redrawPortfolioChart);
 }
 
 tabButtons.forEach(button => button.addEventListener('click', () => activateTab(button.dataset.tab)));
@@ -1203,6 +1205,8 @@ function normalizeDividendRecords(item) {
 
 // 本金调整（稳定生息的加减仓）。date 是生效日期，含未来日期；金额一律存正数，
 // 方向由 type 决定。
+// at 是可选的**精确时刻**：计息永远按自然日切段（用 date），但卖出换来的 USDT
+// 要在走势图上和卖出那一刻严丝合缝地对上，只有日期粒度会差出半天。
 function normalizePrincipalAdjustments(item) {
   const source = Array.isArray(item.principalAdjustments) ? item.principalAdjustments : [];
   return source.map((record, index) => ({
@@ -1210,15 +1214,21 @@ function normalizePrincipalAdjustments(item) {
     type: record.type === 'reduce' ? 'reduce' : 'add',
     amount: Math.abs(Number(record.amount) || 0),
     date: typeof record.date === 'string' ? record.date : '',
+    at: Number(record.at) || 0,
     createdAt: Number(record.createdAt) || Date.now()
   })).filter(record => /^\d{4}-\d{2}-\d{2}$/.test(record.date) && record.amount > 0)
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+const CLOSED_HOLDING_TTL = 400 * 24 * 60 * 60 * 1000;
+
 function loadHoldings() {
   try {
     const parsed = JSON.parse(localStorage.getItem(PORTFOLIO_KEY) || '[]');
-    return Array.isArray(parsed) ? parsed.map(item => {
+    return Array.isArray(parsed) ? parsed.filter(item =>
+      // 清仓超过 400 天的记录连「年」这一档都画不到了，留着只是占地方。
+      !item?.closedAt || Date.now() - Number(item.closedAt) < CLOSED_HOLDING_TTL
+    ).map(item => {
       const dividendRecords = normalizeDividendRecords(item);
       return {
         ...item,
@@ -1597,7 +1607,7 @@ async function fetchHoldingPrice(holding) {
 
 function refreshHoldingPrices() {
   const seen = new Set();
-  holdings.forEach(holding => {
+  openHoldings().forEach(holding => {
     if (holding.holdingKind === 'interest') return;
     const quoteSymbol = holding.quoteSymbol || holding.symbol;
     if (GLOBAL_TICKER_SYMBOLS.has(holding.symbol) || seen.has(quoteSymbol)) return;
@@ -1636,57 +1646,141 @@ function holdingMetrics(holding, timestamp = Date.now()) {
   };
 }
 
-// 走势图的时间轴：最近 5 个交易日，48 个采样点。
-const TREND_POINT_COUNT = 48;
-const TREND_WINDOW_MS = 5 * DAY_MS;
+// ── 组合走势图 ──────────────────────────────────────────────────────
+// 四个时间范围。采样点都压在 ~190 以内：点数只影响折线本身，真正贵的是曲线
+// 下面那层点阵（按像素列铺，和点数无关），所以再密也换不来可见的细节。
+const PORTFOLIO_RANGES = {
+  // 「日」取 48 点（每 30 分钟）而不是更密：上游最细就是美股的 30 分钟线、
+  // 加密的小时线，采样比数据还密只会把前向填充的台阶放大成一排锯齿。
+  day:   { label: '日', span: DAY_MS,        points: 48,  long: false, tick: 'time' },
+  week:  { label: '周', span: 7 * DAY_MS,    points: 169, long: false, tick: 'date' },
+  month: { label: '月', span: 30 * DAY_MS,   points: 180, long: true,  tick: 'date' },
+  year:  { label: '年', span: 365 * DAY_MS,  points: 183, long: true,  tick: 'month' }
+};
+const PORTFOLIO_RANGE_KEY = 'jiujiu-portfolio-range';
 
 // 各标的的价格序列必须先对齐到同一条时间轴再相加。之前是按「数组下标」按比例
 // 对齐的：加密货币一天 48 根 30 分钟线、美股一天只有 13 根，同样根数覆盖的真实
 // 时间差好几倍，叠出来的曲线根本不是时间序列；每刷新一次各自的窗口滑动幅度还
 // 不一样，形状自然一直在变。问题不在「数据时间太短」，在对齐方式。
-function portfolioProfitTrendValues() {
-  if (!holdings.length) return [];
+
+// 某个时刻的持有数量。holding.quantity 存的一直是**当前**数量，所以从当前值
+// 往回退掉「这个时刻之后」发生的每一笔加减仓 —— 加减仓是 adjustHoldingPosition
+// 往 positionAdjustments 里记的，带 createdAt 时间戳。
+// 这一步是「加仓减仓图不动」的正解：以前整条曲线都拿当前数量去乘历史价格，
+// 相当于假设这一周一直持有今天的仓位，仓位变化自然一点痕迹都留不下。
+// 清仓后的持仓（closedAt）只为走势图保留历史，不再出现在列表、总资产和行情
+// 轮询里。所有面向「现在」的地方都走这个入口。
+function openHoldings() {
+  return holdings.filter(holding => !holding.closedAt);
+}
+
+function holdingQuantityAt(holding, time) {
+  let quantity = Number(holding.quantity) || 0;
+  for (const record of (Array.isArray(holding.positionAdjustments) ? holding.positionAdjustments : [])) {
+    const at = Number(record.createdAt);
+    if (!Number.isFinite(at) || at <= time) continue;
+    const amount = Number(record.quantity) || 0;
+    quantity += record.type === 'reduce' ? amount : -amount;
+  }
+  return Math.max(0, quantity);
+}
+
+// 稳定生息的本金同理。调整记的是**生效日期**（计息要按自然日切段），但卖出换来
+// 的那笔 USDT 必须精确到时刻 —— 否则卖出发生在下午，USDT 却从当天零点就涨上去，
+// 中间半天会凭空多出一份。所以有 at 时间戳时优先用它。
+function holdingPrincipalAt(holding, time) {
+  let principal = Number(holding.principal) || 0;
+  const day = beijingDateString(time);
+  for (const record of normalizePrincipalAdjustments(holding)) {
+    const applied = record.at ? record.at <= time : record.date <= day;
+    if (applied) continue;
+    principal += record.type === 'reduce' ? record.amount : -record.amount;
+  }
+  return Math.max(0, principal);
+}
+
+// 走势图画的是**总资产**，口径和上面那个大数字（#pf-total-value）完全一致：
+// 市价持仓 = 当时的数量 × 当时的价格，生息持仓 = 当时的本金 + 当时已计的利息。
+// 盈亏不进这条线 —— 盈亏是另一个口径，加减仓不该让它跳。
+// 已清仓的持仓（closedAt）不在列表和总资产里，但**必须留在这条线里**：卖出
+// 之前它是有价值的，抹掉它整段历史都会塌下去。
+function portfolioValueSeries(rangeKey = portfolioChart.range) {
+  if (!holdings.length) return null;
+  const range = PORTFOLIO_RANGES[rangeKey] || PORTFOLIO_RANGES.week;
   const now = Date.now();
-  const grid = Array.from({ length: TREND_POINT_COUNT }, (_, index) =>
-    now - TREND_WINDOW_MS * (TREND_POINT_COUNT - 1 - index) / (TREND_POINT_COUNT - 1));
-  const totals = new Array(TREND_POINT_COUNT).fill(0);
+  const count = range.points;
+  const times = Array.from({ length: count }, (_, index) =>
+    now - range.span * (count - 1 - index) / (count - 1));
+  const values = new Array(count).fill(0);
+  const windowStartDay = beijingDateString(times[0]);
   // 至少得有一个随时间变化的来源，否则画出来是条直线，不如老实说没有历史数据。
   let hasHistory = false;
+  let coverageFrom = 0;
 
   for (const holding of holdings) {
-    // 生息持仓本身就是时间的函数，直接按每个采样时刻算已结算的利息。
+    // 建仓晚于窗口起点的持仓，在建仓之前对总资产没有贡献 —— 那道台阶是真的。
+    const born = Number(holding.createdAt) || 0;
+    if (born > times[0]) hasHistory = true;
+    if ((holding.positionAdjustments || []).some(record => Number(record.createdAt) > times[0])) hasHistory = true;
+    if (normalizePrincipalAdjustments(holding).some(record =>
+      record.at ? record.at > times[0] : record.date >= windowStartDay)) hasHistory = true;
+
     if (holding.holdingKind === 'interest') {
-      if (!(Number(holding.principal) > 0)) return [];
-      grid.forEach((time, index) => { totals[index] += holdingAccruedInterest(holding, time); });
-      hasHistory = true;
-      continue;
-    }
-    const quantity = Number(holding.quantity);
-    const costPerShare = Number(holding.costPerShare);
-    // 成本或数量缺失时无法计算这笔持仓对组合盈亏的贡献。
-    if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(costPerShare) || costPerShare <= 0) return [];
-    const history = holdingPriceHistory(holding);
-    if (history.length > 1) {
-      hasHistory = true;
-      resampleSeries(history, grid).forEach((price, index) => {
-        totals[index] += (price - costPerShare) * quantity;
+      if (!(Number(holding.principal) > 0)) return null;
+      if (Number(holding.annualRate) > 0) hasHistory = true;   // 利息本身就是时间的函数
+      times.forEach((time, index) => {
+        if (time < born) return;
+        values[index] += holdingPrincipalAt(holding, time) + holdingAccruedInterest(holding, time);
       });
       continue;
     }
-    // 手动价格、TradingView 备用报价只有当前一个点：作为恒定基线参与组合，
-    // 而不是让任意一笔缺历史的持仓把整张图拉成直线。
+
+    // 已清仓的那笔，现价对它已经没有意义（数量恒为 0），别因为拿不到价就把整张
+    // 图判死。
+    const closed = Number(holding.closedAt) || 0;
     const price = resolveHoldingPrice(holding);
-    if (!Number.isFinite(price) || price <= 0) return [];
-    const profit = (price - costPerShare) * quantity;
-    for (let index = 0; index < totals.length; index++) totals[index] += profit;
+    if (!Number.isFinite(price) || price <= 0) {
+      if (!closed) return null;   // 和 #pf-total-value 显示 $— 是同一个判断
+      continue;
+    }
+    const history = holdingPriceHistory(holding, range.long);
+    let prices;
+    if (history.length > 1) {
+      hasHistory = true;
+      coverageFrom = Math.max(coverageFrom, history[0][0]);
+      prices = resampleSeries(history, times);
+    } else {
+      // 手动价格、TradingView 备用报价只有当前一个点：作为恒定基线参与组合，
+      // 而不是让任意一笔缺历史的持仓把整张图拉成直线。
+      prices = times.map(() => price);
+    }
+    // 右端一律用实时价，保证曲线末点和上面那个总资产数字对得上。
+    if (!closed) prices[count - 1] = price;
+    times.forEach((time, index) => {
+      if (time < born) return;
+      values[index] += prices[index] * holdingQuantityAt(holding, time);
+    });
   }
-  return hasHistory ? totals : [];
+  if (!hasHistory) return null;
+  // 有标的的行情回溯不到窗口起点时，前半段是用最早那个价平铺出来的。图照画，
+  // 但要在下面说一句从哪天起才是真实行情，不能让平的那一段冒充历史。
+  // 留 3% 的宽容度：序列起点比窗口起点晚几分钟是取数的正常抖动，不值得报。
+  const gap = coverageFrom - times[0];
+  return { times, values, range: rangeKey, coverageFrom: gap > range.span * 0.03 ? coverageFrom : 0 };
 }
 
-function holdingPriceHistory(holding) {
+// 日/周用 30 分钟~1 小时的细序列，月/年用另外拉的日线 —— 细序列最多只回溯
+// 5~7 天，硬拿去画一年等于把 358 天铺成一条平线。
+function holdingPriceHistory(holding, preferLong = false) {
+  const quoteSymbol = holding.quoteSymbol || holding.symbol;
+  if (preferLong) {
+    const daily = normalizeSeries(longPriceHistory.get(quoteSymbol)?.series);
+    if (daily.length > 1) return daily;
+  }
   const known = normalizeSeries(marketAssets.find(asset => asset.symbol === holding.symbol)?.series);
   if (known.length > 1) return known;
-  return normalizeSeries(holdingPrices.get(holding.quoteSymbol || holding.symbol)?.series);
+  return normalizeSeries(holdingPrices.get(quoteSymbol)?.series);
 }
 
 // 前向填充式重采样：每个时刻取该时刻之前最后一个已知价。序列开始之前的时刻用
@@ -1701,39 +1795,538 @@ function resampleSeries(points, grid) {
   });
 }
 
-function renderPortfolioSparkline(tone) {
-  const svg = document.querySelector('#portfolio-sparkline');
-  const path = document.querySelector('#portfolio-sparkline-path');
-  const values = portfolioProfitTrendValues();
-  const width = 160, height = 72, padding = 4;
+// ── 一年日线（只有切到「月 / 年」才去拉）────────────────────────────
+// 键是 quoteSymbol，值 { series, savedAt }。存一份到 localStorage，12 小时内
+// 复用 —— 日线一天才多一根，没必要每次进页面都把所有标的重拉一遍。
+const longPriceHistory = new Map();
+const LONG_HISTORY_TTL = 12 * 60 * 60 * 1000;
+const LONG_HISTORY_PREFIX = 'jiujiu-history-';
+let longHistoryPending = null;
+// 拉失败过的代号本次会话内不再重试：renderPortfolioChart 每次都会检查缺口，
+// 不记下来的话一个取不到日线的标的会把它变成每次渲染都发一轮请求。
+const longHistoryFailed = new Set();
 
-  if (values.length < 2) {
-    path.setAttribute('d', `M${padding} ${height / 2} L${width - padding} ${height / 2}`);
-    svg.setAttribute('class', `portfolio-sparkline ${tone}`);
-    svg.setAttribute('aria-label', '近一周总盈亏走势暂无历史数据');
-    return;
+function readCachedLongHistory(quoteSymbol) {
+  try {
+    const cached = JSON.parse(localStorage.getItem(LONG_HISTORY_PREFIX + quoteSymbol) || 'null');
+    if (!cached || Date.now() - Number(cached.savedAt) > LONG_HISTORY_TTL) return null;
+    return normalizeSeries(cached.series).length > 1 ? cached : null;
+  } catch { return null; }
+}
+
+async function fetchLongHistory(holding) {
+  const quoteSymbol = holding.quoteSymbol || holding.symbol;
+  // 统一走自己的 Worker 代理（src/index.js）拉 Yahoo 日线：BTC-USD 这类加密代号
+  // Yahoo 一样认，不必再为加密货币维护一套 CoinGecko id 映射。
+  const response = await fetch(`/api/quote?symbol=${encodeURIComponent(quoteSymbol)}&range=1y`, { cache: 'no-store' });
+  if (!response.ok) throw new Error('long history request failed');
+  const data = await response.json();
+  const result = data?.chart?.result?.[0];
+  const timestamps = Array.isArray(result?.timestamp) ? result.timestamp : [];
+  const closes = result?.indicators?.quote?.[0]?.close ?? [];
+  const series = timestamps
+    .map((time, index) => [Number(time) * 1000, Number(closes[index])])
+    .filter(point => Number.isFinite(point[0]) && Number.isFinite(point[1]) && point[1] > 0);
+  if (series.length < 2) return null;
+  const record = { series, savedAt: Date.now() };
+  longPriceHistory.set(quoteSymbol, record);
+  try { localStorage.setItem(LONG_HISTORY_PREFIX + quoteSymbol, JSON.stringify(record)); } catch { /* 配额满了就只留内存 */ }
+  return record;
+}
+
+// 切到月/年时补齐所有市价持仓的日线。并发发出，任何一个失败都不影响其余的 ——
+// 拿不到日线的那笔会退回细序列，图上表现为前段平直，下面也会给一句说明。
+// **不要加 async**：这个函数「没什么可拉的」时返回 null，而 async 会把 null
+// 包成一个已兑现的 Promise，调用方的 `if (!pending) return` 就永远不成立 ——
+// 于是每渲染一次都排一个微任务再渲染一次，微任务队列把事件循环彻底饿死，
+// 页面连导航都响应不了。
+function ensureLongHistory() {
+  if (longHistoryPending) return longHistoryPending;
+  const targets = [];
+  const seen = new Set();
+  for (const holding of holdings) {
+    if (holding.holdingKind === 'interest') continue;
+    const quoteSymbol = holding.quoteSymbol || holding.symbol;
+    if (seen.has(quoteSymbol)) continue;
+    seen.add(quoteSymbol);
+    if (longPriceHistory.has(quoteSymbol) || longHistoryFailed.has(quoteSymbol)) continue;
+    const cached = readCachedLongHistory(quoteSymbol);
+    if (cached) { longPriceHistory.set(quoteSymbol, cached); continue; }
+    targets.push(holding);
   }
+  if (!targets.length) return null;
+  longHistoryPending = Promise.allSettled(targets.map(holding => fetchLongHistory(holding)))
+    .then(results => {
+      results.forEach((result, index) => {
+        const quoteSymbol = targets[index].quoteSymbol || targets[index].symbol;
+        if (result.status !== 'fulfilled' || !result.value) longHistoryFailed.add(quoteSymbol);
+      });
+    })
+    .finally(() => { longHistoryPending = null; });
+  return longHistoryPending;
+}
 
+// 当前区间需要日线、但手上还缺的时候补一次，回来了再重画一遍。收起态的迷你图
+// 也走这里 —— 上次选的是「年」的话，一进页面就得把日线补上，否则那条线是拿
+// 一周的细序列平铺出来的假货。
+function maybeLoadLongHistory() {
+  if (!PORTFOLIO_RANGES[portfolioChart.range]?.long || longHistoryPending) return;
+  const pending = ensureLongHistory();
+  if (!pending) return;
+  portfolioChart.loading = true;
+  pending.then(() => {
+    portfolioChart.loading = false;
+    // 这一次重画之后 ensureLongHistory 要么拿到了日线、要么把代号记进
+    // longHistoryFailed，两种情况下都不会再有 target，链子到此为止。
+    renderPortfolioChart();
+  });
+}
+
+// ── 走势图的绘制与交互 ──────────────────────────────────────────────
+const portfolioChart = {
+  series: null, tone: 'is-flat', expanded: false, scrubIndex: -1, loading: false,
+  range: PORTFOLIO_RANGES[localStorage.getItem(PORTFOLIO_RANGE_KEY)] ? localStorage.getItem(PORTFOLIO_RANGE_KEY) : 'week',
+  summaryTone: 'is-flat'
+};
+
+function chartToneColor(tone) {
+  const styles = getComputedStyle(document.documentElement);
+  const token = tone === 'is-gain' ? '--gain' : tone === 'is-loss' ? '--loss' : '--flat';
+  return styles.getPropertyValue(token).trim() || '#6b6b6b';
+}
+
+// 画布按 devicePixelRatio 放大，回传 CSS 像素尺寸；所有绘制都用 CSS 像素坐标。
+function setupCanvas(canvas) {
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.round(rect.width * dpr);
+  canvas.height = Math.round(rect.height * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  return { ctx, width: rect.width, height: rect.height };
+}
+
+// 值域上下各留一截余量，全平的序列落在正中间。下方留得比上方多：曲线最低的
+// 那一段也要压出一条看得见的点阵带，否则低位区间整片是空的。
+function chartScale(values, top, bottom, padLo = .30, padHi = .12) {
   const min = Math.min(...values);
   const max = Math.max(...values);
-  const range = max - min;
-  const yFor = value => range > 0
-    ? padding + ((max - value) / range) * (height - padding * 2)
-    : height / 2;
-  const points = values.map((value, index) => {
-    const x = padding + (index / (values.length - 1)) * (width - padding * 2);
-    return `${index ? 'L' : 'M'}${x.toFixed(2)} ${yFor(value).toFixed(2)}`;
+  const span = max - min;
+  if (!(span > 0)) return () => top + (bottom - top) * .42;
+  const lo = min - span * padLo, hi = max + span * padHi;
+  return value => bottom - ((value - lo) / (hi - lo)) * (bottom - top);
+}
+
+function tracePath(ctx, xFor, yFor, count) {
+  ctx.beginPath();
+  for (let index = 0; index < count; index++) {
+    const x = xFor(index), y = yFor(index);
+    if (index) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+  }
+}
+
+// 曲线下方的点阵。迷你图和大图共用，只是网格间距和点径不同 —— 迷你图那块
+// 只有 120×72，用大图的 6px 间距会只剩稀稀拉拉几颗。
+function fillDotMatrix(ctx, { left, right, bottom, yAtX, step, size, alpha }) {
+  if (!(step > 0) || !(right > left)) return;
+  ctx.globalAlpha = alpha;
+  for (let x = left; x <= right; x += step) {
+    // yAtX 理论上落在绘图区里，但只要冒出一个 NaN 或负得离谱的值，下面这层
+    // 循环就会一直跑到把渲染进程卡死。夹一道，代价只是一次 Math.max。
+    const top = Math.max(0, yAtX(x));
+    if (!Number.isFinite(top)) continue;
+    for (let y = bottom; y > top; y -= step) ctx.fillRect(x, y, size, size);
+  }
+}
+
+// 把采样点线性插值成「某个像素列上的曲线高度」，点阵每一列要用它来定顶。
+function columnHeightFn(values, xFor, yFor, left, right) {
+  const inner = right - left;
+  return x => {
+    const t = inner > 0 ? (x - left) / inner * (values.length - 1) : 0;
+    const i = Math.max(0, Math.min(values.length - 2, Math.floor(t)));
+    const f = t - i;
+    return yFor(values[i]) * (1 - f) + yFor(values[i + 1]) * f;
+  };
+}
+
+const MINI_PAD = 4;
+
+function drawMiniSparkline() {
+  const canvas = document.querySelector('#pf-sparkline');
+  const frame = setupCanvas(canvas);
+  if (!frame) return;
+  const { ctx, width, height } = frame;
+  const color = chartToneColor(portfolioChart.tone);
+  const values = portfolioChart.series?.values;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if (!values || values.length < 2) {
+    ctx.globalAlpha = .35;
+    ctx.beginPath();
+    ctx.moveTo(MINI_PAD, height / 2);
+    ctx.lineTo(width - MINI_PAD, height / 2);
+    ctx.stroke();
+    return;
+  }
+  const left = MINI_PAD, right = width - MINI_PAD, bottom = height - MINI_PAD;
+  const yFor = chartScale(values, MINI_PAD, bottom, .26, .10);
+  const xFor = index => left + (index / (values.length - 1)) * (right - left);
+  ctx.fillStyle = color;
+  fillDotMatrix(ctx, {
+    left, right, bottom,
+    yAtX: columnHeightFn(values, xFor, yFor, left, right),
+    step: 4, size: 1.1, alpha: .30
   });
-  path.setAttribute('d', points.join(' '));
-  svg.setAttribute('class', `portfolio-sparkline ${tone}`);
-  svg.setAttribute('aria-label', `近一周总盈亏走势，从 ${money.format(values[0])} 到 ${money.format(values.at(-1))}`);
+  ctx.globalAlpha = 1;
+  tracePath(ctx, xFor, index => yFor(values[index]), values.length);
+  ctx.stroke();
+}
+
+// 展开后的大图：曲线下方铺一层点阵，游标右侧整体压暗。
+const CHART_DOT_STEP = 6;
+const CHART_PAD = { top: 18, right: 6, bottom: 10, left: 6 };
+
+function drawPortfolioChartDetail() {
+  const canvas = document.querySelector('#pf-chart');
+  const frame = setupCanvas(canvas);
+  if (!frame) return;
+  const { ctx, width, height } = frame;
+  const values = portfolioChart.series?.values;
+  if (!values || values.length < 2) return;
+
+  const color = chartToneColor(portfolioChart.tone);
+  const left = CHART_PAD.left, right = width - CHART_PAD.right, bottom = height - CHART_PAD.bottom;
+  const yFor = chartScale(values, CHART_PAD.top, bottom);
+  const xFor = index => left + (index / (values.length - 1)) * (right - left);
+  const yAtX = columnHeightFn(values, xFor, yFor, left, right);
+
+  const cursorX = portfolioChart.scrubIndex >= 0 ? xFor(portfolioChart.scrubIndex) : null;
+  // 两遍绘制：游标左侧原色，右侧压到 32% —— 和竞品「已看过的部分更亮」一致。
+  const passes = cursorX === null
+    ? [[left, right, 1]]
+    : [[left, cursorX, 1], [cursorX, right, .32]];
+
+  for (const [from, to, alpha] of passes) {
+    if (to - from < .5) continue;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(from, 0, to - from, height);
+    ctx.clip();
+
+    ctx.fillStyle = color;
+    fillDotMatrix(ctx, { left, right, bottom, yAtX, step: CHART_DOT_STEP, size: 1.4, alpha: alpha * .34 });
+
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    tracePath(ctx, xFor, index => yFor(values[index]), values.length);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 区间最高值标在它自己的位置上方。不写「最高」二字 —— 点在哪儿本身就说明了
+  // 是哪个时刻；标注不参与游标的压暗，它是图注不是曲线的一部分。
+  const peak = values.reduce((best, value, index) => value > values[best] ? index : best, 0);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--ink-40').trim();
+  ctx.font = '400 11px Inter, system-ui, sans-serif';
+  ctx.textBaseline = 'bottom';
+  ctx.textAlign = 'center';
+  const peakText = money.format(values[peak]);
+  const half = ctx.measureText(peakText).width / 2 + 2;
+  ctx.fillText(
+    peakText,
+    Math.max(left + half, Math.min(right - half, xFor(peak))),
+    Math.max(12, yFor(values[peak]) - 8)
+  );
+
+  if (cursorX === null) return;
+  const cursorY = yFor(values[portfolioChart.scrubIndex]);
+  ctx.save();
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--ink-40').trim();
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(cursorX, 0);
+  ctx.lineTo(cursorX, bottom);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-1').trim() || '#fff';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(cursorX, cursorY, 4.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function beijingParts(time) {
+  const date = new Date(time + 8 * 60 * 60 * 1000);
+  const pad = value => String(value).padStart(2, '0');
+  return {
+    month: pad(date.getUTCMonth() + 1), day: pad(date.getUTCDate()),
+    hour: pad(date.getUTCHours()), minute: pad(date.getUTCMinutes()),
+    year: String(date.getUTCFullYear())
+  };
+}
+
+// 「日」范围内两个采样点只差 15 分钟，日期没有区分度，所以那一档报到分钟。
+function chartStampText(time) {
+  const t = beijingParts(time);
+  return portfolioChart.range === 'day'
+    ? `${t.month}/${t.day} ${t.hour}:${t.minute}`
+    : portfolioChart.range === 'year'
+      // 年窗口横跨两个自然年，只写 MM/DD 会看不出是哪一年
+      ? `${t.year}/${t.month}/${t.day}`
+      : `${t.month}/${t.day} ${t.hour}:${t.minute}`;
+}
+
+function axisTickText(time, tick) {
+  const t = beijingParts(time);
+  if (tick === 'time') return `${t.hour}:${t.minute}`;
+  if (tick === 'month') return `${t.year}/${t.month}`;
+  return `${t.month}/${t.day}`;
+}
+
+function renderChartAxis() {
+  const axis = document.querySelector('#pf-chart-axis');
+  const series = portfolioChart.series;
+  if (!series) return axis.replaceChildren();
+  const tick = (PORTFOLIO_RANGES[series.range] || PORTFOLIO_RANGES.week).tick;
+  const times = series.times;
+  axis.replaceChildren(...Array.from({ length: 5 }, (_, slot) => {
+    const span = document.createElement('span');
+    span.textContent = axisTickText(times[Math.round(slot / 4 * (times.length - 1))], tick);
+    return span;
+  }));
+}
+
+// 长按扫描时，上面那两行数字换成该时刻的值；松手后 renderPortfolioSummary()
+// 会把它们原样写回去，所以这里直接改 DOM 不需要额外备份。
+function renderChartScrubReadout() {
+  const stamp = document.querySelector('#pf-chart-stamp');
+  const series = portfolioChart.series;
+  const index = portfolioChart.scrubIndex;
+  if (!series || index < 0) {
+    stamp.textContent = portfolioChart.loading ? '加载历史行情…' : chartRangeCaption();
+    stamp.classList.remove('is-active');
+    renderPortfolioSummary();
+    return;
+  }
+  stamp.textContent = chartStampText(series.times[index]);
+  stamp.classList.add('is-active');
+  const value = series.values[index];
+  const base = series.values[0];
+  const delta = value - base;
+  const pct = base > 0 ? (delta / base) * 100 : 0;
+  const label = rangeAgoLabel(series.range);
+  document.querySelector('#pf-total-label').textContent = '当时总资产';
+  document.querySelector('#pf-total-value').textContent = money.format(value);
+  document.querySelector('#pf-total-pl-label').textContent = label;
+  document.querySelector('#pf-total-pl').textContent = signedMoney(delta);
+  const displayedPct = roundedMovementValue(pct);
+  document.querySelector('#pf-total-pl-pct').textContent = `(${displayedPct > 0 ? '+' : ''}${displayedPct.toFixed(2)}%)`;
+  document.querySelector('#pf-total-performance').className = `portfolio-overview-change ${movementTone(delta)}`;
+}
+
+function rangeAgoLabel(rangeKey) {
+  return { day: '较 24 小时前', week: '较 7 天前', month: '较 30 天前', year: '较 1 年前' }[rangeKey] || '较区间起点';
+}
+
+function chartRangeCaption() {
+  const series = portfolioChart.series;
+  if (series?.coverageFrom) {
+    const t = beijingParts(series.coverageFrom);
+    return `${t.month}/${t.day} 起为真实行情`;
+  }
+  return { day: '近 24 小时', week: '近 7 天', month: '近 30 天', year: '近 1 年' }[portfolioChart.range] || '';
+}
+
+function setChartScrubIndex(index) {
+  const series = portfolioChart.series;
+  if (!series) return;
+  const next = Math.max(0, Math.min(series.values.length - 1, index));
+  if (next === portfolioChart.scrubIndex) return;
+  portfolioChart.scrubIndex = next;
+  // 震动反馈：Android Chrome 支持，iOS Safari 一直没实现，调用是安全的空操作。
+  try { navigator.vibrate?.(8); } catch { /* 不支持就算了 */ }
+  drawPortfolioChartDetail();
+  renderChartScrubReadout();
+}
+
+function endChartScrub() {
+  if (portfolioChart.scrubIndex < 0) return;
+  portfolioChart.scrubIndex = -1;
+  drawPortfolioChartDetail();
+  renderChartScrubReadout();
+}
+
+function renderChartRangeTabs() {
+  const group = document.querySelector('#pf-chart-ranges');
+  group.replaceChildren(...Object.entries(PORTFOLIO_RANGES).map(([key, range]) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = range.label;
+    button.dataset.range = key;
+    const active = key === portfolioChart.range;
+    button.className = active ? 'is-active' : '';
+    button.setAttribute('aria-pressed', String(active));
+    button.addEventListener('click', () => setPortfolioChartRange(key));
+    return button;
+  }));
+}
+
+function setPortfolioChartRange(rangeKey) {
+  if (!PORTFOLIO_RANGES[rangeKey] || rangeKey === portfolioChart.range) return;
+  portfolioChart.range = rangeKey;
+  localStorage.setItem(PORTFOLIO_RANGE_KEY, rangeKey);
+  endChartScrub();
+  renderChartRangeTabs();
+  // 月/年要日线，细序列最多只回溯 5~7 天。renderPortfolioChart 里的
+  // maybeLoadLongHistory 会先用手上的数据画一版、日线到了再重画一遍，
+  // 点一下不用空等一个网络往返。
+  renderPortfolioChart();
+}
+
+function setPortfolioChartExpanded(expanded) {
+  portfolioChart.expanded = expanded;
+  document.querySelector('#pf-chart-panel').hidden = !expanded;
+  // 展开后右上角那条迷你曲线收起来，大数字独占整行 —— 同一条序列没必要同时
+  // 画两遍，竞品展开态也是这么处理的。
+  document.querySelector('#pf-chart-toggle').hidden = expanded;
+  document.querySelector('.portfolio-summary').classList.toggle('is-expanded', expanded);
+  const handle = document.querySelector('#pf-chart-handle');
+  handle.classList.toggle('is-expanded', expanded);
+  handle.setAttribute('aria-expanded', String(expanded));
+  handle.setAttribute('aria-label', expanded ? '收起总资产走势图' : '展开总资产走势图');
+  if (!expanded) return endChartScrub();
+  renderChartRangeTabs();
+  requestAnimationFrame(() => { drawPortfolioChartDetail(); renderChartAxis(); });
+}
+
+function renderPortfolioChart(summaryTone = portfolioChart.summaryTone) {
+  if (summaryTone) portfolioChart.summaryTone = summaryTone;
+  maybeLoadLongHistory();
+  portfolioChart.series = portfolioValueSeries();
+  const series = portfolioChart.series;
+  // 线的颜色跟的是**这个区间**的涨跌，不是上面那个总盈亏 —— 一个组合完全可能
+  // 累计还在赚、但这一周在跌，那种时候把周线画成绿的就是在骗人。
+  portfolioChart.tone = series
+    ? movementTone(series.values.at(-1) - series.values[0])
+    : (portfolioChart.summaryTone || 'is-flat');
+  const tone = portfolioChart.tone;
+  const canvas = document.querySelector('#pf-sparkline');
+  canvas.className = `portfolio-sparkline ${tone}`;
+  canvas.setAttribute('aria-label', series
+    ? `${chartRangeCaption()}总资产走势，从 ${money.format(series.values[0])} 到 ${money.format(series.values.at(-1))}`
+    : '总资产走势暂无历史数据');
+  document.querySelector('#pf-chart-empty').hidden = Boolean(series);
+  document.querySelector('#pf-chart-wrap').hidden = !series;
+  document.querySelector('#pf-chart-axis').hidden = !series;
+  const stamp = document.querySelector('#pf-chart-stamp');
+  stamp.textContent = portfolioChart.loading ? '加载历史行情…' : chartRangeCaption();
+  stamp.classList.remove('is-active');
+  if (portfolioChart.expanded) { drawPortfolioChartDetail(); renderChartAxis(); }
+  else drawMiniSparkline();
+}
+
+function redrawPortfolioChart() {
+  if (document.querySelector('#pf-sparkline')?.isConnected !== true) return;
+  if (!portfolioChart.expanded) drawMiniSparkline();
+  if (portfolioChart.expanded) { drawPortfolioChartDetail(); renderChartAxis(); }
+}
+
+{
+  const chartCanvas = document.querySelector('#pf-chart');
+  const toggleChart = () => setPortfolioChartExpanded(!portfolioChart.expanded);
+  document.querySelector('#pf-chart-toggle').addEventListener('click', toggleChart);
+  document.querySelector('#pf-chart-handle').addEventListener('click', toggleChart);
+
+  let scrubPointerId = null;
+  let scrubTimer = null;
+  let scrubOrigin = null;
+
+  function chartIndexFromClientX(clientX) {
+    const count = portfolioChart.series?.values.length || 0;
+    if (count < 2) return -1;
+    const rect = chartCanvas.getBoundingClientRect();
+    const inner = rect.width - CHART_PAD.left - CHART_PAD.right;
+    if (inner <= 0) return -1;
+    return Math.round((clientX - rect.left - CHART_PAD.left) / inner * (count - 1));
+  }
+
+  function cancelPending() {
+    if (scrubTimer) clearTimeout(scrubTimer);
+    scrubTimer = null;
+  }
+
+  chartCanvas.addEventListener('pointerdown', event => {
+    if (!portfolioChart.series) return;
+    scrubPointerId = event.pointerId;
+    scrubOrigin = { x: event.clientX, y: event.clientY };
+    if (event.pointerType !== 'touch') {
+      chartCanvas.setPointerCapture(event.pointerId);
+      setChartScrubIndex(chartIndexFromClientX(event.clientX));
+      return;
+    }
+    // 触屏必须先长按 180ms 才进入扫描，否则一上来就和页面纵向滚动抢手势。
+    scrubTimer = setTimeout(() => {
+      scrubTimer = null;
+      chartCanvas.setPointerCapture(scrubPointerId);
+      setChartScrubIndex(chartIndexFromClientX(scrubOrigin.x));
+    }, 180);
+  });
+
+  chartCanvas.addEventListener('pointermove', event => {
+    if (event.pointerId !== scrubPointerId) return;
+    if (scrubTimer) {
+      // 长按还没数满就滑走了 —— 那是在滚页面，把这次判定作废。
+      if (Math.abs(event.clientY - scrubOrigin.y) > 8 || Math.abs(event.clientX - scrubOrigin.x) > 12) {
+        cancelPending();
+        scrubPointerId = null;
+      }
+      return;
+    }
+    if (portfolioChart.scrubIndex < 0) return;
+    setChartScrubIndex(chartIndexFromClientX(event.clientX));
+  });
+
+  const stopScrub = () => { cancelPending(); scrubPointerId = null; endChartScrub(); };
+  chartCanvas.addEventListener('pointerup', stopScrub);
+  chartCanvas.addEventListener('pointercancel', stopScrub);
+  chartCanvas.addEventListener('pointerleave', event => { if (event.pointerType !== 'touch') stopScrub(); });
+
+  // 进入扫描后要挡住页面滚动。touch-action 在手势中途改是不生效的，只有非
+  // passive 的 touchmove 里 preventDefault 拦得住。
+  chartCanvas.addEventListener('touchmove', event => {
+    if (portfolioChart.scrubIndex >= 0) event.preventDefault();
+  }, { passive: false });
+
+  // 画布是按 CSS 像素尺寸铺的位图，宽度一变就必须重画，否则会糊。
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(redrawPortfolioChart, 120);
+  });
 }
 
 function renderPortfolioSummary() {
+  // 长按扫描时这两个标签被换成了「当时总资产 / 较 7 天前」，这里一并还原。
+  document.querySelector('#pf-total-label').textContent = '总资产';
+  document.querySelector('#pf-total-pl-label').textContent = '总盈亏';
   let totalValue = 0, totalCost = 0, totalProfit = 0;
-  let hasAllValues = holdings.length > 0;
-  let hasAllCosts = holdings.length > 0;
-  holdings.forEach(holding => {
+  const live = openHoldings();
+  let hasAllValues = live.length > 0;
+  let hasAllCosts = live.length > 0;
+  live.forEach(holding => {
     const metrics = holdingMetrics(holding);
     if (Number.isFinite(metrics.cost) && metrics.cost > 0) totalCost += metrics.cost;
     else hasAllCosts = false;
@@ -1759,7 +2352,10 @@ function renderPortfolioSummary() {
     pctEl.textContent = '(0.00%)';
     performanceEl.className = 'portfolio-overview-change is-flat';
   }
-  renderPortfolioSparkline(tone);
+  renderPortfolioChart(tone);
+  // 行情轮询会在长按扫描的过程中触发一次整块重绘，把上面那两行数字写回「现在」。
+  // 扫描还按着的时候把该时刻的读数再盖回去，手指底下的数字才不会自己跳回去。
+  if (portfolioChart.scrubIndex >= 0) renderChartScrubReadout();
 }
 
 function holdingRowModel(holding) {
@@ -2007,7 +2603,8 @@ function createMergedHoldingGroup(group, key) {
 function renderHoldings() {
   const list = document.querySelector('#holdings-list');
   const empty = document.querySelector('#holdings-empty');
-  const hasHoldings = holdings.length > 0;
+  const live = openHoldings();
+  const hasHoldings = live.length > 0;
   document.querySelector('.portfolio-summary').hidden = !hasHoldings;
   list.hidden = !hasHoldings;
   empty.hidden = hasHoldings;
@@ -2015,7 +2612,7 @@ function renderHoldings() {
   const mergeSame = document.querySelector('#merge-holdings').checked;
   if (mergeSame) {
     const groups = new Map();
-    holdings.forEach(holding => {
+    live.forEach(holding => {
       const key = String(holding.symbol || '').trim().toUpperCase();
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(holding);
@@ -2024,7 +2621,7 @@ function renderHoldings() {
       group.length > 1 ? createMergedHoldingGroup(group, key) : createHoldingRow(group[0])
     )));
   } else {
-    list.replaceChildren(...holdings.map(holding => createHoldingRow(holding)));
+    list.replaceChildren(...live.map(holding => createHoldingRow(holding)));
   }
 
   renderPortfolioSummary();
@@ -2668,11 +3265,14 @@ function setPositionAdjustmentMode(mode) {
   document.querySelector('#holding-adjustment-qty-prefix').hidden = !isStable;
   amountInput.placeholder = isStable ? '0.00' : '0';
   document.querySelector('#holding-adjustment-submit').textContent = isAdd ? '确认加仓' : '确认减仓';
+  // 「全部」只给市价持仓的减仓用：稳定生息全额赎回还是走删除持仓那条路，
+  // 把本金换成 USDT 对它没有意义（它本来就是一笔现金）。
+  document.querySelector('#holding-adjustment-all').hidden = isAdd || isStable;
   document.querySelector('#holding-adjustment-hint').textContent = isStable
     ? '生效日次日的结算起按新本金计息，已发放的利息不变'
     : isAdd
       ? '按成交价计入成本；留空使用市场价，操作瞬间总盈亏不变'
-      : '按成交价减持；留空使用市场价，盈亏将按剩余持仓重新计算';
+      : '按成交价卖出，卖得的金额自动转成 USDT 持仓；点「全部」即清仓';
 }
 
 // 每一次本金变化都记一笔：金额存正数，方向看 type，date 是生效日期。
@@ -2727,6 +3327,38 @@ function adjustInterestPrincipal(holding) {
   }`);
 }
 
+// 卖出换来的现金落进一笔 USDT 稳定生息持仓：默认 0% 年化，用户想计息自己去设。
+// 这样「卖出」在总资产上是平移而不是凭空蒸发一块，走势图才对得上真实情况。
+// 只对新发生的减仓生效 —— 历史上那些减仓没有对应的现金记录，不做追溯。
+function creditStableProceeds(source, amount, time) {
+  if (!(amount > 0)) return null;
+  const existing = holdings.find(item =>
+    item.holdingKind === 'interest' && !item.closedAt &&
+    String(item.symbol || '').toUpperCase() === 'USDT');
+  const date = beijingDateString(time);
+  if (existing) {
+    existing.principal = (Number(existing.principal) || 0) + amount;
+    if (!Array.isArray(existing.principalAdjustments)) existing.principalAdjustments = [];
+    existing.principalAdjustments.push({
+      id: `p_${time}_${Math.random().toString(36).slice(2, 7)}`,
+      type: 'add', amount, date, at: time, createdAt: time
+    });
+    return existing;
+  }
+  const created = {
+    id: `h_${time}_${Math.random().toString(36).slice(2, 7)}`,
+    symbol: 'USDT', quoteSymbol: 'USDT', name: 'USDT', assetType: null, exchange: '',
+    holdingKind: 'interest',
+    principal: amount, quantity: null, costPerShare: null,
+    annualRate: 0, interestMode: 'simple', interestStartDate: date,
+    dividendPerShare: null, dividendFrequency: null, dividendExDate: null, dividendPayDate: null,
+    positionAdjustments: [], principalAdjustments: [], dividendRecords: [], dividendRecordId: null,
+    createdAt: time
+  };
+  holdings.push(created);
+  return created;
+}
+
 async function adjustHoldingPosition() {
   const holding = holdings.find(item => item.id === editingHoldingId);
   if (!holding) return;
@@ -2739,9 +3371,9 @@ async function adjustHoldingPosition() {
     quantityInput.focus();
     return showToast('请输入有效的调整数量');
   }
-  if (positionAdjustmentMode === 'reduce' && amount >= currentQuantity) {
+  if (positionAdjustmentMode === 'reduce' && amount > currentQuantity + 1e-9) {
     quantityInput.focus();
-    return showToast('减仓数量需小于当前持有数量；全部清仓请删除持仓');
+    return showToast('减仓数量不能超过当前持有数量');
   }
 
   const rawPrice = priceInput.value.trim();
@@ -2759,6 +3391,7 @@ async function adjustHoldingPosition() {
     return showToast('暂时无法获取市场价，请填写成交价格');
   }
 
+  const soldAll = positionAdjustmentMode === 'reduce' && Math.abs(amount - currentQuantity) < 1e-9;
   const costPerShare = Number(holding.costPerShare) || transactionPrice;
   // 混合持仓的计息本金就是数量×成本，加减仓一样会改动它 —— 同样记一笔，
   // 免得调完仓位把过去几个月的利息一起改了。
@@ -2773,14 +3406,23 @@ async function adjustHoldingPosition() {
   if (isInterestHolding(holding)) {
     recordPrincipalAdjustment(holding, holdingInterestPrincipal(holding) - previousPrincipal, beijingDateString());
   }
+  const at = Date.now();
   if (!Array.isArray(holding.positionAdjustments)) holding.positionAdjustments = [];
   holding.positionAdjustments.push({
-    id: `t_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    id: `t_${at}_${Math.random().toString(36).slice(2, 7)}`,
     type: positionAdjustmentMode,
     quantity: amount,
     price: transactionPrice,
-    createdAt: Date.now()
+    createdAt: at
   });
+  let proceeds = 0;
+  if (positionAdjustmentMode === 'reduce') {
+    proceeds = amount * transactionPrice;
+    creditStableProceeds(holding, proceeds, at);
+    // 清仓的那笔不删：卖出之前它是有价值的，删掉走势图上那一整段都会塌下去。
+    // 标记 closedAt 让它退出持仓列表和总资产，但留在历史序列里。
+    if (soldAll) holding.closedAt = at;
+  }
   holdingDividendRecords(holding).forEach(record => {
     if (record.exDate > beijingDateString()) {
       record.quantity = Number(holding.quantity) || 0;
@@ -2795,15 +3437,21 @@ async function adjustHoldingPosition() {
   quantityInput.value = '';
   priceInput.value = '';
   updateHoldingYieldPreview();
-  showToast(positionAdjustmentMode === 'add' ? '已完成加仓' : '已完成减仓');
+  if (positionAdjustmentMode === 'add') showToast('已完成加仓');
+  else showToast(`${soldAll ? '已清仓' : '已完成减仓'} · ${money.format(proceeds)} 转入 USDT`);
+  if (soldAll) closeHoldingSheet();
 }
 
-function createSearchState(title, detail) {
+// art 给的是状态插画的名字（见 styles.css 的 .state-art）。搜索弹层的每一个
+// 状态都配图，默认那张（等待输入）用 search —— 举着放大镜的猫。
+function createSearchState(title, detail, art = 'search') {
   const state = document.createElement('div');
   state.className = 'asset-search-state';
-  const icon = document.createElement('i');
-  icon.className = 'ri-search-line';
-  icon.setAttribute('aria-hidden', 'true');
+  const icon = document.createElement('span');
+  icon.className = 'state-art';
+  icon.dataset.art = art;
+  icon.setAttribute('role', 'img');
+  icon.setAttribute('aria-label', title);
   const heading = document.createElement('p');
   heading.textContent = title;
   const description = document.createElement('span');
@@ -2812,14 +3460,14 @@ function createSearchState(title, detail) {
   return state;
 }
 
-function renderAssetSearchState(title = '输入代码或名称，按回车开始搜索', detail = '支持 Yahoo Finance 上的股票、ETF 和 Crypto') {
-  document.querySelector('#asset-search-content').replaceChildren(createSearchState(title, detail));
+function renderAssetSearchState(title = '输入代码或名称，按回车开始搜索', detail = '支持 Yahoo Finance 上的股票、ETF 和 Crypto', art = 'search') {
+  document.querySelector('#asset-search-content').replaceChildren(createSearchState(title, detail, art));
 }
 
 function renderAssetResults(results, query) {
   const content = document.querySelector('#asset-search-content');
   if (!results.length) {
-    content.replaceChildren(createSearchState(`没有找到“${query}”`, '换一个代码或名称再试试'));
+    content.replaceChildren(createSearchState(`没有找到“${query}”`, '换一个代码或名称再试试', 'notfound'));
     return;
   }
   const list = document.createElement('div');
@@ -2982,12 +3630,12 @@ document.querySelector('#asset-search-form').addEventListener('submit', async ev
   const submit = event.currentTarget.querySelector('.asset-search-submit');
   submit.disabled = true;
   submit.textContent = '搜索中';
-  renderAssetSearchState('正在搜索', `正在 Yahoo Finance 中查找“${query}”`);
+  renderAssetSearchState('正在搜索', `正在 Yahoo Finance 中查找“${query}”`, 'loading');
   try {
     const results = await searchAssets(query);
     if (input.value.trim() === lastSubmittedAssetQuery) renderAssetResults(results, query);
   } catch (error) {
-    if (error.name !== 'AbortError') renderAssetSearchState('暂时无法搜索', '请稍后再试');
+    if (error.name !== 'AbortError') renderAssetSearchState('暂时无法搜索', '请稍后再试', 'net_fail');
   } finally {
     submit.disabled = false;
     submit.textContent = '搜索';
@@ -3043,6 +3691,16 @@ document.querySelector('#holding-start-date').addEventListener('change', () => {
 document.querySelector('#holding-add-mode').addEventListener('click', () => setPositionAdjustmentMode('add'));
 document.querySelector('#holding-reduce-mode').addEventListener('click', () => setPositionAdjustmentMode('reduce'));
 document.querySelector('#holding-adjustment-submit').addEventListener('click', adjustHoldingPosition);
+// 「全部」只把当前持有数量填进输入框，仍然要按「确认减仓」才成交 —— 清仓是
+// 不可逆的，不该一下点出去。成交价留空时照旧取市场价。
+document.querySelector('#holding-adjustment-all').addEventListener('click', () => {
+  const holding = holdings.find(item => item.id === editingHoldingId);
+  const quantity = Number(holding?.quantity);
+  if (!Number.isFinite(quantity) || quantity <= 0) return;
+  const input = document.querySelector('#holding-adjustment-qty');
+  input.value = String(quantity);
+  input.focus();
+});
 document.querySelector('#holding-dividend-records-btn').addEventListener('click', () => {
   const holding = holdings.find(item => item.id === editingHoldingId);
   if (holding) openDividendRecordsSheet([holding]);
@@ -3404,26 +4062,35 @@ function maskEmail(email) {
 // 单独一张 profiles 表，不塞进 holdings 的 payload：那个 payload 是一整条持仓，
 // 用户名放进去等于每条持仓都存一份副本，改名还得逐条重写。见 supabase/schema.sql。
 const PROFILE_KEY = 'jiujiucat-profile';
-const DEFAULT_AVATAR = 'ri-bear-smile-line';
-// 头像值会直接当成 <i> 的 class 用，而云端那一行是用户自己可写的 —— 取值必须
-// 限定在这张表里，不能把任意字符串当类名塞进 DOM。
-// 每个头像自带一个纯色底（不带透明度，图标一律白色）—— 一屏十几个圆点，
-// 只靠线条图形分不出谁是谁，颜色才是第一眼的识别位。深浅两个主题共用同一组色：
-// 它们本来就不是从 token 派生的，是身份色。
-const PROFILE_AVATARS = [
-  { icon: 'ri-bear-smile-line', label: '小熊', color: '#D9772E' },
-  { icon: 'ri-mickey-line', label: '米奇', color: '#6C5CE7' },
-  { icon: 'ri-aliens-line', label: '外星人', color: '#0E9F6E' },
-  { icon: 'ri-ghost-smile-line', label: '幽灵', color: '#3C7DE0' },
-  { icon: 'ri-star-smile-line', label: '星星', color: '#C08A00' },
-  { icon: 'ri-emotion-laugh-line', label: '笑脸', color: '#D9527A' },
-  { icon: 'ri-robot-2-line', label: '机器人', color: '#1F7FBF' },
-  { icon: 'ri-planet-line', label: '星球', color: '#7A5AF8' },
-  { icon: 'ri-rocket-line', label: '火箭', color: '#E05A3C' },
-  { icon: 'ri-flower-line', label: '小花', color: '#C2478F' },
-  { icon: 'ri-fire-line', label: '火苗', color: '#D2451E' },
-  { icon: 'ri-magic-line', label: '魔法棒', color: '#0E8F8F' }
+// 头像值是从云端读回来的（那一行用户自己可写），所以取值必须限定在白名单里 ——
+// 一旦拿去拼图片路径或当类名塞进 DOM，任意字符串就成了注入面。
+// 2026-08-27：原来那 12 个「纯色底 + 白色 Remix 图标」换成九张猫脸表情图。
+// 图是不透明的深色底方图，头像本来就圆形裁切，底色正好当圆底用，深浅共用一套，
+// 也就不再需要 PROFILE_AVATARS[].color 那组身份色了。
+const PROFILE_FACE_PREFIX = 'face:';
+const PROFILE_FACES = [
+  { id: 'happy',     label: '开心' },
+  { id: 'cute',      label: '可爱' },
+  { id: 'love',      label: '心动' },
+  { id: 'thinking',  label: '思考' },
+  { id: 'sleepy',    label: '困了' },
+  { id: 'surprised', label: '惊讶' },
+  { id: 'crying',    label: '哭泣' },
+  { id: 'angry',     label: '生气' },
+  { id: 'horn',      label: '小恶魔' }
 ];
+const FACES_BY_ID = new Map(PROFILE_FACES.map(face => [face.id, { ...face, file: `avatars/${face.id}.jpg` }]));
+const DEFAULT_AVATAR = 'face:happy';
+
+function faceAvatar(value) {
+  if (typeof value !== 'string' || !value.startsWith(PROFILE_FACE_PREFIX)) return null;
+  return FACES_BY_ID.get(value.slice(PROFILE_FACE_PREFIX.length)) || null;
+}
+
+// 未登录的占位仍然是「灰底 + 白图标」那一套：它要一眼看出「还没设置」，
+// 换成任意一张猫脸都会被当成已经选好的头像。applyProfileAvatar 里那条图标
+// 分支现在只为它一个存在。
+const GUEST_AVATAR_ICON = 'ri-user-smile-line';
 // 未登录时的占位：中性灰，和任何一个已选头像都不一样，一眼能看出「还没设置」。
 const GUEST_AVATAR_COLOR = '#8A8A8F';
 
@@ -3486,25 +4153,22 @@ function catAvatar(value) {
   const cat = CATS_BY_ID.get(value.slice(CAT_AVATAR_PREFIX.length));
   return cat?.file ? cat : null;
 }
-const PROFILE_AVATAR_ICONS = new Set(PROFILE_AVATARS.map(item => item.icon));
-const PROFILE_AVATAR_COLORS = new Map(PROFILE_AVATARS.map(item => [item.icon, item.color]));
-
-// 头像有两种：图标（纯色圆底 + 白色图标）和猫（照片铺满 + 那只猫的颜色描边）。
-// 顶栏、资料弹层的选项、猫弹层都走这一个函数，两种形态不会各写各的。
+// 头像有两种形态：图片（九张猫脸表情，或猫墙上的一只猫）和图标（只剩未登录的
+// 灰色占位在用）。顶栏、资料弹层的选项、猫弹层都走这一个函数。
 function applyProfileAvatar(element, avatar, color) {
-  const cat = catAvatar(avatar);
-  element.classList.toggle('is-photo', !!cat);
+  const photo = faceAvatar(avatar) || catAvatar(avatar);
+  element.classList.toggle('is-photo', !!photo);
   const glyph = element.querySelector('i');
-  if (cat) {
+  if (photo) {
     element.style.backgroundColor = 'transparent';
-    element.style.backgroundImage = `url("${cat.file}")`;
+    element.style.backgroundImage = `url("${photo.file}")`;
     element.style.borderColor = '';   // 白边交给 .is-photo
     if (glyph) glyph.className = '';
     return;
   }
   element.style.backgroundImage = '';
   element.style.borderColor = 'transparent';
-  element.style.backgroundColor = color || PROFILE_AVATAR_COLORS.get(avatar) || GUEST_AVATAR_COLOR;
+  element.style.backgroundColor = color || GUEST_AVATAR_COLOR;
   if (glyph) glyph.className = avatar;
 }
 const PROFILE_NAME_MAX = 20;
@@ -3513,7 +4177,7 @@ function normalizeProfile(raw) {
   const avatar = raw?.avatar;
   return {
     name: typeof raw?.name === 'string' ? raw.name.trim().slice(0, PROFILE_NAME_MAX) : '',
-    avatar: PROFILE_AVATAR_ICONS.has(avatar) || catAvatar(avatar) ? avatar : DEFAULT_AVATAR,
+    avatar: faceAvatar(avatar) || catAvatar(avatar) ? avatar : DEFAULT_AVATAR,
     updatedAt: Number(raw?.updatedAt) || 0
   };
 }
@@ -3540,7 +4204,7 @@ function renderAccountBar() {
   const avatar = document.querySelector('#header-avatar');
   const nameEl = document.querySelector('#header-name');
 
-  applyProfileAvatar(avatar, signedIn ? profile.avatar : DEFAULT_AVATAR,
+  applyProfileAvatar(avatar, signedIn ? profile.avatar : GUEST_AVATAR_ICON,
     signedIn ? undefined : GUEST_AVATAR_COLOR);
   nameEl.textContent = name;
   nameEl.hidden = !signedIn;
@@ -3599,23 +4263,24 @@ async function syncProfile() {
 function setProfileDraftAvatar(icon) {
   // 当前头像是猫时，图标里没有一个该是选中的 —— 传进来的值原样保留判断，
   // 别硬拉回默认的小熊。
-  profileDraftAvatar = PROFILE_AVATAR_ICONS.has(icon) || catAvatar(icon) ? icon : DEFAULT_AVATAR;
+  profileDraftAvatar = faceAvatar(icon) || catAvatar(icon) ? icon : DEFAULT_AVATAR;
   document.querySelectorAll('.profile-avatar-option').forEach(option => {
     option.setAttribute('aria-pressed', String(option.dataset.avatar === profileDraftAvatar));
   });
 }
 
 const profileAvatarGrid = document.querySelector('#profile-avatar-grid');
-PROFILE_AVATARS.forEach(({ icon, label }) => {
+PROFILE_FACES.forEach(({ id, label }) => {
+  const value = PROFILE_FACE_PREFIX + id;
   const option = document.createElement('button');
   option.type = 'button';
   option.className = 'avatar-chip profile-avatar-option';
-  option.dataset.avatar = icon;
+  option.dataset.avatar = value;
   option.setAttribute('aria-pressed', 'false');
   option.setAttribute('aria-label', `头像 ${label}`);
-  option.innerHTML = `<i class="${icon}" aria-hidden="true"></i>`;
-  applyProfileAvatar(option, icon);
-  option.addEventListener('click', () => setProfileDraftAvatar(icon));
+  option.innerHTML = '<i aria-hidden="true"></i>';
+  applyProfileAvatar(option, value);
+  option.addEventListener('click', () => setProfileDraftAvatar(value));
   profileAvatarGrid.append(option);
 });
 
@@ -3942,18 +4607,36 @@ function handleSignedOut() {
   profileDraftAvatar = profile.avatar;
   renderAccountBar();
   renderHoldings();
+  // 登出会清空本地持仓，继续留在本地模式只会看到一个空页面，不如退回门禁。
+  localStorage.removeItem(GUEST_MODE_KEY);
   document.querySelector('#portfolio-gate').hidden = false;
   document.querySelector('#portfolio-app').hidden = true;
 }
 
-// 只由真实会话调用（handleSignedIn）。不再落任何「已解锁」标记 —— 刷新后
-// 是否放行，一律重新问 Supabase 要会话。
+// 由真实会话（handleSignedIn）或用户手点「先看看」调用。
+// **不会因为任何失败而被自动调用** —— 这是当初把持仓页做成硬门禁的原因：
+// 那条「配置挂了就放行本地版」的旁路同时也是一个免登录后门。现在的旁路只有
+// 一个入口，就是下面这颗按钮，且要显式落 GUEST_MODE_KEY 才在刷新后继续放行。
 function unlockPortfolio() {
   document.querySelector('#portfolio-gate').hidden = true;
   document.querySelector('#portfolio-app').hidden = false;
   renderHoldings();
   refreshHoldingPrices();
   refreshRecommendationPrices();
+}
+
+// 本地模式：能用全部功能，但 queueCloudPush 会因为没有 currentUser 直接返回，
+// 所以什么都不会上云。登录后本地这份会照常参与同步。
+const GUEST_MODE_KEY = 'jiujiu-portfolio-guest';
+
+function isGuestMode() {
+  return localStorage.getItem(GUEST_MODE_KEY) === '1';
+}
+
+function enterGuestMode(announce = true) {
+  localStorage.setItem(GUEST_MODE_KEY, '1');
+  unlockPortfolio();
+  if (announce) showToast('本地模式：数据只存在这台设备，登录后才会同步云端');
 }
 
 async function startGoogleLogin() {
@@ -3974,6 +4657,7 @@ async function startGoogleLogin() {
   }
 }
 
+document.querySelector('#portfolio-guest-btn').addEventListener('click', () => enterGuestMode());
 document.querySelector('#portfolio-login-btn').addEventListener('click', startGoogleLogin);
 document.querySelector('#profile-login-btn').addEventListener('click', () => {
   closeProfileSheet(false);
@@ -4001,10 +4685,12 @@ if (cloud) {
 }
 
 // 进来先一律显示登录页。真有会话时，onAuthStateChange 会补发 INITIAL_SESSION
-// 再走 handleSignedIn 解锁 —— 已登录的人只会看到一瞬间的登录页，没登录的人
-// 则不会再被历史标记放行。
+// 再走 handleSignedIn 解锁 —— 已登录的人只会看到一瞬间的登录页。
+// 之前点过「先看看」的人按那个标记继续放行：它只可能由那颗按钮写入，不会因为
+// Supabase 配置缺失或请求失败而出现，所以不构成免登录后门。
 renderAccountBar();
 updateHoldingFormVisibility();
+if (isGuestMode()) unlockPortfolio();
 renderHoldings();
 if (!document.querySelector('#portfolio-app').hidden) refreshRecommendationPrices();
 

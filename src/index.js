@@ -28,8 +28,14 @@ async function handleQuote(url) {
   }
 
   // 最近 5 个交易日就是股票市场可交易的一周；30 分钟粒度足够绘制小型趋势图。
+  // 组合走势图切到「月 / 年」时会带 range=1y 过来要日线 —— 5d 的细序列最多只
+  // 回溯一周，硬拿去画一年等于把 358 天铺成一条平线。粒度写死在白名单里，不让
+  // 调用方自由指定 interval，免得把代理变成任意转发。
+  const RANGES = { '5d': '30m', '1mo': '1h', '1y': '1d' };
+  const range = RANGES[url.searchParams.get('range')] ? url.searchParams.get('range') : '5d';
   const upstream =
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=30m&range=5d`;
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}` +
+    `?interval=${RANGES[range]}&range=${range}`;
 
   const response = await fetch(upstream, {
     headers: {
@@ -40,7 +46,8 @@ async function handleQuote(url) {
       'Accept': 'application/json'
     },
     // 边缘缓存 60 秒：行情不需要秒级精度，但能挡住刷新风暴打到上游。
-    cf: { cacheTtl: 60, cacheEverything: true }
+    // 日线一天才多一根，缓存半小时，省得每个用户切一次「年」就回源一次。
+    cf: { cacheTtl: range === '5d' ? 60 : 1800, cacheEverything: true }
   });
 
   if (!response.ok) {

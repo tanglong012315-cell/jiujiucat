@@ -148,17 +148,13 @@ img { max-width: 100%; }
   position: fixed;
   inset: 0;
   z-index: 9999;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding-bottom: calc(56px + env(safe-area-inset-bottom));
-  /* 竖屏用 9:16 那版，横屏换 16:9 那版 —— 同一张构图出了两个比例的成品图，
+  /* 竖屏用 9:16 那版，横屏换 16:9 那版 —— 同一构图出了两个比例的成品图，
      比拿一张去 cover 硬裁另一个方向好：竖版在宽屏上只能露出中间很窄一条。
      媒体查询保证浏览器只下载匹配的那一张。 */
   background-image: url('splash-bg.jpg');
-  /* 两版都按 cover 全屏铺满。「镜头拉远」是做进素材本身的（2026-08-26 用户
-     重出了竖版），不要再用 CSS 去缩放留白 —— 那样顶部会多出一段纯色，反而
-     把设计好的构图割成两块。兜底色取图顶的近黑色，只在图加载完成前的一瞬可见。*/
+  /* 两版都按 cover 全屏铺满。「镜头拉远」是做进素材本身的，不要再用 CSS 去
+     缩放留白 —— 那样顶部会多出一段纯色，反而把设计好的构图割成两块。兜底色
+     取图顶的近黑色，只在图加载完成前的一瞬可见。*/
   background-color: #060606;
   background-size: cover;
   background-position: 50% 50%;
@@ -170,26 +166,9 @@ img { max-width: 100%; }
   .app-splash { background-image: url('splash-bg-wide.jpg'); background-color: #111214; }
 }
 .app-splash.is-hidden { opacity: 0; pointer-events: none; }
-/* 底部那行字正好压在雪山的高光上，白字叠白雪光靠 text-shadow 读不出来。
-   压一层由下而上的渐变，只暗底部、不动主体所在的中段。 */
-.app-splash::after {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  height: 200px;
-  background: linear-gradient(to top, rgba(0, 0, 0, .75), rgba(0, 0, 0, .45) 45%, transparent);
-  pointer-events: none;
-}
-.app-splash-caption {
-  position: relative;
-  z-index: 1;
-  margin: 0;
-  font-size: 12px;
-  letter-spacing: .02em;
-  color: rgba(255, 255, 255, .82);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, .6);
-}
+/* 2026-08-27：PawFolio 那行字现在印在图里了（竖版在底部、横版在右侧中段），
+   所以这里既没有 .app-splash-caption 也不需要压暗的渐变 —— 那层渐变本来就
+   只为那行 HTML 文字服务，留着只会把成品图的下缘又压黑一道。 */
 
 /* ── Header ─────────────────────────────────────────────── */
 /* Three sibling groups on one 68px row: identity leads, ticker + toggle trail.
@@ -217,7 +196,12 @@ img { max-width: 100%; }
 }
 @media (hover: hover) { .header-account:hover { opacity: .7; } }
 .header-account:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
-.header-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 名字比 .header-account 继承来的 14px 再大一档：顶栏就这一个身份信息，
+   压得太小反而像个副标题。500 而不是 600 —— 16px 下 600 太抢，右边还有行情。 */
+.header-name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 16px; line-height: 22px; font-weight: 500;
+}
 .header-name[hidden] { display: none; }
 /* 头像统一长这样：纯色圆底 + 白色图标。底色由 JS 按头像写在 style 上
    （见 applyProfileAvatar），这里只管几何和图标颜色。 */
@@ -229,8 +213,8 @@ img { max-width: 100%; }
 /* 头像是猫照片时：白边（和猫墙上的相片同一套语言），不再有图标。 */
 .avatar-chip.is-photo { color: transparent; border-color: #ffffff; }
 .avatar-chip > i { line-height: 1; }
-.header-avatar { width: 28px; height: 28px; }
-.header-avatar > i { font-size: 17px; }
+.header-avatar { width: 30px; height: 30px; }
+.header-avatar > i { font-size: 18px; }
 
 /* Ticker — direction reads from the arrow glyph, never from color (SnowUI) */
 /* 从 div 改成 button：键盘可聚焦、Enter/Space 自动生效、屏幕阅读器会报成
@@ -427,7 +411,12 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 
 /* Card — inside a Block, so Surface/1; diagonal tints echo the reference 2×2 */
 .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.metric { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; border-radius: var(--radius-card); background: var(--tint-blue); color: var(--on-tint); }
+/* 2026-08-27：收益预估这三张和下面的汇率行原来铺 --tint-blue。品牌色改蓝之后
+   页面上蓝的东西太多了（按钮、链接、单利标签、图标底），大面积的卡片底色再占
+   一份蓝就成了噪音。改成 --ink-4 —— 这是本文件里「块内填充面」既有的那一档
+   （.segmented 的槽用的也是它），浅色下是 4% 黑、深色下是 4% 白，两边都不用
+   另写值。文字随之从 --on-tint（染色卡片上的强制黑字）换回 --ink。 */
+.metric { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; border-radius: var(--radius-card); background: var(--ink-4); color: var(--ink); }
 .metric > span { color: inherit; opacity: .6; font-size: 12px; line-height: 16px; }
 .metric strong { display: block; overflow: hidden; max-width: 100%; font-size: 24px; line-height: 32px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .metric .cny-value { display: block; overflow: hidden; max-width: 100%; opacity: .4; font-size: 12px; line-height: 16px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -478,11 +467,20 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   min-width: 0; width: 100%; flex: 1; border: 0; outline: 0; background: transparent; padding: 0;
   color: var(--ink); font-size: 24px; line-height: 32px; font-weight: 600; font-variant-numeric: tabular-nums;
 }
+/* 输入框和下面那组货币之间的连接符。点任意一张卡片会把它换成基准货币
+   （见 swapFxBase），这个上下箭头就是那件事的视觉提示；它本身不可点，
+   对读屏隐藏 —— 真正的操作入口是下面每一行。 */
+.fx-swap-hint {
+  display: grid; place-items: center; width: 28px; height: 28px;
+  margin: 12px auto; border-radius: 9px;
+  background: var(--ink-4); color: var(--ink-40);
+}
+.fx-swap-hint > i { font-size: 16px; line-height: 1; }
 .fx-results { display: flex; flex-direction: column; gap: 8px; }
 .fx-row {
   display: flex; align-items: center; gap: 12px; width: 100%; text-align: start;
   padding: 12px 16px; border: 0; border-radius: var(--radius-card);
-  background: var(--tint-blue); color: var(--on-tint); cursor: pointer;
+  background: var(--ink-4); color: var(--ink); cursor: pointer;
   transition-property: opacity, scale; transition-duration: 150ms;
 }
 @media (hover: hover) { .fx-row:hover { opacity: .82; } }
@@ -507,20 +505,45 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
    这里补一条 class+属性的组合选择器（特异度更高），是本文件第三次踩这个
    坑（另两处见 .workspace[hidden] 和 .market-session[hidden]）。 */
 .gate-card[hidden] { display: none; }
-.gate-icon {
-  width: 56px; height: 56px; border-radius: 18px; flex: 0 0 auto;
-  display: grid; place-items: center;
-  background: var(--tint-blue); color: var(--accent);
-}
-.gate-icon > i { font-size: 26px; line-height: 1; }
 .gate-title { margin: 0; font-size: 16px; line-height: 22px; font-weight: 600; }
+/* 这一句是标题的副标，不是并列的第 3 块内容，所以要贴着标题。卡片的 flex gap
+   是 16px，这里回收 8px —— 比给每个孩子单独写 margin 干净。 */
+.gate-title + .gate-body { margin-block-start: -8px; }
 .gate-body { margin: 0; max-width: 30ch; color: var(--ink-40); font-size: 13px; line-height: 1.6; }
 .gate-perks { width: 100%; margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
 .gate-perks li { display: flex; align-items: center; gap: 10px; color: var(--ink-80); font-size: 13px; line-height: 1.4; text-align: left; }
 .perk-tick { flex: 0 0 16px; width: 16px; height: 16px; color: var(--accent); font-size: 16px; line-height: 1; }
 .gate-card .calculate-btn { margin-top: 6px; }
+/* 「先看看」：不登录也能用，但数据只落在这台设备上。做成灰色小字而不是第二颗
+   按钮 —— 登录才是这页想让人走的路，这条是退路，不该和它抢视觉分量。 */
+.gate-guest-btn {
+  position: relative; margin-top: -6px; padding: 0; border: 0; background: none;
+  color: var(--ink-40); font: inherit; font-size: 13px; line-height: 18px; cursor: pointer;
+  transition-property: color; transition-duration: 150ms;
+}
+.gate-guest-btn::after { content: ""; position: absolute; inset: -10px -12px; }
+@media (hover: hover) { .gate-guest-btn:hover { color: var(--ink); } }
+.gate-guest-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
 .google-signin-btn { gap: 10px; }
 /* Google 的品牌规范要求这个 mark 保持原色，所以它不跟随主题反色。 */
+
+/* ── 状态插画 ───────────────────────────────────────────────
+   /状态插画/ 的成品图，缩到 288px（96 @3x）由 build_states.py 生成。
+   2026-08-27 用户重出了**带透明通道**的一套，一套图同时服务深浅两个主题 ——
+   不再需要按 [data-theme] 换图，也不再受限于只能铺在 --bg-1 上（上一版的底色
+   是烤进图里的，浅色版还带一层淡渐变，在白底上会露出方块）。主体自带轮廓光，
+   压在 #1c1c1c 上也认得出。 */
+.state-art {
+  flex: 0 0 auto; display: block; width: 96px; height: 96px;
+  background-repeat: no-repeat; background-position: center; background-size: contain;
+}
+.state-art[data-art="search"]   { background-image: url('illustrations/search.png'); }
+.state-art[data-art="login"]    { background-image: url('illustrations/login.png'); }
+.state-art[data-art="notfound"] { background-image: url('illustrations/notfound.png'); }
+.state-art[data-art="no_data"]  { background-image: url('illustrations/no_data.png'); }
+.state-art[data-art="loading"]  { background-image: url('illustrations/loading.png'); }
+.state-art[data-art="net_fail"] { background-image: url('illustrations/net_fail.png'); }
+
 /* ── Portfolio — holdings ─────────────────────────────────
    概览采用单块账本式布局；持仓行的视觉抄 .fx-row（同款 tint 背景、
    hover/active/focus 处理），换成两行信息 + 徽标。 */
@@ -555,13 +578,79 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .portfolio-overview-change.is-gain { color: var(--gain); }
 .portfolio-overview-change.is-loss { color: var(--loss); }
 .portfolio-overview-change.is-flat { color: var(--flat); }
-.portfolio-sparkline { width: 100%; height: 72px; overflow: visible; color: var(--ink-20); }
-.portfolio-sparkline path {
-  fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
+/* ── 总资产走势图 ──────────────────────────────────────────
+   点开概览卡右侧那条迷你曲线展开大图。两张图共用 portfolioValueSeries()
+   算出来的同一条 7 天序列，只是取样密度和留白不同，不会各画各的。 */
+.portfolio-sparkline-btn[hidden] { display: none; }
+/* 迷你曲线收起后，大数字那一列自己撑满整行。 */
+.portfolio-summary.is-expanded .portfolio-overview { grid-template-columns: minmax(0, 1fr); }
+/* 长按扫描时这行会从「总盈亏 +$x (+y%)」换成更长的「较 7 天前 …」，窄屏上
+   多折一行就会把下面整张图往下顶。展开态先把两行的高度占住，手势中途不跳。 */
+.portfolio-summary.is-expanded .portfolio-overview-change { min-height: 32px; align-content: start; }
+.portfolio-sparkline-btn {
+  display: block; width: 100%; padding: 0; border: 0; border-radius: 12px;
+  background: none; color: inherit; cursor: pointer;
+  transition-property: opacity; transition-duration: 150ms;
 }
+@media (hover: hover) { .portfolio-sparkline-btn:hover { opacity: .7; } }
+.portfolio-sparkline-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+.portfolio-sparkline { display: block; width: 100%; height: 72px; color: var(--ink-20); }
 .portfolio-sparkline.is-gain { color: var(--gain); }
 .portfolio-sparkline.is-loss { color: var(--loss); }
 .portfolio-sparkline.is-flat { color: var(--flat); }
+
+.portfolio-chart-panel[hidden] { display: none; }
+.portfolio-chart-panel { padding-block-start: 4px; }
+/* 时间戳常驻占位，长按时才点亮 —— 否则它一出现整块图会往下跳 2 行。
+   区间最高值不在这一行，而是画在画布里它自己的位置上（见 app.js 的峰值标注）。 */
+.portfolio-chart-stamp {
+  margin: 0 0 6px; text-align: center; white-space: nowrap;
+  color: var(--ink-20); font-size: 12px; line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  transition-property: color; transition-duration: 150ms;
+}
+.portfolio-chart-stamp.is-active { color: var(--ink-40); }
+.portfolio-chart-wrap[hidden] { display: none; }
+.portfolio-chart-wrap { position: relative; height: 188px; }
+/* 长按扫描要能横向拖动而不触发纵向滚动：pan-y 先放行滚动，真正进入扫描后
+   由 JS 在 touchmove 上 preventDefault（见 app.js 里的长按判定）。 */
+#pf-chart { display: block; width: 100%; height: 100%; touch-action: pan-y; }
+.portfolio-chart-axis[hidden] { display: none; }
+.portfolio-chart-axis {
+  display: flex; justify-content: space-between; padding-block-start: 2px;
+  color: var(--ink-20); font-size: 11px; line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+/* 日 / 周 / 月 / 年。样式对齐持仓表单里那组「加仓 / 减仓」按钮式分段控件
+   （.holding-adjustment-segmented），不用 .segmented —— 那一套是 input+span
+   的单选实现，四个选项要写四个隐藏 input，这里的按钮是脚本渲染的。 */
+.portfolio-chart-ranges {
+  grid-template-columns: repeat(4, minmax(0, 1fr)); margin-block-start: 12px;
+}
+.portfolio-chart-ranges > button {
+  min-height: 32px; border: 0; border-radius: 9px; background: transparent; color: var(--ink-40);
+  font: inherit; font-size: 13px; line-height: 18px; font-weight: 600; cursor: pointer;
+  transition-property: color, background-color; transition-duration: 150ms;
+}
+.portfolio-chart-ranges > button.is-active { background: var(--segment-active); color: var(--ink); }
+.portfolio-chart-ranges > button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+@media (hover: hover) { .portfolio-chart-ranges > button:not(.is-active):hover { color: var(--ink); } }
+.portfolio-chart-empty[hidden] { display: none; }
+.portfolio-chart-empty {
+  margin: 0; padding-block: 40px; text-align: center;
+  color: var(--ink-40); font-size: 13px; line-height: 18px;
+}
+/* 展开/收起的小箭头。它和迷你曲线控制同一件事，所以对读屏隐藏，避免同一个
+   开关被念两遍；键盘和读屏走 .portfolio-sparkline-btn 那一个。 */
+.portfolio-chart-handle {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 24px; margin-block-start: 2px; padding: 0;
+  border: 0; background: none; color: var(--ink-20); cursor: pointer;
+  transition-property: color; transition-duration: 150ms;
+}
+.portfolio-chart-handle > i { font-size: 20px; line-height: 1; transition: transform 200ms ease; }
+.portfolio-chart-handle.is-expanded > i { transform: rotate(180deg); }
+@media (hover: hover) { .portfolio-chart-handle:hover { color: var(--ink-40); } }
 
 /* ── 快捷添加 ──────────────────────────────────────────────
    价格/涨跌复用顶部 ticker 正在轮询的 marketAssets，不额外发请求。涨跌配色
@@ -636,7 +725,12 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .merge-holdings-control input:focus-visible + .remix-checkbox-icon { outline: 2px solid var(--ink); outline-offset: 2px; }
 .holdings-list { display: flex; flex-direction: column; gap: 8px; }
 .holdings-list[hidden] { display: none; }
-.holdings-empty { margin: 0; padding-block: 16px 8px; color: var(--ink-40); font-size: 13px; line-height: 1.5; text-align: center; }
+.holdings-empty {
+  margin: 0; padding-block: 20px 12px; display: flex; flex-direction: column; align-items: center; gap: 10px;
+  color: var(--ink-40); font-size: 13px; line-height: 1.5; text-align: center;
+}
+.holdings-empty[hidden] { display: none; }
+.holdings-empty > p { margin: 0; }
 /* 三列网格：logo | 主信息 | 金额。以前是 flex，带股息日期的行还要开 flex-wrap
    才放得下那条 100% 宽的日期带 —— 副作用是主信息一长，右边的金额整块被挤到
    下一行去（2026-08-25 的 MSTR 就是这么烂掉的）。网格里日期带自己占满一行，
@@ -895,12 +989,11 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .sheet-footer .calculate-btn { width: 100%; }
 .profile-sheet-body { display: flex; flex-direction: column; gap: 16px; }
 .profile-avatar-field { display: flex; flex-direction: column; }
-/* 固定 6 列而不是 auto-fill：12 个头像正好排成两整行，列数随宽度变的话最后
-   一行会剩下参差的两三个。 */
-.profile-avatar-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+/* 固定 3 列：2026-08-27 头像从 12 个图标换成 9 张猫脸，3×3 正好排满，和猫弹层
+   那个九宫格也是同一个形状。列数随宽度变的话最后一行会剩下参差的一两个。 */
+.profile-avatar-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 /* 圆形是因为它就是头像：顶栏那个 28px 的圆点，在这里放大成可选项。
-   底色是各自的身份色（JS 写在 style 上），所以选中态不能再靠换底色表达 ——
-   改成一圈描边。 */
+   现在每一格都是一张图，选中态靠一圈描边表达（换底色对图片没有意义）。 */
 .profile-avatar-option {
   position: relative; aspect-ratio: 1; min-width: 0; cursor: pointer;
   transition-property: scale; transition-duration: 150ms;
@@ -913,7 +1006,16 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 /* 登录账号退成退出按钮下面的一行小字：它是「确认自己是谁」用的，不是操作。 */
 .profile-account-line { margin: -8px 0 0; color: var(--ink-40); font-size: 11px; line-height: 16px; text-align: center; }
 .profile-signed-in[hidden], .profile-guest-note[hidden] { display: none; }
-.profile-guest-note { margin: 0; padding-block: 8px; color: var(--ink-40); font-size: 13px; line-height: 20px; }
+/* 未登录版的弹层原来只有一行字加一颗按钮，中间空一大片。补上云上那只猫，
+   和持仓页门禁用的是同一张，两处「要登录」说的是同一件事。
+   注意 [hidden] 要靠上面那条组合选择器兜住 —— display:flex 会盖过 UA 默认的
+   [hidden]，这是本文件里第四次踩这个坑。 */
+.profile-guest-note {
+  margin: 0; padding-block: 8px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  color: var(--ink-40); font-size: 13px; line-height: 20px; text-align: center;
+}
+.profile-guest-note > p { margin: 0; max-width: 30ch; }
 .profile-signout-btn {
   min-height: 44px; padding: 0 16px; border: 0; border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--loss) 10%, transparent); color: var(--loss);
@@ -993,6 +1095,16 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 }
 .holding-adjustment-segmented button.is-active { background: var(--segment-active); color: var(--ink); }
 .holding-adjustment-segmented button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.holding-adjustment-qty-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.holding-adjustment-all[hidden] { display: none; }
+/* 「全部」是一键填满当前持有数量，等于清仓。做成文字按钮而不是第三个分段项：
+   它是 减仓 的一个快捷方式，不是和 加仓/减仓 并列的第三种模式。 */
+.holding-adjustment-all {
+  position: relative; padding: 0; border: 0; background: none; color: var(--accent);
+  font: inherit; font-size: 12px; line-height: 16px; font-weight: 600; cursor: pointer;
+}
+.holding-adjustment-all::after { content: ""; position: absolute; inset: -8px -6px; }
+.holding-adjustment-all:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
 .holding-adjustment-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .holding-adjustment-grid .input-shell { padding-inline: 12px; }
 .holding-adjustment-submit {
@@ -1027,9 +1139,12 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .holding-date-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .holding-date-grid .input-shell { padding-inline: 12px; }
 @media (max-width: 359px) { .holding-date-grid { grid-template-columns: 1fr; gap: 16px; } }
+/* 2026-08-27 一并去蓝：这块预览条是持仓面板里唯一剩下的大面积蓝底，和上面
+   两处（.metric / .fx-row）同一个理由。--yield-note-* 三个 token 到此没人用了，
+   留着是因为深色那份的推导过程还有参考价值。 */
 .holding-yield-preview {
-  margin: 0; padding: 10px 12px; border: 1px solid var(--yield-note-edge); border-radius: 12px;
-  background: var(--yield-note-bg); color: var(--yield-note-text);
+  margin: 0; padding: 10px 12px; border: 1px solid var(--ink-10); border-radius: 12px;
+  background: var(--ink-4); color: var(--ink-80);
   font-size: 12px; line-height: 18px; font-variant-numeric: tabular-nums;
 }
 
@@ -1266,7 +1381,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 8px; color: var(--ink-40); text-align: center;
 }
-.asset-search-state > i { margin-bottom: 4px; font-size: 28px; line-height: 1; }
+.asset-search-state > .state-art { margin-bottom: 4px; }
 .asset-search-state p { margin: 0; color: var(--ink); font-size: 14px; line-height: 20px; font-weight: 600; }
 .asset-search-state span { max-width: 280px; font-size: 12px; line-height: 18px; }
 .asset-search-list { display: flex; flex-direction: column; }
