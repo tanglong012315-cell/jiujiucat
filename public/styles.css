@@ -395,7 +395,14 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
    且没写偏移，没有定位祖先时会一路逃到初始包含块，iOS 上聚焦这种控件会引发
    莫名其妙的滚动。 */
 .segmented { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px; border-radius: 12px; background: var(--ink-4); }
-.segmented input { position: absolute; opacity: 0; pointer-events: none; }
+/* 显式写死偏移和尺寸：原来只有 position:absolute，没有 inset 也没有宽高，盒子
+   会退回原生 radio 的固有尺寸并落在「静态位置」上。录屏里量到的异常间距正好长
+   在分段控件与按钮之间（约 21px，反复出现又消失），这两个盒子是那一段里仅有的
+   变数之一，钉死后它们不可能再向任何方向贡献尺寸。 */
+.segmented input {
+  position: absolute; top: 0; left: 0; width: 1px; height: 1px; margin: 0;
+  opacity: 0; pointer-events: none;
+}
 .segmented span {
   position: relative; min-width: 0; height: 36px; display: grid; place-items: center;
   border-radius: 8px; color: var(--ink-40); background: transparent;
