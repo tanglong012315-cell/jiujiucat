@@ -185,6 +185,10 @@ img { max-width: 100%; }
 .topbar {
   max-width: 1080px; margin-inline: auto;
   padding: 20px 28px 28px;
+  /* viewport-fit=cover 让页面铺满整块屏，所以横向要自己躲开刘海（横屏），
+     顶部要躲开状态栏（加到主屏后的独立窗口；浏览器里这个值是 0）。 */
+  padding-top: calc(20px + env(safe-area-inset-top));
+  padding-inline: max(28px, env(safe-area-inset-left)) max(28px, env(safe-area-inset-right));
   display: flex; align-items: center; gap: 8px 20px;
   border-block-end: 1px solid var(--ink-10);
 }
@@ -301,7 +305,10 @@ img { max-width: 100%; }
 
 /* Content begins 16px below the header rule; sections use a 32/16 rhythm:
    32px between modules, 16px within a module. */
-.shell { max-width: 1080px; margin-inline: auto; padding: 16px 28px 28px; }
+.shell {
+  max-width: 1080px; margin-inline: auto; padding: 16px 28px 28px;
+  padding-inline: max(28px, env(safe-area-inset-left)) max(28px, env(safe-area-inset-right));
+}
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--gap-grid); }
 /* `display: grid` outranks the [hidden] UA rule, so inactive panels need this. */
 .workspace[hidden] { display: none; }
@@ -1479,7 +1486,10 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   inset-inline: 0; bottom: 0;
   display: flex; align-items: stretch; justify-content: center;
   height: calc(64px + env(safe-area-inset-bottom));
+  /* 条压在安全区之上（Home Indicator / 横屏刘海），内容用 padding 顶回去：
+     玻璃仍然铺满到屏幕物理边缘，图标和文字不会被挡。 */
   padding-bottom: env(safe-area-inset-bottom);
+  padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
   border-top: 1px solid var(--ink-10);
   background: var(--glass-bg);
   backdrop-filter: var(--glass-filter);
@@ -1511,8 +1521,16 @@ body { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
 }
 
 @media (max-width: 767px) {
-  .topbar { padding: 16px; gap: 8px 12px; }
-  .shell { padding: 16px; }
+  /* 简写会把上面按 safe-area 算出来的四边一起重置，所以这两条要连安全区一起重写。 */
+  .topbar {
+    padding: 16px; gap: 8px 12px;
+    padding-top: calc(16px + env(safe-area-inset-top));
+    padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
+  }
+  .shell {
+    padding: 16px;
+    padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
+  }
   .card { padding: 16px; }
   #panel-retirement > .calculator { padding: 16px; }
   .metric { padding: 10px 12px; }

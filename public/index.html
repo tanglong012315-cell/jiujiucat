@@ -2,7 +2,9 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- viewport-fit=cover 是 env(safe-area-inset-*) 生效的前提：不写这个，iOS 上
+       所有 safe-area 变量恒为 0，底部导航就会顶到 Home Indicator 上。 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#FFFFFF" />
   <title>PawFolio</title>
   <meta name="description" content="PawFolio 陪你算钱：投资收益计算、持仓管理、实时汇率换算。" />
@@ -31,7 +33,7 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=118" />
+  <link rel="stylesheet" href="styles.css?v=119" />
 </head>
 <body>
   <div class="app-splash" id="app-splash" aria-hidden="true"></div>
