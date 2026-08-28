@@ -1,0 +1,649 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A00000000000000000000201 /* PawFolioApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000101 /* PawFolioApp.swift */; };
+		A00000000000000000000202 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000102 /* RootTabView.swift */; };
+		A00000000000000000000203 /* PawTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000103 /* PawTheme.swift */; };
+		A00000000000000000000204 /* InvestmentCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000104 /* InvestmentCalculator.swift */; };
+		A00000000000000000000205 /* CalculatorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000105 /* CalculatorViewModel.swift */; };
+		A00000000000000000000206 /* CalculatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000106 /* CalculatorView.swift */; };
+		A00000000000000000000207 /* PortfolioView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000107 /* PortfolioView.swift */; };
+		A00000000000000000000208 /* ExchangeRateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000108 /* ExchangeRateView.swift */; };
+		A00000000000000000000209 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000109 /* Assets.xcassets */; };
+		A0000000000000000000020A /* InvestmentCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010A /* InvestmentCalculatorTests.swift */; };
+		A0000000000000000000020B /* ExchangeRate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010D /* ExchangeRate.swift */; };
+		A0000000000000000000020C /* ExchangeRateClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010E /* ExchangeRateClient.swift */; };
+		A0000000000000000000020D /* ExchangeRateViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010F /* ExchangeRateViewModel.swift */; };
+		A0000000000000000000020E /* ExchangeRateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000110 /* ExchangeRateTests.swift */; };
+		A0000000000000000000020F /* Holding.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000111 /* Holding.swift */; };
+		A00000000000000000000210 /* HoldingCompatibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000112 /* HoldingCompatibilityTests.swift */; };
+		A00000000000000000000211 /* HoldingRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000113 /* HoldingRepository.swift */; };
+		A00000000000000000000212 /* PortfolioViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000114 /* PortfolioViewModel.swift */; };
+		A00000000000000000000213 /* HoldingEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000115 /* HoldingEditorView.swift */; };
+		A00000000000000000000214 /* HoldingRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000116 /* HoldingRepositoryTests.swift */; };
+		A00000000000000000000215 /* HoldingValuation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000117 /* HoldingValuation.swift */; };
+		A00000000000000000000216 /* HoldingValuationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000118 /* HoldingValuationTests.swift */; };
+		A00000000000000000000217 /* MarketData.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000119 /* MarketData.swift */; };
+		A00000000000000000000218 /* MarketDataClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000011A /* MarketDataClient.swift */; };
+		A00000000000000000000219 /* MarketQuoteRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000011B /* MarketQuoteRepository.swift */; };
+		A0000000000000000000021A /* AssetSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000011C /* AssetSearchView.swift */; };
+		A0000000000000000000021B /* MarketDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000011D /* MarketDataTests.swift */; };
+		A0000000000000000000021C /* HoldingPositionAdjustment.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000011E /* HoldingPositionAdjustment.swift */; };
+		A0000000000000000000021D /* HoldingPositionAdjustmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000011F /* HoldingPositionAdjustmentTests.swift */; };
+		A0000000000000000000021E /* HoldingRecordMutation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000120 /* HoldingRecordMutation.swift */; };
+		A0000000000000000000021F /* HoldingRecordMutationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000121 /* HoldingRecordMutationTests.swift */; };
+		A00000000000000000000220 /* HoldingDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000122 /* HoldingDetailView.swift */; };
+		A00000000000000000000221 /* DividendRecordEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000123 /* DividendRecordEditorView.swift */; };
+		A00000000000000000000222 /* PortfolioHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000124 /* PortfolioHistory.swift */; };
+		A00000000000000000000223 /* PortfolioHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000125 /* PortfolioHistoryTests.swift */; };
+		A00000000000000000000224 /* HoldingMerge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000126 /* HoldingMerge.swift */; };
+		A00000000000000000000225 /* CloudSyncContracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000127 /* CloudSyncContracts.swift */; };
+		A00000000000000000000226 /* HoldingMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000128 /* HoldingMergeTests.swift */; };
+		A00000000000000000000227 /* HoldingSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000129 /* HoldingSyncCoordinator.swift */; };
+		A00000000000000000000228 /* HoldingSyncCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000012A /* HoldingSyncCoordinatorTests.swift */; };
+		A00000000000000000000229 /* GuestImportDecisionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000012B /* GuestImportDecisionStore.swift */; };
+		A0000000000000000000022A /* AccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000012C /* AccountViewModel.swift */; };
+		A0000000000000000000022B /* AccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000012D /* AccountView.swift */; };
+		A0000000000000000000022C /* AccountViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000012E /* AccountViewModelTests.swift */; };
+		A0000000000000000000022D /* GuestImportDecisionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000012F /* GuestImportDecisionStoreTests.swift */; };
+		A0000000000000000000022E /* SupabaseServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000130 /* SupabaseServices.swift */; };
+		A0000000000000000000022F /* KeychainSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000131 /* KeychainSessionStore.swift */; };
+		A00000000000000000000230 /* SystemOAuthAuthorizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000132 /* SystemOAuthAuthorizer.swift */; };
+		A00000000000000000000231 /* SupabaseServicesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000134 /* SupabaseServicesTests.swift */; };
+		A00000000000000000000232 /* AccountProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000135 /* AccountProfileStore.swift */; };
+		A00000000000000000000233 /* AccountProfileStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000136 /* AccountProfileStoreTests.swift */; };
+		A00000000000000000000234 /* ProfileSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000137 /* ProfileSyncCoordinator.swift */; };
+		A00000000000000000000235 /* ProfileSyncCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000138 /* ProfileSyncCoordinatorTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A00000000000000000000404 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A00000000000000000000401;
+			remoteInfo = PawFolio;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		A00000000000000000000101 /* PawFolioApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PawFolioApp.swift; sourceTree = "<group>"; };
+		A00000000000000000000102 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		A00000000000000000000103 /* PawTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PawTheme.swift; sourceTree = "<group>"; };
+		A00000000000000000000104 /* InvestmentCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvestmentCalculator.swift; sourceTree = "<group>"; };
+		A00000000000000000000105 /* CalculatorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculatorViewModel.swift; sourceTree = "<group>"; };
+		A00000000000000000000106 /* CalculatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculatorView.swift; sourceTree = "<group>"; };
+		A00000000000000000000107 /* PortfolioView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioView.swift; sourceTree = "<group>"; };
+		A00000000000000000000108 /* ExchangeRateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExchangeRateView.swift; sourceTree = "<group>"; };
+		A00000000000000000000109 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A0000000000000000000010A /* InvestmentCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvestmentCalculatorTests.swift; sourceTree = "<group>"; };
+		A0000000000000000000010B /* PawFolio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PawFolio.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A0000000000000000000010C /* PawFolioTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PawFolioTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A0000000000000000000010D /* ExchangeRate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExchangeRate.swift; sourceTree = "<group>"; };
+		A0000000000000000000010E /* ExchangeRateClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExchangeRateClient.swift; sourceTree = "<group>"; };
+		A0000000000000000000010F /* ExchangeRateViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExchangeRateViewModel.swift; sourceTree = "<group>"; };
+		A00000000000000000000110 /* ExchangeRateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExchangeRateTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000111 /* Holding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Holding.swift; sourceTree = "<group>"; };
+		A00000000000000000000112 /* HoldingCompatibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingCompatibilityTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000113 /* HoldingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingRepository.swift; sourceTree = "<group>"; };
+		A00000000000000000000114 /* PortfolioViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioViewModel.swift; sourceTree = "<group>"; };
+		A00000000000000000000115 /* HoldingEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingEditorView.swift; sourceTree = "<group>"; };
+		A00000000000000000000116 /* HoldingRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingRepositoryTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000117 /* HoldingValuation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingValuation.swift; sourceTree = "<group>"; };
+		A00000000000000000000118 /* HoldingValuationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingValuationTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000119 /* MarketData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketData.swift; sourceTree = "<group>"; };
+		A0000000000000000000011A /* MarketDataClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketDataClient.swift; sourceTree = "<group>"; };
+		A0000000000000000000011B /* MarketQuoteRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketQuoteRepository.swift; sourceTree = "<group>"; };
+		A0000000000000000000011C /* AssetSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetSearchView.swift; sourceTree = "<group>"; };
+		A0000000000000000000011D /* MarketDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketDataTests.swift; sourceTree = "<group>"; };
+		A0000000000000000000011E /* HoldingPositionAdjustment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingPositionAdjustment.swift; sourceTree = "<group>"; };
+		A0000000000000000000011F /* HoldingPositionAdjustmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingPositionAdjustmentTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000120 /* HoldingRecordMutation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingRecordMutation.swift; sourceTree = "<group>"; };
+		A00000000000000000000121 /* HoldingRecordMutationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingRecordMutationTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000122 /* HoldingDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingDetailView.swift; sourceTree = "<group>"; };
+		A00000000000000000000123 /* DividendRecordEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DividendRecordEditorView.swift; sourceTree = "<group>"; };
+		A00000000000000000000124 /* PortfolioHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioHistory.swift; sourceTree = "<group>"; };
+		A00000000000000000000125 /* PortfolioHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioHistoryTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000126 /* HoldingMerge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingMerge.swift; sourceTree = "<group>"; };
+		A00000000000000000000127 /* CloudSyncContracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncContracts.swift; sourceTree = "<group>"; };
+		A00000000000000000000128 /* HoldingMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingMergeTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000129 /* HoldingSyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingSyncCoordinator.swift; sourceTree = "<group>"; };
+		A0000000000000000000012A /* HoldingSyncCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingSyncCoordinatorTests.swift; sourceTree = "<group>"; };
+		A0000000000000000000012B /* GuestImportDecisionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuestImportDecisionStore.swift; sourceTree = "<group>"; };
+		A0000000000000000000012C /* AccountViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountViewModel.swift; sourceTree = "<group>"; };
+		A0000000000000000000012D /* AccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountView.swift; sourceTree = "<group>"; };
+		A0000000000000000000012E /* AccountViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountViewModelTests.swift; sourceTree = "<group>"; };
+		A0000000000000000000012F /* GuestImportDecisionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuestImportDecisionStoreTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000130 /* SupabaseServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseServices.swift; sourceTree = "<group>"; };
+		A00000000000000000000131 /* KeychainSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainSessionStore.swift; sourceTree = "<group>"; };
+		A00000000000000000000132 /* SystemOAuthAuthorizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemOAuthAuthorizer.swift; sourceTree = "<group>"; };
+		A00000000000000000000133 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A00000000000000000000134 /* SupabaseServicesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseServicesTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000135 /* AccountProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountProfileStore.swift; sourceTree = "<group>"; };
+		A00000000000000000000136 /* AccountProfileStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountProfileStoreTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000137 /* ProfileSyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSyncCoordinator.swift; sourceTree = "<group>"; };
+		A00000000000000000000138 /* ProfileSyncCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSyncCoordinatorTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A00000000000000000000301 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A00000000000000000000302 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A00000000000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000004 /* PawFolio */,
+				A0000000000000000000000D /* PawFolioTests */,
+				A00000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A00000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A0000000000000000000010B /* PawFolio.app */,
+				A0000000000000000000010C /* PawFolioTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000004 /* PawFolio */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000005 /* App */,
+				A00000000000000000000006 /* DesignSystem */,
+				A00000000000000000000007 /* Domain */,
+				A0000000000000000000000E /* Data */,
+				A00000000000000000000008 /* Features */,
+				A0000000000000000000000C /* Resources */,
+			);
+			path = PawFolio;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000005 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000101 /* PawFolioApp.swift */,
+				A00000000000000000000102 /* RootTabView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000006 /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000103 /* PawTheme.swift */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000007 /* Domain */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000104 /* InvestmentCalculator.swift */,
+				A0000000000000000000010D /* ExchangeRate.swift */,
+				A00000000000000000000111 /* Holding.swift */,
+				A00000000000000000000117 /* HoldingValuation.swift */,
+				A0000000000000000000011E /* HoldingPositionAdjustment.swift */,
+				A00000000000000000000120 /* HoldingRecordMutation.swift */,
+				A00000000000000000000119 /* MarketData.swift */,
+				A00000000000000000000124 /* PortfolioHistory.swift */,
+				A00000000000000000000126 /* HoldingMerge.swift */,
+			);
+			path = Domain;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000008 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000009 /* Calculator */,
+				A0000000000000000000000A /* Portfolio */,
+				A0000000000000000000000B /* ExchangeRate */,
+				A0000000000000000000000F /* Account */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		A0000000000000000000000E /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				A0000000000000000000010E /* ExchangeRateClient.swift */,
+				A00000000000000000000113 /* HoldingRepository.swift */,
+				A0000000000000000000011A /* MarketDataClient.swift */,
+				A0000000000000000000011B /* MarketQuoteRepository.swift */,
+				A00000000000000000000127 /* CloudSyncContracts.swift */,
+				A00000000000000000000130 /* SupabaseServices.swift */,
+				A00000000000000000000131 /* KeychainSessionStore.swift */,
+				A00000000000000000000129 /* HoldingSyncCoordinator.swift */,
+				A0000000000000000000012B /* GuestImportDecisionStore.swift */,
+				A00000000000000000000135 /* AccountProfileStore.swift */,
+				A00000000000000000000137 /* ProfileSyncCoordinator.swift */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000009 /* Calculator */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000105 /* CalculatorViewModel.swift */,
+				A00000000000000000000106 /* CalculatorView.swift */,
+			);
+			path = Calculator;
+			sourceTree = "<group>";
+		};
+		A0000000000000000000000A /* Portfolio */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000114 /* PortfolioViewModel.swift */,
+				A00000000000000000000107 /* PortfolioView.swift */,
+				A00000000000000000000115 /* HoldingEditorView.swift */,
+				A0000000000000000000011C /* AssetSearchView.swift */,
+				A00000000000000000000122 /* HoldingDetailView.swift */,
+				A00000000000000000000123 /* DividendRecordEditorView.swift */,
+			);
+			path = Portfolio;
+			sourceTree = "<group>";
+		};
+		A0000000000000000000000B /* ExchangeRate */ = {
+			isa = PBXGroup;
+			children = (
+				A0000000000000000000010F /* ExchangeRateViewModel.swift */,
+				A00000000000000000000108 /* ExchangeRateView.swift */,
+			);
+			path = ExchangeRate;
+			sourceTree = "<group>";
+		};
+		A0000000000000000000000F /* Account */ = {
+			isa = PBXGroup;
+			children = (
+				A0000000000000000000012C /* AccountViewModel.swift */,
+				A0000000000000000000012D /* AccountView.swift */,
+				A00000000000000000000132 /* SystemOAuthAuthorizer.swift */,
+			);
+			path = Account;
+			sourceTree = "<group>";
+		};
+		A0000000000000000000000C /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000109 /* Assets.xcassets */,
+				A00000000000000000000133 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		A0000000000000000000000D /* PawFolioTests */ = {
+			isa = PBXGroup;
+			children = (
+				A0000000000000000000010A /* InvestmentCalculatorTests.swift */,
+				A00000000000000000000110 /* ExchangeRateTests.swift */,
+				A00000000000000000000112 /* HoldingCompatibilityTests.swift */,
+				A00000000000000000000116 /* HoldingRepositoryTests.swift */,
+				A00000000000000000000118 /* HoldingValuationTests.swift */,
+				A0000000000000000000011F /* HoldingPositionAdjustmentTests.swift */,
+				A00000000000000000000121 /* HoldingRecordMutationTests.swift */,
+				A0000000000000000000011D /* MarketDataTests.swift */,
+				A00000000000000000000125 /* PortfolioHistoryTests.swift */,
+				A00000000000000000000128 /* HoldingMergeTests.swift */,
+				A0000000000000000000012A /* HoldingSyncCoordinatorTests.swift */,
+				A0000000000000000000012E /* AccountViewModelTests.swift */,
+				A0000000000000000000012F /* GuestImportDecisionStoreTests.swift */,
+				A00000000000000000000134 /* SupabaseServicesTests.swift */,
+				A00000000000000000000136 /* AccountProfileStoreTests.swift */,
+				A00000000000000000000138 /* ProfileSyncCoordinatorTests.swift */,
+			);
+			path = PawFolioTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A00000000000000000000401 /* PawFolio */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000502 /* Build configuration list for PBXNativeTarget "PawFolio" */;
+			buildPhases = (
+				A00000000000000000000303 /* Sources */,
+				A00000000000000000000301 /* Frameworks */,
+				A00000000000000000000305 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PawFolio;
+			productName = PawFolio;
+			productReference = A0000000000000000000010B /* PawFolio.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A00000000000000000000402 /* PawFolioTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000503 /* Build configuration list for PBXNativeTarget "PawFolioTests" */;
+			buildPhases = (
+				A00000000000000000000304 /* Sources */,
+				A00000000000000000000302 /* Frameworks */,
+				A00000000000000000000306 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A00000000000000000000403 /* PBXTargetDependency */,
+			);
+			name = PawFolioTests;
+			productName = PawFolioTests;
+			productReference = A0000000000000000000010C /* PawFolioTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A00000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2660;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					A00000000000000000000401 = {
+						CreatedOnToolsVersion = 26.0;
+					};
+					A00000000000000000000402 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = A00000000000000000000401;
+					};
+				};
+			};
+			buildConfigurationList = A00000000000000000000501 /* Build configuration list for PBXProject "PawFolio" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				zh-Hans,
+			);
+			mainGroup = A00000000000000000000002;
+			productRefGroup = A00000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A00000000000000000000401 /* PawFolio */,
+				A00000000000000000000402 /* PawFolioTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A00000000000000000000305 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000209 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A00000000000000000000306 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A00000000000000000000303 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000201 /* PawFolioApp.swift in Sources */,
+				A00000000000000000000202 /* RootTabView.swift in Sources */,
+				A00000000000000000000203 /* PawTheme.swift in Sources */,
+				A00000000000000000000204 /* InvestmentCalculator.swift in Sources */,
+				A00000000000000000000205 /* CalculatorViewModel.swift in Sources */,
+				A00000000000000000000206 /* CalculatorView.swift in Sources */,
+				A00000000000000000000207 /* PortfolioView.swift in Sources */,
+				A00000000000000000000208 /* ExchangeRateView.swift in Sources */,
+				A0000000000000000000020B /* ExchangeRate.swift in Sources */,
+				A0000000000000000000020C /* ExchangeRateClient.swift in Sources */,
+				A0000000000000000000020D /* ExchangeRateViewModel.swift in Sources */,
+				A0000000000000000000020F /* Holding.swift in Sources */,
+				A00000000000000000000211 /* HoldingRepository.swift in Sources */,
+				A00000000000000000000212 /* PortfolioViewModel.swift in Sources */,
+				A00000000000000000000213 /* HoldingEditorView.swift in Sources */,
+				A00000000000000000000215 /* HoldingValuation.swift in Sources */,
+				A00000000000000000000217 /* MarketData.swift in Sources */,
+				A00000000000000000000218 /* MarketDataClient.swift in Sources */,
+				A00000000000000000000219 /* MarketQuoteRepository.swift in Sources */,
+				A0000000000000000000021A /* AssetSearchView.swift in Sources */,
+				A0000000000000000000021C /* HoldingPositionAdjustment.swift in Sources */,
+				A0000000000000000000021E /* HoldingRecordMutation.swift in Sources */,
+				A00000000000000000000220 /* HoldingDetailView.swift in Sources */,
+				A00000000000000000000221 /* DividendRecordEditorView.swift in Sources */,
+				A00000000000000000000222 /* PortfolioHistory.swift in Sources */,
+				A00000000000000000000224 /* HoldingMerge.swift in Sources */,
+				A00000000000000000000225 /* CloudSyncContracts.swift in Sources */,
+				A00000000000000000000227 /* HoldingSyncCoordinator.swift in Sources */,
+				A00000000000000000000229 /* GuestImportDecisionStore.swift in Sources */,
+				A0000000000000000000022A /* AccountViewModel.swift in Sources */,
+				A0000000000000000000022B /* AccountView.swift in Sources */,
+				A0000000000000000000022E /* SupabaseServices.swift in Sources */,
+				A0000000000000000000022F /* KeychainSessionStore.swift in Sources */,
+				A00000000000000000000230 /* SystemOAuthAuthorizer.swift in Sources */,
+				A00000000000000000000232 /* AccountProfileStore.swift in Sources */,
+				A00000000000000000000234 /* ProfileSyncCoordinator.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A00000000000000000000304 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A0000000000000000000020A /* InvestmentCalculatorTests.swift in Sources */,
+				A0000000000000000000020E /* ExchangeRateTests.swift in Sources */,
+				A00000000000000000000210 /* HoldingCompatibilityTests.swift in Sources */,
+				A00000000000000000000214 /* HoldingRepositoryTests.swift in Sources */,
+				A00000000000000000000216 /* HoldingValuationTests.swift in Sources */,
+				A0000000000000000000021B /* MarketDataTests.swift in Sources */,
+				A0000000000000000000021D /* HoldingPositionAdjustmentTests.swift in Sources */,
+				A0000000000000000000021F /* HoldingRecordMutationTests.swift in Sources */,
+				A00000000000000000000223 /* PortfolioHistoryTests.swift in Sources */,
+				A00000000000000000000226 /* HoldingMergeTests.swift in Sources */,
+				A00000000000000000000228 /* HoldingSyncCoordinatorTests.swift in Sources */,
+				A0000000000000000000022C /* AccountViewModelTests.swift in Sources */,
+				A0000000000000000000022D /* GuestImportDecisionStoreTests.swift in Sources */,
+				A00000000000000000000231 /* SupabaseServicesTests.swift in Sources */,
+				A00000000000000000000233 /* AccountProfileStoreTests.swift in Sources */,
+				A00000000000000000000235 /* ProfileSyncCoordinatorTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A00000000000000000000403 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A00000000000000000000401 /* PawFolio */;
+			targetProxy = A00000000000000000000404 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		A00000000000000000000601 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A00000000000000000000602 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		A00000000000000000000603 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PawFolio/Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PawFolio;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jiujiucat.pawfolio;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A00000000000000000000604 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PawFolio/Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PawFolio;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jiujiucat.pawfolio;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		A00000000000000000000605 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.jiujiucat.pawfolio.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PawFolio.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PawFolio";
+			};
+			name = Debug;
+		};
+		A00000000000000000000606 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.jiujiucat.pawfolio.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PawFolio.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PawFolio";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A00000000000000000000501 /* Build configuration list for PBXProject "PawFolio" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00000000000000000000601 /* Debug */,
+				A00000000000000000000602 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A00000000000000000000502 /* Build configuration list for PBXNativeTarget "PawFolio" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00000000000000000000603 /* Debug */,
+				A00000000000000000000604 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A00000000000000000000503 /* Build configuration list for PBXNativeTarget "PawFolioTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00000000000000000000605 /* Debug */,
+				A00000000000000000000606 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A00000000000000000000001 /* Project object */;
+}

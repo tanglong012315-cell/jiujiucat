@@ -4,3 +4,12 @@
 
 # Claude Code 本地设置（launch.json 是共享的预览配置，保留）
 .claude/settings.local.json
+
+# Swift/Xcode build products
+ios/.build/
+ios/DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# wrangler 本地缓存
+.wrangler/
