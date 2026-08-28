@@ -1110,6 +1110,13 @@ setInterval(() => renderMarketSession(marketAssets[currentMarketIndex]), 60000);
 // ══════════════════════════════════════════════════════════════════════
 
 const PORTFOLIO_KEY = 'jiujiucat-portfolio-holdings';
+const {
+  HOLDING_SCHEMA_VERSION,
+  holdingConflictStamp,
+  isHoldingDeleted,
+  mergeHoldings,
+  upgradeHoldingSchema
+} = window.PawFolioHoldingSync;
 // 曾经用 jiujiucat-portfolio-unlocked 记「解锁过就一直放行」，结果是点过一次
 // 「先用本地版」的人再也回不到登录页。现在持仓只认真实会话，这里把历史遗留的
 // 标记清掉，老用户下次进来一律回到登录页。
@@ -1227,10 +1234,11 @@ function loadHoldings() {
     const parsed = JSON.parse(localStorage.getItem(PORTFOLIO_KEY) || '[]');
     return Array.isArray(parsed) ? parsed.filter(item =>
       // 清仓超过 400 天的记录连「年」这一档都画不到了，留着只是占地方。
-      !item?.closedAt || Date.now() - Number(item.closedAt) < CLOSED_HOLDING_TTL
+      // 删除墓碑必须一直保留到未来有明确的服务端压缩策略，不能按清仓 TTL 清掉。
+      isHoldingDeleted(item) || !item?.closedAt || Date.now() - Number(item.closedAt) < CLOSED_HOLDING_TTL
     ).map(item => {
       const dividendRecords = normalizeDividendRecords(item);
-      return {
+      return upgradeHoldingSchema({
         ...item,
         ...normalizeAsset({
           symbol: item.symbol,
@@ -1249,7 +1257,7 @@ function loadHoldings() {
         interestSkips: Array.isArray(item.interestSkips) ? item.interestSkips.filter(date => typeof date === 'string') : [],
         dividendRecords,
         dividendRecordId: item.dividendRecordId || dividendRecords.at(-1)?.id || null
-      };
+      });
     }) : [];
   } catch {
     return [];
@@ -1270,8 +1278,11 @@ function resetHoldingFingerprints() {
 function saveHoldings() {
   const now = Date.now();
   for (const item of holdings) {
+    item.schemaVersion = Math.max(Number(item.schemaVersion) || 0, HOLDING_SCHEMA_VERSION);
     const print = holdingFingerprint(item);
-    if (holdingFingerprints.get(item.id) !== print) item.updatedAt = now;
+    if (holdingFingerprints.get(item.id) !== print) {
+      item.updatedAt = isHoldingDeleted(item) ? (Number(item.deletedAt) || now) : now;
+    }
     holdingFingerprints.set(item.id, print);
   }
   localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(holdings));
@@ -1672,7 +1683,7 @@ const PORTFOLIO_RANGE_KEY = 'jiujiu-portfolio-range';
 // 清仓后的持仓（closedAt）只为走势图保留历史，不再出现在列表、总资产和行情
 // 轮询里。所有面向「现在」的地方都走这个入口。
 function openHoldings() {
-  return holdings.filter(holding => !holding.closedAt);
+  return holdings.filter(holding => !isHoldingDeleted(holding) && !holding.closedAt);
 }
 
 function holdingQuantityAt(holding, time) {
@@ -1706,7 +1717,8 @@ function holdingPrincipalAt(holding, time) {
 // 已清仓的持仓（closedAt）不在列表和总资产里，但**必须留在这条线里**：卖出
 // 之前它是有价值的，抹掉它整段历史都会塌下去。
 function portfolioValueSeries(rangeKey = portfolioChart.range) {
-  if (!holdings.length) return null;
+  const retainedHoldings = holdings.filter(holding => !isHoldingDeleted(holding));
+  if (!retainedHoldings.length) return null;
   const range = PORTFOLIO_RANGES[rangeKey] || PORTFOLIO_RANGES.week;
   const now = Date.now();
   const count = range.points;
@@ -1718,7 +1730,7 @@ function portfolioValueSeries(rangeKey = portfolioChart.range) {
   let hasHistory = false;
   let coverageFrom = 0;
 
-  for (const holding of holdings) {
+  for (const holding of retainedHoldings) {
     // 建仓晚于窗口起点的持仓，在建仓之前对总资产没有贡献 —— 那道台阶是真的。
     const born = Number(holding.createdAt) || 0;
     if (born > times[0]) hasHistory = true;
@@ -1845,6 +1857,7 @@ function ensureLongHistory() {
   const targets = [];
   const seen = new Set();
   for (const holding of holdings) {
+    if (isHoldingDeleted(holding)) continue;
     if (holding.holdingKind === 'interest') continue;
     const quoteSymbol = holding.quoteSymbol || holding.symbol;
     if (seen.has(quoteSymbol)) continue;
@@ -3333,7 +3346,7 @@ function adjustInterestPrincipal(holding) {
 function creditStableProceeds(source, amount, time) {
   if (!(amount > 0)) return null;
   const existing = holdings.find(item =>
-    item.holdingKind === 'interest' && !item.closedAt &&
+    item.holdingKind === 'interest' && !item.closedAt && !isHoldingDeleted(item) &&
     String(item.symbol || '').toUpperCase() === 'USDT');
   const date = beijingDateString(time);
   if (existing) {
@@ -3935,10 +3948,12 @@ document.querySelector('#holding-delete-btn').addEventListener('click', () => {
   if (!holding) return;
   requestConfirmation({
     title: '删除持仓',
-    body: `删除后不可恢复，确定要删除 ${holding.symbol} 吗？`,
+    body: `删除后会从所有已同步设备隐藏，确定要删除 ${holding.symbol} 吗？`,
     confirmLabel: '删除持仓',
     action: () => {
-      holdings = holdings.filter(item => item.id !== holding.id);
+      const deletedAt = Date.now();
+      holding.deletedAt = deletedAt;
+      holding.updatedAt = deletedAt;
       saveHoldings();
       renderHoldings();
       closeHoldingSheet();
@@ -4516,23 +4531,17 @@ async function pullCloudHoldings() {
 }
 
 async function pushCloudHoldings() {
+  holdings = holdings.map(upgradeHoldingSchema);
   const rows = holdings.map(item => ({
     id: item.id,
     user_id: currentUser.id,
     payload: item,
-    updated_at: new Date(Number(item.updatedAt) || Date.now()).toISOString()
+    updated_at: new Date(holdingConflictStamp(item) || Date.now()).toISOString()
   }));
   if (rows.length) {
-    const { error } = await cloud.from('holdings').upsert(rows);
+    const { error } = await cloud.from('holdings').upsert(rows, { onConflict: 'user_id,id' });
     if (error) throw error;
   }
-  // 本地删掉的那些，云端也得跟着消失。id 是本地生成的 h_<时间戳>_<随机>，
-  // 这道字符校验只是防止意外内容拼进 PostgREST 的 in(...) 列表。
-  const keep = holdings.map(item => item.id).filter(id => /^[A-Za-z0-9_-]+$/.test(id));
-  let query = cloud.from('holdings').delete().eq('user_id', currentUser.id);
-  if (keep.length) query = query.not('id', 'in', `(${keep.join(',')})`);
-  const { error: deleteError } = await query;
-  if (deleteError) throw deleteError;
 }
 
 function queueCloudPush() {
@@ -4545,18 +4554,6 @@ function queueCloudPush() {
       reportSyncFailure('云端同步失败，改动已存在本机');
     }
   }, 800);
-}
-
-// 同一条持仓两边都改过时，updatedAt 新的赢；只在一边存在的直接收下。
-function mergeHoldings(local, remote) {
-  const stamp = item => Number(item.updatedAt) || Number(item.createdAt) || 0;
-  const byId = new Map();
-  for (const item of [...remote, ...local]) {
-    if (!item?.id) continue;
-    const existing = byId.get(item.id);
-    if (!existing || stamp(item) >= stamp(existing)) byId.set(item.id, item);
-  }
-  return [...byId.values()];
 }
 
 async function handleSignedIn(user) {

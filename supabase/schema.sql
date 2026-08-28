@@ -6,11 +6,17 @@
 -- 不用改数据库。代价是查不了「所有人的 AAPL 持仓」——这个 app 不需要。
 
 create table if not exists public.holdings (
-  id          text        primary key,
+  id          text        not null,
   user_id     uuid        not null references auth.users on delete cascade default auth.uid(),
   payload     jsonb       not null,
-  updated_at  timestamptz not null default now()
+  updated_at  timestamptz not null default now(),
+  primary key (user_id, id)
 );
+
+-- 旧版只用 id 做主键。迁移成账号 + 持仓 id 后，不同账号生成相同本地 id 也不会
+-- 互相冲突；重复执行本文件时仍会得到相同结果。
+alter table public.holdings drop constraint if exists holdings_pkey;
+alter table public.holdings add constraint holdings_pkey primary key (user_id, id);
 
 create index if not exists holdings_user_id_idx on public.holdings (user_id);
 
