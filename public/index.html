@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=119" />
+  <link rel="stylesheet" href="styles.css?v=120" />
 </head>
 <body>
   <div class="app-splash" id="app-splash" aria-hidden="true"></div>
@@ -103,13 +103,18 @@
             </div>
           </div>
 
-          <fieldset>
-            <legend class="field-label">计息方式</legend>
-            <div class="segmented" role="radiogroup">
+          <!-- 这里原本是 fieldset + legend。legend 是唯一一个各引擎盒模型都不一样的
+               元素（见 styles.css 里 legend.field-label 那条注释），而它的下沿正好是
+               「分段控件 ↔ 计算按钮」那段间距的上边；iOS 上报过这段间距首次进入时
+               被撑开、点一下才恢复。换成表单里另外两组用的 .field 结构，高度不变
+               （16 + 8 + 44 = 68），但不再依赖 legend 的特殊布局。 -->
+          <div class="field" role="radiogroup" aria-labelledby="interest-label">
+            <span class="field-label" id="interest-label">计息方式</span>
+            <div class="segmented">
               <label><input type="radio" name="interest" value="compound" checked /><span>复利</span></label>
               <label><input type="radio" name="interest" value="simple" /><span>单利</span></label>
             </div>
-          </fieldset>
+          </div>
 
           <button class="calculate-btn" type="submit">计算收益</button>
         </form>

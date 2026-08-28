@@ -391,7 +391,10 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
    (--segment-active, near-white in light) sits directly on the Block's
    near-identical #f9f9fa and reads as invisible. 12/8 with 4px padding
    keeps the radii concentric (8 + 4 = 12). */
-.segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px; border-radius: 12px; background: var(--ink-4); }
+/* position:relative 是给下面那两个 opacity:0 的 radio 兜底的：它们是 absolute
+   且没写偏移，没有定位祖先时会一路逃到初始包含块，iOS 上聚焦这种控件会引发
+   莫名其妙的滚动。 */
+.segmented { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px; border-radius: 12px; background: var(--ink-4); }
 .segmented input { position: absolute; opacity: 0; pointer-events: none; }
 .segmented span {
   position: relative; min-width: 0; height: 36px; display: grid; place-items: center;
