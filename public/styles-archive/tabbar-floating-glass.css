@@ -1,0 +1,233 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   归档：浮动毛玻璃药丸导航（2026-08-28 从 styles.css 换下）
+
+   这份文件不参与构建，index.html 不引用它。留档是为了以后想换回浮动样式时
+   能整块拿回去，不用翻 git 历史。
+
+   ── 怎么恢复 ────────────────────────────────────────────────────────────
+   1) 把下面 .tabbar 到文件末尾的内容，整块替换 styles.css 里现有的
+      「Bottom tab bar」段（从 `.tabbar {` 到 `.tabbar-icon`）。
+   2) index.html 的 <nav class="tabbar"> 里，把这两行加回按钮之前——顺序不能
+      换，光锥靠 DOM 顺序压在 sheen 之下、文字之上：
+        <span class="tabbar-beam" aria-hidden="true"></span>
+        <span class="tabbar-sheen" aria-hidden="true"></span>
+   3) 两处避让尺寸改回浮动版（普通导航版是 64px 贴底 + 安全区）：
+        .toast  bottom: calc(96px + env(safe-area-inset-bottom));
+        body    padding-bottom: calc(112px + env(safe-area-inset-bottom));
+   4) styles.css?v= 递增。
+
+   ── 依赖 ────────────────────────────────────────────────────────────────
+   变量都在 styles.css 的 :root / [data-theme="dark"] 里，没有删：
+     --glass-bg / --glass-filter / --glass-edge / --glass-sheen / --glass-shadow
+     --glow-teal / --glow-pink / --accent
+   @property --beam-x、--beam-color 写在本段内，跟着一起搬。
+
+   ── 注意 ────────────────────────────────────────────────────────────────
+   --beam-x 按「第几格」写死，改 tab 顺序必须同步改 :has() 那三行，否则灯锥
+   会照在别的 tab 底下。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Bottom tab bar — floating glassmorphic pill ─────────
+   Detached rounded bar over blurred content, with a top-lit gradient hairline
+   for the reflection edge and a soft accent glow behind the active tab. */
+.tabbar {
+  position: fixed; z-index: 10;
+  inset-inline: 0; bottom: calc(24px + env(safe-area-inset-bottom));
+  width: min(400px, calc(100% - 40px)); height: 64px; margin-inline: auto;
+  display: flex; align-items: stretch;
+  padding: 6px; border-radius: 999px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: var(--glass-shadow);
+  /* Contains the light: the beams overshoot the bottom rim so that blur's
+     edge falloff lands outside, and this clip ends them on the glass. */
+  overflow: hidden;
+  /* Animated HERE, not on the pseudo, so .tabbar::after and .tabbar-beam both
+     inherit an already-interpolating value and cannot drift apart. */
+  transition: --beam-x 320ms cubic-bezier(.2,0,0,1), --beam-color 320ms cubic-bezier(.2,0,0,1);
+}
+/* Two stacked rings, both painted as masked borders so the pill stays round.
+   ::before is the static reflection — bright top edge fading down.
+   ::after is the beam: light from the active tab spilling onto the rim beside
+   it, so the glass reads as lit from within rather than merely tinted. */
+@property --beam-x { syntax: '<length-percentage>'; inherits: true; initial-value: 50%; }
+@property --beam-color { syntax: '<color>'; inherits: true; initial-value: transparent; }
+
+.tabbar::before,
+.tabbar::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
+  pointer-events: none;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude;
+}
+.tabbar::before { background: var(--glass-edge); }
+/* Anchored to the bottom edge (y = 100%) with a short vertical radius, so the
+   light reaches the lower rim only — the top keeps its plain white reflection.
+   Pill is 64px tall; a 30px radius dies out well before the top edge. */
+.tabbar::after {
+  padding: 2px;
+  background: radial-gradient(84px 34px at var(--beam-x) 100%,
+    color-mix(in srgb, var(--beam-color) 94%, transparent) 0%,
+    color-mix(in srgb, var(--beam-color) 86%, transparent) 34%,
+    color-mix(in srgb, var(--beam-color) 60%, transparent) 58%,
+    color-mix(in srgb, var(--beam-color) 20%, transparent) 78%,
+    transparent 100%);
+}
+/* Beam sits at each tab's centre: 1/6, 3/6, 5/6 across three equal tabs. */
+/* --beam-x 是按「第几格」写死的，所以调整 tabbar 里按钮的顺序必须同步改这里，
+   否则灯锥会照在另一个 tab 底下。2026-08-25 投资组合挪到第一格、计算挪到中间。 */
+.tabbar:has(.tabbar-item[data-tab="portfolio"][aria-selected="true"]) { --beam-x: calc(6px + (100% - 12px) / 6); --beam-color: var(--glow-teal); }
+.tabbar:has(.tabbar-item[data-tab="retirement"][aria-selected="true"]) { --beam-x: 50%; --beam-color: var(--accent); }
+.tabbar:has(.tabbar-item[data-tab="fx"][aria-selected="true"]) { --beam-x: calc(100% - 6px - (100% - 12px) / 6); --beam-color: var(--glow-pink); }
+/* Without backdrop-filter a 60% wash just leaks content through unblurred. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tabbar { background: var(--bg-1); }
+}
+/* ── Sheen：玻璃表面的镜面高光 ─────────────────────────
+   实验层（分支 glass-figma）。现有实现已经有 Frost（backdrop-filter）和
+   Rim（::before 的描边环），缺的是玻璃"表面"这层反射光。
+
+   为什么要单独一个元素：::before / ::after 都被 mask-composite 削成了 1px
+   的描边环，只能画边不能铺面。
+
+   层序靠 DOM 位置 + z-index 定：光锥是 z-index:-1，本层是 0，两者都在
+   .tabbar 的层叠上下文里；本层在 DOM 里排在按钮之前，所以画在光锥之上、
+   文字之下 —— 表面反射盖住玻璃内部的光，但不冲淡标签。
+
+   刻意没做折射（feDisplacementMap）：那个只有 Chromium 支持，iOS Safari
+   看不到；而且导航栏浮在近白/近黑的页面上，背后没有可折射的内容，投入
+   产出比太低。 */
+.tabbar-sheen {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  border-radius: inherit;
+  background: var(--glass-sheen);
+}
+.tabbar-item {
+  position: relative; flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 0; border-radius: 999px; background: transparent; color: var(--ink-40);
+  font-size: 12px; line-height: 16px; cursor: pointer;
+  opacity: .55; scale: .98;
+  transition-property: color, opacity, scale; transition-duration: 220ms; transition-timing-function: cubic-bezier(.2,0,0,1);
+}
+/* Cone of light from the active tab — a physically-modelled floodlight.
+
+   ONE LAMP THAT MOVES. This used to be a pseudo-element per tab, cross-fading
+   between three fixed cones — but a lamp does not blink out here and reappear
+   there. It is a single element that slides, positioned at left: var(--beam-x)
+   and coloured with var(--beam-color): the exact two variables that drive the
+   rim reflection below it. Neither is transitioned here; both are interpolated
+   on .tabbar and inherited, so the beam and its own reflection travel as one
+   thing and cannot drift out of step.
+
+   GEOMETRY — a TRAPEZOID flush with the pill's top edge: 33px wide where it
+   enters, 112px where it lands, over the full 64px height. That base is sized
+   to the rim reflection it feeds, which runs 97px across its bright core and
+   131px to the edge of visibility. Both cones are struck from one VIRTUAL APEX
+   27px above the bar (half-angle 31.6°), so they agree on where the lamp is.
+
+   NO clip-path. Clipping is applied after filter: blur(), so a polygon keeps
+   razor-sharp sides however hard you blur it. The silhouette is gradients only:
+     · conic-gradient  → angular spread; soft shoulders are the lateral falloff
+     · radial mask     → distance falloff, struck from the same virtual apex
+     · two layers      → penumbra that WIDENS with distance
+
+   That last one is what a single blur() cannot fake. Real shadow edges sharpen
+   near the source and soften downstream, so the beam is an umbra (narrow,
+   bright, lightly blurred) inside a penumbra (wide, dim, heavily blurred).
+
+   REACHING THE FLOOR — the mask never fades out. The apex sits only 27px up, so
+   the direct term is down to 0.30 at the rim; the floor bounce makes up the
+   difference. Light striking the bottom scatters back up into the glass, which
+   is why the beam reads as landing on a surface instead of dissolving in
+   mid-air. The layers run 96px, well past the rim, so blur's own edge falloff
+   happens outside the pill and the beam is still at strength where it lands;
+   .tabbar's overflow clip then ends it exactly on the glass. */
+.tabbar-beam {
+  position: absolute; z-index: -1; pointer-events: none;
+  top: 0; left: var(--beam-x); translate: -50% 0;
+  width: 0; height: 96px;
+}
+/* Zero-width parent: the layers centre on its left edge, so --beam-x alone
+   places them and the two cones stay concentric while travelling. */
+.tabbar-beam::before,
+.tabbar-beam::after {
+  content: ""; position: absolute; top: 0; left: 0; translate: -50% 0; height: 100%;
+}
+
+/* Shared falloff — one lamp, one curve: direct 1/d from the apex plus a floor
+   bounce rising as (depth/64)^2.5. Stops are r/150 from the apex, so 18% is the
+   pill's top edge and 61% the bottom rim. The two terms very nearly cancel over
+   the lower third, which is what keeps the base of the beam evenly lit. */
+@supports (mask-image: radial-gradient(#000, #000)) or (-webkit-mask-image: radial-gradient(#000, #000)) {
+  .tabbar-beam::before, .tabbar-beam::after {
+    --beam-falloff: radial-gradient(150px 150px at 50% -27px,
+      #000 0%, #000 18%,      /* pill top edge — full aperture strength */
+      rgba(0,0,0,.63) 29%,
+      rgba(0,0,0,.48) 39%,
+      rgba(0,0,0,.43) 50%,
+      rgba(0,0,0,.44) 61%,    /* bottom rim — bounce has overtaken the falloff */
+      rgba(0,0,0,.36) 72%,
+      rgba(0,0,0,.26) 82%,
+      transparent 100%);
+    -webkit-mask-image: var(--beam-falloff);
+    mask-image: var(--beam-falloff);
+  }
+}
+
+/* ── Umbra — carries the trapezoid silhouette ────────────
+   Flat-topped angular profile: full intensity across the middle 17° of the
+   63.2° spread, soft only in the shoulders. A bell curve here would dissolve
+   the shape into a wash — the trapezoid has to survive every edge being soft. */
+.tabbar-beam::before {
+  width: 210px;
+  background:
+    /* faint brightening where the beam enters the glass — kept low, since the
+       emitter is off-screen above the bar rather than sitting on the top edge */
+    radial-gradient(34px 16px at 50% 0,
+      color-mix(in srgb, var(--beam-color) 40%, transparent) 0%,
+      color-mix(in srgb, var(--beam-color) 17%, transparent) 55%,
+      transparent 82%),
+    conic-gradient(from 148.4deg at 50% -27px,
+      transparent 0deg,
+      color-mix(in srgb, var(--beam-color) 26%, transparent) 7deg,
+      color-mix(in srgb, var(--beam-color) 80%, transparent) 14deg,
+      var(--beam-color) 23deg,
+      var(--beam-color) 40deg,
+      color-mix(in srgb, var(--beam-color) 80%, transparent) 49deg,
+      color-mix(in srgb, var(--beam-color) 26%, transparent) 56deg,
+      transparent 63.2deg);
+  opacity: .69;
+  filter: blur(17px);
+}
+
+/* ── Penumbra — the far field ────────────────────────────
+   Same apex, wider half-angle (37°) and >2× the blur, so the soft halo outruns
+   the core and the edge reads softer the further it travels. */
+.tabbar-beam::after {
+  width: 240px;
+  background: conic-gradient(from 143deg at 50% -27px,
+    transparent 0deg,
+    color-mix(in srgb, var(--beam-color) 18%, transparent) 13deg,
+    color-mix(in srgb, var(--beam-color) 50%, transparent) 26deg,
+    color-mix(in srgb, var(--beam-color) 64%, transparent) 37deg,
+    color-mix(in srgb, var(--beam-color) 50%, transparent) 48deg,
+    color-mix(in srgb, var(--beam-color) 18%, transparent) 61deg,
+    transparent 74deg);
+  opacity: .41;
+  filter: blur(38px);
+}
+/* On a dark ground light is additive, so the two cones should SUM where they
+   overlap instead of painting over one another — which also means they need
+   materially less input than the light theme's normal blend. Dark only: on the
+   light glass the same blend would clip to white and erase the hue. */
+:root[data-theme="dark"] .tabbar-beam::before,
+:root[data-theme="dark"] .tabbar-beam::after { mix-blend-mode: plus-lighter; }
+:root[data-theme="dark"] .tabbar-beam::before { opacity: .37; }
+:root[data-theme="dark"] .tabbar-beam::after { opacity: .27; }
+
+
+.tabbar-item[aria-selected="true"] { color: var(--ink); font-weight: 500; opacity: 1; scale: 1; }
+.tabbar-item:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
+.tabbar-icon { width: 22px; height: 22px; display: grid; place-items: center; font-size: 22px; line-height: 1; }

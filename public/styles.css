@@ -50,6 +50,9 @@
   --gain: #12803f;
   --loss: #c0392b;
   --flat: #6b6b6b;
+  /* --glow-* / --glass-edge / --glass-sheen / --glass-shadow 现在没人用：
+     贴底导航只留了毛玻璃本体。留着是给 styles-archive/tabbar-floating-glass.css
+     用的，换回浮动药丸时不用再补一遍。 */
   --glow-pink: #FF2D55;
   --glow-teal: #30B0C7;
   /* 交易时段色，沿用行情类应用的通行约定：绿=正在交易，琥珀=盘前，蓝=盘后，
@@ -102,6 +105,9 @@
   --yield-note-bg: rgba(10, 132, 255, .12);
   --yield-note-text: rgba(255, 255, 255, .8);
   --yield-note-edge: rgba(10, 132, 255, .22);
+  /* --glow-* / --glass-edge / --glass-sheen / --glass-shadow 现在没人用：
+     贴底导航只留了毛玻璃本体。留着是给 styles-archive/tabbar-floating-glass.css
+     用的，换回浮动药丸时不用再补一遍。 */
   --glow-pink: #FF5C7C;
   --glow-teal: #5AC8DE;
   /* 深色底上反过来提亮，同样逐个校验过（最低 5.20:1）。 */
@@ -460,7 +466,9 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 
 /* ── Currency converter ─────────────────────────────────── */
 .workspace.fx-workspace { grid-template-columns: minmax(0, 1fr); }
-.fx-card { max-width: 480px; margin-inline: auto; width: 100%; }
+/* 换算是一条竖着读的链路（金额 → 箭头 → 结果），比一般的表单更紧，
+   所以这里从 .card 的 16 收到 12；箭头自己不再另加外边距，否则会叠成 28。 */
+.fx-card { max-width: 480px; margin-inline: auto; width: 100%; gap: 12px; }
 .fx-input-shell { gap: 12px; }
 .fx-flag { flex: 0 0 auto; display: block; width: 28px; height: 20px; border-radius: 3px; }
 .fx-input-shell input {
@@ -472,7 +480,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
    对读屏隐藏 —— 真正的操作入口是下面每一行。 */
 .fx-swap-hint {
   display: grid; place-items: center; width: 28px; height: 28px;
-  margin: 12px auto; border-radius: 9px;
+  margin: 0 auto; border-radius: 9px;
   background: var(--ink-4); color: var(--ink-40);
 }
 .fx-swap-hint > i { font-size: 16px; line-height: 1; }
@@ -1447,7 +1455,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 
 /* ── Toast ──────────────────────────────────────────────── */
 .toast {
-  position: fixed; z-index: 30; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom));
+  position: fixed; z-index: 30; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom));
   translate: -50% 8px; padding: 10px 18px; border-radius: 999px;
   background: var(--ink-80); color: var(--bg-1);
   font-size: 13px; font-weight: 500; white-space: nowrap;
@@ -1461,221 +1469,41 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   .sheet-panel, .asset-search-sheet, .confirm-dialog, .toast { transition-duration: .01ms !important; }
 }
 
-/* ── Bottom tab bar — floating glassmorphic pill ─────────
-   Detached rounded bar over blurred content, with a top-lit gradient hairline
-   for the reflection edge and a soft accent glow behind the active tab. */
+/* ── Bottom tab bar — 贴底毛玻璃导航 ──────────────────────
+   普通导航条：横贯全宽、贴住屏幕底边、顶部一条发丝线。保留 backdrop-filter
+   的毛玻璃，去掉了浮动药丸时期的光锥 / 表面高光 / 每个 tab 一种颜色的辉光。
+   旧的浮动版整段留在 public/styles-archive/tabbar-floating-glass.css，含恢复
+   步骤。 */
 .tabbar {
   position: fixed; z-index: 10;
-  inset-inline: 0; bottom: calc(24px + env(safe-area-inset-bottom));
-  width: min(400px, calc(100% - 40px)); height: 64px; margin-inline: auto;
-  display: flex; align-items: stretch;
-  padding: 6px; border-radius: 999px;
+  inset-inline: 0; bottom: 0;
+  display: flex; align-items: stretch; justify-content: center;
+  height: calc(64px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid var(--ink-10);
   background: var(--glass-bg);
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
-  box-shadow: var(--glass-shadow);
-  /* Contains the light: the beams overshoot the bottom rim so that blur's
-     edge falloff lands outside, and this clip ends them on the glass. */
-  overflow: hidden;
-  /* Animated HERE, not on the pseudo, so .tabbar::after and .tabbar-beam both
-     inherit an already-interpolating value and cannot drift apart. */
-  transition: --beam-x 320ms cubic-bezier(.2,0,0,1), --beam-color 320ms cubic-bezier(.2,0,0,1);
 }
-/* Two stacked rings, both painted as masked borders so the pill stays round.
-   ::before is the static reflection — bright top edge fading down.
-   ::after is the beam: light from the active tab spilling onto the rim beside
-   it, so the glass reads as lit from within rather than merely tinted. */
-@property --beam-x { syntax: '<length-percentage>'; inherits: true; initial-value: 50%; }
-@property --beam-color { syntax: '<color>'; inherits: true; initial-value: transparent; }
-
-.tabbar::before,
-.tabbar::after {
-  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
-  pointer-events: none;
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude;
-}
-.tabbar::before { background: var(--glass-edge); }
-/* Anchored to the bottom edge (y = 100%) with a short vertical radius, so the
-   light reaches the lower rim only — the top keeps its plain white reflection.
-   Pill is 64px tall; a 30px radius dies out well before the top edge. */
-.tabbar::after {
-  padding: 2px;
-  background: radial-gradient(84px 34px at var(--beam-x) 100%,
-    color-mix(in srgb, var(--beam-color) 94%, transparent) 0%,
-    color-mix(in srgb, var(--beam-color) 86%, transparent) 34%,
-    color-mix(in srgb, var(--beam-color) 60%, transparent) 58%,
-    color-mix(in srgb, var(--beam-color) 20%, transparent) 78%,
-    transparent 100%);
-}
-/* Beam sits at each tab's centre: 1/6, 3/6, 5/6 across three equal tabs. */
-/* --beam-x 是按「第几格」写死的，所以调整 tabbar 里按钮的顺序必须同步改这里，
-   否则灯锥会照在另一个 tab 底下。2026-08-25 投资组合挪到第一格、计算挪到中间。 */
-.tabbar:has(.tabbar-item[data-tab="portfolio"][aria-selected="true"]) { --beam-x: calc(6px + (100% - 12px) / 6); --beam-color: var(--glow-teal); }
-.tabbar:has(.tabbar-item[data-tab="retirement"][aria-selected="true"]) { --beam-x: 50%; --beam-color: var(--accent); }
-.tabbar:has(.tabbar-item[data-tab="fx"][aria-selected="true"]) { --beam-x: calc(100% - 6px - (100% - 12px) / 6); --beam-color: var(--glow-pink); }
-/* Without backdrop-filter a 60% wash just leaks content through unblurred. */
+/* 没有 backdrop-filter 时 42% 的白纱只会把内容原样透出来，直接改成实色。 */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .tabbar { background: var(--bg-1); }
 }
-/* ── Sheen：玻璃表面的镜面高光 ─────────────────────────
-   实验层（分支 glass-figma）。现有实现已经有 Frost（backdrop-filter）和
-   Rim（::before 的描边环），缺的是玻璃"表面"这层反射光。
-
-   为什么要单独一个元素：::before / ::after 都被 mask-composite 削成了 1px
-   的描边环，只能画边不能铺面。
-
-   层序靠 DOM 位置 + z-index 定：光锥是 z-index:-1，本层是 0，两者都在
-   .tabbar 的层叠上下文里；本层在 DOM 里排在按钮之前，所以画在光锥之上、
-   文字之下 —— 表面反射盖住玻璃内部的光，但不冲淡标签。
-
-   刻意没做折射（feDisplacementMap）：那个只有 Chromium 支持，iOS Safari
-   看不到；而且导航栏浮在近白/近黑的页面上，背后没有可折射的内容，投入
-   产出比太低。 */
-.tabbar-sheen {
-  position: absolute; inset: 0; z-index: 0; pointer-events: none;
-  border-radius: inherit;
-  background: var(--glass-sheen);
-}
 .tabbar-item {
-  position: relative; flex: 1; min-width: 0;
+  /* 条本身横贯全宽，但三个 tab 各自封顶 168px 后居中：宽屏上不至于把图标
+     甩到屏幕两端，窄屏（375/3=125）仍然是平分。 */
+  position: relative; flex: 1 1 0; min-width: 0; max-width: 168px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  border: 0; border-radius: 999px; background: transparent; color: var(--ink-40);
+  border: 0; background: transparent; color: var(--ink-40);
   font-size: 12px; line-height: 16px; cursor: pointer;
-  opacity: .55; scale: .98;
-  transition-property: color, opacity, scale; transition-duration: 220ms; transition-timing-function: cubic-bezier(.2,0,0,1);
+  transition: color 180ms cubic-bezier(.2,0,0,1);
 }
-/* Cone of light from the active tab — a physically-modelled floodlight.
-
-   ONE LAMP THAT MOVES. This used to be a pseudo-element per tab, cross-fading
-   between three fixed cones — but a lamp does not blink out here and reappear
-   there. It is a single element that slides, positioned at left: var(--beam-x)
-   and coloured with var(--beam-color): the exact two variables that drive the
-   rim reflection below it. Neither is transitioned here; both are interpolated
-   on .tabbar and inherited, so the beam and its own reflection travel as one
-   thing and cannot drift out of step.
-
-   GEOMETRY — a TRAPEZOID flush with the pill's top edge: 33px wide where it
-   enters, 112px where it lands, over the full 64px height. That base is sized
-   to the rim reflection it feeds, which runs 97px across its bright core and
-   131px to the edge of visibility. Both cones are struck from one VIRTUAL APEX
-   27px above the bar (half-angle 31.6°), so they agree on where the lamp is.
-
-   NO clip-path. Clipping is applied after filter: blur(), so a polygon keeps
-   razor-sharp sides however hard you blur it. The silhouette is gradients only:
-     · conic-gradient  → angular spread; soft shoulders are the lateral falloff
-     · radial mask     → distance falloff, struck from the same virtual apex
-     · two layers      → penumbra that WIDENS with distance
-
-   That last one is what a single blur() cannot fake. Real shadow edges sharpen
-   near the source and soften downstream, so the beam is an umbra (narrow,
-   bright, lightly blurred) inside a penumbra (wide, dim, heavily blurred).
-
-   REACHING THE FLOOR — the mask never fades out. The apex sits only 27px up, so
-   the direct term is down to 0.30 at the rim; the floor bounce makes up the
-   difference. Light striking the bottom scatters back up into the glass, which
-   is why the beam reads as landing on a surface instead of dissolving in
-   mid-air. The layers run 96px, well past the rim, so blur's own edge falloff
-   happens outside the pill and the beam is still at strength where it lands;
-   .tabbar's overflow clip then ends it exactly on the glass. */
-.tabbar-beam {
-  position: absolute; z-index: -1; pointer-events: none;
-  top: 0; left: var(--beam-x); translate: -50% 0;
-  width: 0; height: 96px;
-}
-/* Zero-width parent: the layers centre on its left edge, so --beam-x alone
-   places them and the two cones stay concentric while travelling. */
-.tabbar-beam::before,
-.tabbar-beam::after {
-  content: ""; position: absolute; top: 0; left: 0; translate: -50% 0; height: 100%;
-}
-
-/* Shared falloff — one lamp, one curve: direct 1/d from the apex plus a floor
-   bounce rising as (depth/64)^2.5. Stops are r/150 from the apex, so 18% is the
-   pill's top edge and 61% the bottom rim. The two terms very nearly cancel over
-   the lower third, which is what keeps the base of the beam evenly lit. */
-@supports (mask-image: radial-gradient(#000, #000)) or (-webkit-mask-image: radial-gradient(#000, #000)) {
-  .tabbar-beam::before, .tabbar-beam::after {
-    --beam-falloff: radial-gradient(150px 150px at 50% -27px,
-      #000 0%, #000 18%,      /* pill top edge — full aperture strength */
-      rgba(0,0,0,.63) 29%,
-      rgba(0,0,0,.48) 39%,
-      rgba(0,0,0,.43) 50%,
-      rgba(0,0,0,.44) 61%,    /* bottom rim — bounce has overtaken the falloff */
-      rgba(0,0,0,.36) 72%,
-      rgba(0,0,0,.26) 82%,
-      transparent 100%);
-    -webkit-mask-image: var(--beam-falloff);
-    mask-image: var(--beam-falloff);
-  }
-}
-
-/* ── Umbra — carries the trapezoid silhouette ────────────
-   Flat-topped angular profile: full intensity across the middle 17° of the
-   63.2° spread, soft only in the shoulders. A bell curve here would dissolve
-   the shape into a wash — the trapezoid has to survive every edge being soft. */
-.tabbar-beam::before {
-  width: 210px;
-  background:
-    /* faint brightening where the beam enters the glass — kept low, since the
-       emitter is off-screen above the bar rather than sitting on the top edge */
-    radial-gradient(34px 16px at 50% 0,
-      color-mix(in srgb, var(--beam-color) 40%, transparent) 0%,
-      color-mix(in srgb, var(--beam-color) 17%, transparent) 55%,
-      transparent 82%),
-    conic-gradient(from 148.4deg at 50% -27px,
-      transparent 0deg,
-      color-mix(in srgb, var(--beam-color) 26%, transparent) 7deg,
-      color-mix(in srgb, var(--beam-color) 80%, transparent) 14deg,
-      var(--beam-color) 23deg,
-      var(--beam-color) 40deg,
-      color-mix(in srgb, var(--beam-color) 80%, transparent) 49deg,
-      color-mix(in srgb, var(--beam-color) 26%, transparent) 56deg,
-      transparent 63.2deg);
-  opacity: .69;
-  filter: blur(17px);
-}
-
-/* ── Penumbra — the far field ────────────────────────────
-   Same apex, wider half-angle (37°) and >2× the blur, so the soft halo outruns
-   the core and the edge reads softer the further it travels. */
-.tabbar-beam::after {
-  width: 240px;
-  background: conic-gradient(from 143deg at 50% -27px,
-    transparent 0deg,
-    color-mix(in srgb, var(--beam-color) 18%, transparent) 13deg,
-    color-mix(in srgb, var(--beam-color) 50%, transparent) 26deg,
-    color-mix(in srgb, var(--beam-color) 64%, transparent) 37deg,
-    color-mix(in srgb, var(--beam-color) 50%, transparent) 48deg,
-    color-mix(in srgb, var(--beam-color) 18%, transparent) 61deg,
-    transparent 74deg);
-  opacity: .41;
-  filter: blur(38px);
-}
-/* On a dark ground light is additive, so the two cones should SUM where they
-   overlap instead of painting over one another — which also means they need
-   materially less input than the light theme's normal blend. Dark only: on the
-   light glass the same blend would clip to white and erase the hue. */
-:root[data-theme="dark"] .tabbar-beam::before,
-:root[data-theme="dark"] .tabbar-beam::after { mix-blend-mode: plus-lighter; }
-:root[data-theme="dark"] .tabbar-beam::before { opacity: .37; }
-:root[data-theme="dark"] .tabbar-beam::after { opacity: .27; }
-
-.tabbar-item[aria-selected="true"] { color: var(--ink); font-weight: 500; opacity: 1; scale: 1; }
+.tabbar-item[aria-selected="true"] { color: var(--ink); font-weight: 500; }
 .tabbar-item:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
 .tabbar-icon { width: 22px; height: 22px; display: grid; place-items: center; font-size: 22px; line-height: 1; }
 
-/* 分割线随「JiuJiu是我的猫」那行一起去掉了：只剩一行版权时，一条横贯全宽的
-   发丝线比它本身还显眼。 */
-footer {
-  max-width: 1080px; margin-inline: auto;
-  padding: 16px 28px 28px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;
-  color: var(--ink-40); font-size: 12px; line-height: 16px;
-}
-body:has(#panel-portfolio:not([hidden])) footer,
-body:has(#panel-fx:not([hidden])) footer { display: none; }
-/* Clear the floating bar (64px pill + 24px lift + breathing room). */
-body { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
+/* Clear the bottom nav (64px bar + breathing room). */
+body { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
 
 /* ── Responsive — 28px gutter down to md, then 16 ───────── */
 @media (min-width: 1000px) {
@@ -1689,7 +1517,6 @@ body { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
   #panel-retirement > .calculator { padding: 16px; }
   .metric { padding: 10px 12px; }
   .metric strong { font-size: 20px; line-height: 28px; }
-  footer { padding: 16px; }
 }
 
 /* Hold three across down to 390px — the metric type steps down instead of the
