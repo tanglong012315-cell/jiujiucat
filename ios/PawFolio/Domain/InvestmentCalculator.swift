@@ -60,6 +60,16 @@ enum ForecastPeriod: String, CaseIterable, Identifiable, Sendable {
         return nil
     }
 
+    /// 长按扫描时说明落点在哪一期。`axisLabel` 只给几个刻度，这里每一点都有。
+    func scrubLabel(at index: Int) -> String {
+        if index == 0 { return "现在" }
+        switch self {
+        case .day: return "第 \(index) 天"
+        case .month: return "第 \(index) 月"
+        case .year: return "第 \(index) 年"
+        }
+    }
+
     var caption: String {
         switch self {
         case .day: "365 天预测"

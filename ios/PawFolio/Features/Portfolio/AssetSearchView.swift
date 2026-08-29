@@ -39,7 +39,16 @@ final class AssetSearchViewModel: ObservableObject {
         )
     }
 
+    /// 按回车或点「搜索」时立即搜，不走 350ms 防抖。
+    func search() async {
+        await performSearch(debounced: false)
+    }
+
     func searchAfterDelay() async {
+        await performSearch(debounced: true)
+    }
+
+    private func performSearch(debounced: Bool) async {
         let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else {
             state = .suggestions
@@ -47,8 +56,10 @@ final class AssetSearchViewModel: ObservableObject {
         }
 
         do {
-            try await Task.sleep(for: .milliseconds(350))
-            try Task.checkCancellation()
+            if debounced {
+                try await Task.sleep(for: .milliseconds(350))
+                try Task.checkCancellation()
+            }
             state = .loading
             let results = try await client.search(query: normalized)
             try Task.checkCancellation()
@@ -62,9 +73,12 @@ final class AssetSearchViewModel: ObservableObject {
     }
 }
 
+/// Web 的标的搜索弹层（`#asset-search-overlay`）。右上角是「取消」文字按钮而不是 ×，
+/// 内容区靠 `state-art` 插画承载空/错状态。
 struct AssetSearchView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var model: AssetSearchViewModel
+    @FocusState private var isQueryFocused: Bool
 
     let onSelect: (AssetSearchResult) -> Void
 
@@ -77,119 +91,247 @@ struct AssetSearchView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            List {
-                content
+        VStack(spacing: 0) {
+            Capsule()
+                .fill(PawTheme.ink10)
+                .frame(width: 36, height: 4)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
 
-                if let manualAsset = model.manualAsset {
-                    Section {
-                        Button {
-                            select(manualAsset)
-                        } label: {
-                            Label("手动使用 \(manualAsset.quoteSymbol)", systemImage: "square.and.pencil")
-                        }
-                    } footer: {
-                        Text("仅在 Yahoo 搜索没有目标时使用；保存前仍可修改资产类别。")
-                    }
-                }
-            }
-            .navigationTitle("搜索标的")
-            .navigationBarTitleDisplayMode(.inline)
-            .searchable(
-                text: $model.query,
-                placement: .navigationBarDrawer(displayMode: .always),
-                prompt: "代码或名称，例如 AAPL、BTC"
-            )
-            .textInputAutocapitalization(.characters)
-            .autocorrectionDisabled()
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+            ZStack {
+                Text("搜索标的代码")
+                    .font(PawFont.inter(17, weight: .semibold))
+                    .foregroundStyle(PawTheme.ink)
+
+                HStack {
+                    Spacer()
+
                     Button("取消") { dismiss() }
+                        .font(PawFont.inter(14, weight: .medium))
+                        .foregroundStyle(PawTheme.ink)
+                        .frame(height: 44)
+                        .buttonStyle(PawPressableButtonStyle())
                 }
             }
-            .task(id: model.query) {
-                await model.searchAfterDelay()
+            .frame(height: 48)
+            .padding(.horizontal, 20)
+
+            VStack(spacing: 16) {
+                searchField
+
+                ScrollView {
+                    content
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .scrollDismissesKeyboard(.interactively)
             }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
         }
+        .background(PawTheme.bg1)
+        .presentationDragIndicator(.hidden)
+        .presentationCornerRadius(26)
+        .presentationBackground(PawTheme.bg1)
+        .task(id: model.query) { await model.searchAfterDelay() }
+        .onAppear { isQueryFocused = true }
+    }
+
+    /// Web `.asset-search-input-shell`：48 高，左侧放大镜，右侧一颗黑色「搜索」。
+    private var searchField: some View {
+        HStack(spacing: 10) {
+            Image("IconSearch")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 20, height: 20)
+                .foregroundStyle(PawTheme.ink40)
+
+            TextField("例如 AAPL、BTC", text: $model.query)
+                .font(PawFont.inter(15))
+                .foregroundStyle(PawTheme.ink)
+                .textInputAutocapitalization(.characters)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+                .focused($isQueryFocused)
+                .onSubmit { Task { await model.search() } }
+
+            Button {
+                isQueryFocused = false
+                Task { await model.search() }
+            } label: {
+                Text("搜索")
+                    .font(PawFont.inter(13, weight: .semibold))
+                    .foregroundStyle(PawTheme.bg1)
+                    .padding(.horizontal, 12)
+                    .frame(height: 36)
+                    .background(PawTheme.ink, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+            .buttonStyle(PawPressableButtonStyle())
+        }
+        .padding(.leading, 14)
+        .padding(.trailing, 6)
+        .frame(height: 48)
+        .background(PawTheme.ink4, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     @ViewBuilder
     private var content: some View {
         switch model.state {
         case .suggestions:
-            Section("常用标的") {
-                ForEach(AssetSearchResult.offlineFallbacks.filter { ["VOO", "AAPL", "BTC"].contains($0.symbol) }) { asset in
-                    resultButton(asset)
-                }
+            VStack(spacing: 0) {
+                stateBlock(
+                    art: "ArtSearch",
+                    title: "输入代码或名称，按回车开始搜索",
+                    detail: "支持 Yahoo Finance 上的股票、ETF 和 Crypto"
+                )
+
+                resultList(
+                    AssetSearchResult.offlineFallbacks.filter { ["VOO", "AAPL", "BTC"].contains($0.symbol) }
+                )
             }
 
         case .loading:
-            HStack {
-                Spacer()
-                ProgressView("正在搜索 Yahoo Finance…")
-                Spacer()
-            }
-            .frame(minHeight: 180)
+            stateBlock(art: "ArtLoading", title: "正在搜索 Yahoo Finance…", detail: nil)
 
         case .results(let results, let offline):
-            Section {
-                ForEach(results) { asset in
-                    resultButton(asset)
-                }
-            } header: {
-                Text(offline ? "离线常用结果" : "搜索结果")
-            } footer: {
+            VStack(alignment: .leading, spacing: 0) {
                 if offline {
                     Text("网络搜索暂不可用，当前显示内置常用标的。")
+                        .font(PawFont.inter(12))
+                        .foregroundStyle(PawTheme.ink40)
+                        .padding(.bottom, 8)
                 }
+
+                resultList(results)
             }
 
         case .empty:
-            ContentUnavailableView.search(text: model.query)
-                .listRowBackground(Color.clear)
+            VStack(spacing: 0) {
+                stateBlock(
+                    art: "ArtNotFound",
+                    title: "没有找到「\(model.query)」",
+                    detail: "换个代码或名称再试，也可以在下面手动使用这个代码"
+                )
+                manualEntry
+            }
 
         case .failed:
-            ContentUnavailableView(
-                "暂时无法搜索",
-                systemImage: "wifi.exclamationmark",
-                description: Text("可以稍后重试，或在下方手动使用有效的 Yahoo 代码。")
-            )
-            .listRowBackground(Color.clear)
+            VStack(spacing: 0) {
+                stateBlock(
+                    art: "ArtNetFail",
+                    title: "暂时无法搜索",
+                    detail: "可以稍后重试，或在下面手动使用有效的 Yahoo 代码"
+                )
+                manualEntry
+            }
         }
     }
 
-    private func resultButton(_ asset: AssetSearchResult) -> some View {
-        Button {
-            select(asset)
-        } label: {
-            HStack(spacing: 12) {
-                Text(String(asset.symbol.prefix(2)))
-                    .font(.system(.subheadline, design: .rounded, weight: .bold))
-                    .foregroundStyle(PawTheme.accent)
-                    .frame(width: 42, height: 42)
-                    .background(PawTheme.quietBlue, in: Circle())
+    /// Web `.asset-search-state`：插画 + 一句主文案 + 一句说明。
+    private func stateBlock(art: String, title: String, detail: String?) -> some View {
+        VStack(spacing: 8) {
+            Image(art)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 96, height: 96)
+                .padding(.bottom, 4)
+                .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(asset.name)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Text([asset.assetType.title, asset.exchange].filter { !$0.isEmpty }.joined(separator: " · "))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
+            Text(title)
+                .font(PawFont.inter(14, weight: .semibold))
+                .foregroundStyle(PawTheme.ink)
+                .multilineTextAlignment(.center)
 
-                Spacer(minLength: 8)
-
-                Text(asset.symbol)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(PawTheme.accent)
-                    .monospacedDigit()
+            if let detail {
+                Text(detail)
+                    .font(PawFont.inter(12))
+                    .foregroundStyle(PawTheme.ink40)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 280)
             }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("选择 \(asset.symbol)，\(asset.name)")
+        .frame(maxWidth: .infinity, minHeight: 200)
+    }
+
+    @ViewBuilder
+    private var manualEntry: some View {
+        if let manualAsset = model.manualAsset {
+            Button {
+                select(manualAsset)
+            } label: {
+                HStack(spacing: 12) {
+                    Text("手动使用 \(manualAsset.quoteSymbol)")
+                        .font(PawFont.inter(14, weight: .semibold))
+                        .foregroundStyle(PawTheme.ink)
+
+                    Spacer(minLength: 0)
+
+                    Image("IconArrowRightS")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 16, height: 16)
+                        .foregroundStyle(PawTheme.ink40)
+                }
+                .padding(.horizontal, 16)
+                .frame(height: 52)
+                .background(PawTheme.ink4, in: RoundedRectangle(cornerRadius: PawTheme.radiusCard, style: .continuous))
+            }
+            .buttonStyle(PawPressableButtonStyle())
+            .padding(.top, 8)
+        }
+    }
+
+    /// Web `.asset-result`：64 高，行间发丝线，最后一行不留线。
+    private func resultList(_ results: [AssetSearchResult]) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(results.enumerated()), id: \.element.id) { index, asset in
+                Button {
+                    select(asset)
+                } label: {
+                    HStack(spacing: 12) {
+                        PawAssetLogo(
+                            quoteSymbol: asset.quoteSymbol,
+                            assetType: asset.assetType,
+                            name: asset.name,
+                            fallbackText: String(asset.symbol.prefix(2)),
+                            diameter: 40
+                        )
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(asset.name)
+                                .font(PawFont.inter(14, weight: .medium))
+                                .foregroundStyle(PawTheme.ink)
+                                .lineLimit(1)
+
+                            Text(
+                                [asset.assetType.title, asset.exchange]
+                                    .filter { !$0.isEmpty }
+                                    .joined(separator: " · ")
+                            )
+                            .font(PawFont.inter(12))
+                            .foregroundStyle(PawTheme.ink40)
+                            .lineLimit(1)
+                        }
+
+                        Spacer(minLength: 8)
+
+                        Text(asset.symbol)
+                            .font(PawFont.inter(13, weight: .semibold).monospacedDigit())
+                            .foregroundStyle(PawTheme.ink40)
+                    }
+                    .padding(.vertical, 10)
+                    .frame(minHeight: 64)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PawPressableButtonStyle())
+                .accessibilityLabel("选择 \(asset.symbol)，\(asset.name)")
+
+                if index < results.count - 1 {
+                    PawDivider()
+                }
+            }
+        }
     }
 
     private func select(_ asset: AssetSearchResult) {

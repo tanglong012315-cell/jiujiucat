@@ -1,404 +1,315 @@
 import SwiftUI
 
+/// Web 的个人资料弹层（`#profile-sheet-overlay`）。未登录时 Web 把标题换成「登录」，
+/// 只留一句说明和登录按钮——改了名字头像却存不下来，比不给改更糟。
+///
+/// 同步状态与游客导入选择是原生特有的：Web 的同步是静默自动的，而 iOS 在移动网络下
+/// 需要能看到状态并手动重试。这两块排在 Web 结构之后。
 struct AccountView: View {
     @ObservedObject var model: AccountViewModel
-    @State private var isEditingProfile = false
 
-    var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    identityCard
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                }
-
-                if case let .guestImportRequired(count) = model.state {
-                    guestImportSection(count: count)
-                } else if !model.isSignedIn {
-                    signInSection
-                } else {
-                    profileSection
-                    syncSection
-                    signOutSection
-                }
-            }
-            .listStyle(.insetGrouped)
-            .navigationTitle("账户")
-            .task {
-                await model.loadIfNeeded()
-            }
-            .sheet(isPresented: $isEditingProfile) {
-                if let identity = model.identity {
-                    AccountProfileEditorView(model: model, identity: identity)
-                }
-            }
-        }
-    }
-
-    private var identityCard: some View {
-        PawCard {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack(spacing: 14) {
-                    if let identity = model.identity {
-                        CatAvatarBadge(avatar: identity.avatar, size: 52)
-                            .accessibilityHidden(true)
-                    } else {
-                        Image(systemName: "pawprint.fill")
-                            .font(.system(size: 25, weight: .semibold))
-                            .foregroundStyle(PawTheme.accent)
-                            .frame(width: 52, height: 52)
-                            .background(PawTheme.quietBlue, in: Circle())
-                            .accessibilityHidden(true)
-                    }
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(model.identity?.displayName ?? "本机游客模式")
-                            .font(.system(.title3, design: .rounded, weight: .bold))
-                        Text(accountSubtitle)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-                }
-
-                Divider()
-
-                statusLabel
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .accessibilityElement(children: .combine)
-    }
-
-    @ViewBuilder
-    private var statusLabel: some View {
-        switch model.state {
-        case .restoringSession:
-            Label("正在恢复登录状态…", systemImage: "arrow.clockwise")
-        case .signedOut:
-            Label("持仓仅保存在这台设备", systemImage: "iphone")
-        case let .signingIn(provider):
-            Label("正在通过\(provider.title)登录…", systemImage: "person.badge.clock")
-        case let .guestImportRequired(count):
-            Label("发现 \(count) 笔游客持仓，等待你的选择", systemImage: "tray.and.arrow.down")
-        case .syncing:
-            Label("正在安全合并本机与云端数据…", systemImage: "arrow.trianglehead.2.clockwise.rotate.90")
-        case let .synchronized(holdingCount):
-            Label("已同步 \(holdingCount) 笔持仓", systemImage: "checkmark.icloud")
-        case let .pendingRemoteUpload(_, pendingCount):
-            Label("\(pendingCount) 笔更改等待上传", systemImage: "icloud.and.arrow.up")
-        case let .syncPaused(message):
-            Label(message, systemImage: "icloud.slash")
-                .foregroundStyle(.secondary)
-        case let .failed(message):
-            Label(message, systemImage: "exclamationmark.triangle")
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var signInSection: some View {
-        Section {
-            Button {
-                Task { await model.signIn(using: .apple) }
-            } label: {
-                Label("通过 Apple 登录（等待开发者账号）", systemImage: "apple.logo")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .disabled(true)
-
-            Button {
-                Task { await model.signIn(using: .google) }
-            } label: {
-                Label("通过 Google 登录", systemImage: "person.badge.key")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .disabled(model.isBusy)
-        } header: {
-            Text("跨设备同步")
-        } footer: {
-            Text("Google 登录使用 iOS 系统安全登录页。Apple 登录将在配置 Apple Developer Team 后启用；游客数据不会自动并入账号。")
-        }
-    }
-
-    private func guestImportSection(count: Int) -> some View {
-        Section {
-            VStack(alignment: .leading, spacing: 14) {
-                Label("如何处理游客持仓？", systemImage: "pawprint.circle")
-                    .font(.headline)
-
-                Text("这台设备有 \(count) 笔游客持仓。复制会把它们加入当前账号，同时保留原游客数据；保持分开则不会上传。此选择只询问一次。")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Button("复制到当前账号") {
-                    Task { await model.chooseGuestImport(.copyIntoAccount) }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(model.isBusy)
-
-                Button("继续保持分开") {
-                    Task { await model.chooseGuestImport(.keepSeparate) }
-                }
-                .buttonStyle(.bordered)
-                .disabled(model.isBusy)
-            }
-            .padding(.vertical, 6)
-        }
-    }
-
-    @ViewBuilder
-    private var profileSection: some View {
-        if let identity = model.identity {
-            Section {
-                LabeledContent("显示名称", value: identity.displayName)
-                LabeledContent("账号", value: identity.maskedAccount)
-
-                Button {
-                    model.clearProfileError()
-                    isEditingProfile = true
-                } label: {
-                    HStack(spacing: 12) {
-                        CatAvatarBadge(avatar: identity.avatar, size: 38)
-                            .accessibilityHidden(true)
-                        Text("编辑名称与猫咪头像")
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tertiary)
-                            .accessibilityHidden(true)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .foregroundStyle(.primary)
-                .accessibilityLabel("编辑个人资料，当前头像为\(identity.avatar.title)")
-            } header: {
-                Text("个人资料")
-            } footer: {
-                profileSyncFooter
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var profileSyncFooter: some View {
-        switch model.profileSyncState {
-        case .localOnly:
-            Text("个人资料当前仅保存在本机。")
-        case .syncing:
-            Text("正在同步个人资料；持仓同步不会受影响。")
-        case .synchronized:
-            Text("个人资料已同步。")
-        case .pendingRemoteUpload:
-            Text("个人资料已保存在本机，将在下次同步时重试上传。")
-        case let .failed(message):
-            Text("个人资料同步失败：\(message) 持仓同步不受影响。")
-        }
-    }
-
-    private var syncSection: some View {
-        Section("同步") {
-            if let identity = model.identity {
-                LabeledContent("登录方式", value: identity.providerName)
-            }
-
-            switch model.state {
-            case let .pendingRemoteUpload(holdingCount, pendingCount):
-                LabeledContent("本机持仓", value: "\(holdingCount) 笔")
-                LabeledContent("等待上传", value: "\(pendingCount) 笔")
-            case let .synchronized(holdingCount):
-                LabeledContent("已同步持仓", value: "\(holdingCount) 笔")
-            default:
-                EmptyView()
-            }
-
-            Button {
-                Task { await model.retrySync() }
-            } label: {
-                Label("立即同步", systemImage: "arrow.clockwise")
-            }
-            .disabled(model.isBusy || !model.isCloudSyncEnabled)
-        }
-    }
-
-    private var signOutSection: some View {
-        Section {
-            Button("退出登录", role: .destructive) {
-                Task { await model.signOut() }
-            }
-            .disabled(model.isBusy)
-        } footer: {
-            Text("退出后会切回游客持仓；账号持仓仍保留在独立的本机目录中。")
-        }
-    }
-
-    private var accountSubtitle: String {
-        guard let identity = model.identity else {
-            return "登录后可在设备间同步，但是否导入游客数据始终由你决定。"
-        }
-        return identity.maskedAccount
-    }
-}
-
-private struct AccountProfileEditorView: View {
-    @ObservedObject var model: AccountViewModel
     @Environment(\.dismiss) private var dismiss
-    @State private var displayName: String
-    @State private var avatar: CatAvatar
 
-    private let columns = Array(
-        repeating: GridItem(.flexible(), spacing: 12),
-        count: 3
-    )
+    @State private var draftName = ""
+    @State private var draftAvatar: CatAvatar = .faceHappy
+    @State private var isSignOutConfirmPresented = false
+    @State private var hasLoadedDraft = false
 
-    init(model: AccountViewModel, identity: AccountIdentityPresentation) {
-        self.model = model
-        _displayName = State(initialValue: identity.displayName == "PawFolio 账户" ? "" : identity.displayName)
-        _avatar = State(initialValue: identity.avatar)
-    }
+    private let avatarColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    VStack(spacing: 12) {
-                        CatAvatarBadge(avatar: avatar, size: 86)
-                        Text(previewName)
-                            .font(.system(.title2, design: .rounded, weight: .bold))
-                            .lineLimit(1)
-                        Text(avatar.detailText)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .accessibilityElement(children: .combine)
-                }
-
-                Section {
-                    TextField("例如：雪球", text: $displayName)
-                        .textInputAutocapitalization(.words)
-                        .autocorrectionDisabled()
-                        .onChange(of: displayName) { _, newValue in
-                            if newValue.count > 20 {
-                                displayName = String(newValue.prefix(20))
-                            }
-                        }
-                } header: {
-                    Text("显示名称")
-                } footer: {
-                    Text("最多 20 个字符；留空时使用登录账号提供的名称。")
-                }
-
-                Section {
-                    avatarGrid(CatAvatar.faceOptions)
-                } header: {
-                    Text("猫咪表情")
-                }
-
-                Section {
-                    avatarGrid(CatAvatar.catOptions)
-                } header: {
-                    Text("我们家的猫")
-                } footer: {
-                    Text("照片随 App 安装，不会从网页加载。头像和显示名称目前只保存在这台设备。")
-                }
-
-                if let message = model.profileErrorMessage {
-                    Section {
-                        Label(message, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.secondary)
-                    }
+        PawSheet(
+            title: model.isSignedIn ? "个人资料" : "登录",
+            // 和持仓弹层统一：破坏性操作放左上角。
+            destructiveIcon: model.isSignedIn ? "IconLogout" : nil,
+            destructiveLabel: "退出登录",
+            onDestructive: model.isSignedIn ? { isSignOutConfirmPresented = true } : nil
+        ) {
+            if model.isSignedIn {
+                signedInBody
+            } else {
+                guestNote
+            }
+        } footer: {
+            footerButton
+        }
+        .task {
+            await model.loadIfNeeded()
+            loadDraftIfNeeded()
+        }
+        .onChange(of: model.identity) { _, _ in
+            hasLoadedDraft = false
+            loadDraftIfNeeded()
+        }
+        .confirmationDialog(
+            "退出登录？",
+            isPresented: $isSignOutConfirmPresented,
+            titleVisibility: .visible
+        ) {
+            Button("退出登录", role: .destructive) {
+                Task {
+                    await model.signOut()
+                    PawToastCenter.shared.show("已退出登录")
+                    dismiss()
                 }
             }
-            .navigationTitle("编辑个人资料")
-            .navigationBarTitleDisplayMode(.inline)
-            .interactiveDismissDisabled(model.isSavingProfile)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
-                        .disabled(model.isSavingProfile)
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("本机的账号数据会保留，重新登录后可以继续同步。")
+        }
+        .alert("资料保存失败", isPresented: profileErrorBinding) {
+            Button("知道了", role: .cancel) { model.clearProfileError() }
+        } message: {
+            Text(model.profileErrorMessage ?? "请稍后再试。")
+        }
+    }
+
+    // MARK: 已登录
+
+    private var signedInBody: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                PawFieldLabel("用户名")
+
+                PawInputShell(height: 44) {
+                    TextField("未设置时显示邮箱", text: $draftName)
+                        .font(PawFont.inter(14))
+                        .foregroundStyle(PawTheme.ink)
+                        .textInputAutocapitalization(.never)
+                        .onChange(of: draftName) { _, value in
+                            // Web 的 maxlength="20"。
+                            if value.count > 20 { draftName = String(value.prefix(20)) }
+                        }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") {
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                PawFieldLabel("头像")
+
+                LazyVGrid(columns: avatarColumns, spacing: 10) {
+                    ForEach(CatAvatar.faceOptions, id: \.self) { avatar in
+                        avatarOption(avatar)
+                    }
+                }
+
+            }
+
+            syncBlock
+
+            if let identity = model.identity {
+                Text("登录账号 \(identity.maskedAccount)")
+                    .font(PawFont.inter(12))
+                    .foregroundStyle(PawTheme.ink40)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
+        }
+    }
+
+    private func avatarOption(_ avatar: CatAvatar) -> some View {
+        let isSelected = draftAvatar == avatar
+
+        return Button {
+            draftAvatar = avatar
+        } label: {
+            Image(avatar.assetName)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFill()
+                .aspectRatio(1, contentMode: .fit)
+                .clipShape(Circle())
+                .overlay {
+                    Circle()
+                        .strokeBorder(
+                            isSelected ? PawTheme.accent : Color.white.opacity(0.82),
+                            lineWidth: isSelected ? 3 : 2
+                        )
+                }
+        }
+        .buttonStyle(PawPressableButtonStyle())
+        .accessibilityLabel(avatar.accessibilityLabel)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    // MARK: 同步（原生特有）
+
+    @ViewBuilder
+    private var syncBlock: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            PawFieldLabel("同步")
+
+            HStack(spacing: 8) {
+                Text(syncSummary)
+                    .font(PawFont.inter(13))
+                    .foregroundStyle(PawTheme.ink)
+
+                Spacer(minLength: 0)
+
+                if model.isBusy {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button("立即同步") {
                         Task {
-                            if await model.saveProfile(displayName: displayName, avatar: avatar) {
-                                dismiss()
-                            }
+                            await model.retrySync()
+                            PawToastCenter.shared.show(syncToastMessage)
                         }
                     }
-                    .disabled(model.isSavingProfile)
+                    .font(PawFont.inter(13, weight: .medium))
+                    .foregroundStyle(PawTheme.accent)
+                    .buttonStyle(PawPressableButtonStyle())
+                }
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 44)
+            .background(
+                PawTheme.ink4,
+                in: RoundedRectangle(cornerRadius: PawTheme.radiusCard, style: .continuous)
+            )
+
+            if case .guestImportRequired(let count) = model.state {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("这台设备上有 \(count) 笔游客持仓，要并入这个账号吗？")
+                        .font(PawFont.inter(12))
+                        .foregroundStyle(PawTheme.ink40)
+
+                    HStack(spacing: 8) {
+                        Button("复制进账号") {
+                            Task { await model.chooseGuestImport(.copyIntoAccount) }
+                        }
+                        .font(PawFont.inter(13, weight: .semibold))
+                        .foregroundStyle(PawTheme.bg1)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .background(PawTheme.ink, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                        Button("保持独立") {
+                            Task { await model.chooseGuestImport(.keepSeparate) }
+                        }
+                        .font(PawFont.inter(13))
+                        .foregroundStyle(PawTheme.ink)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .background(PawTheme.ink4, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    }
+                    .buttonStyle(PawPressableButtonStyle())
                 }
             }
         }
     }
 
-    private var previewName: String {
-        let normalized = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        return normalized.isEmpty ? "PawFolio 账户" : normalized
+    /// 同步完成后的反馈，直接复用状态机给出的结论。
+    private var syncToastMessage: String {
+        switch model.state {
+        case .synchronized(let count): "已同步 \(count) 笔持仓"
+        case .pendingRemoteUpload(_, let pending): "还有 \(pending) 笔待上传"
+        case .failed(let message): message
+        default: syncSummary
+        }
     }
 
-    private func avatarGrid(_ options: [CatAvatar]) -> some View {
-        LazyVGrid(columns: columns, spacing: 16) {
-            ForEach(options, id: \.self) { option in
-                Button {
-                    avatar = option
-                } label: {
-                    VStack(spacing: 7) {
-                        CatAvatarBadge(avatar: option, size: 62)
-                            .overlay(alignment: .bottomTrailing) {
-                                if avatar == option {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.title3)
-                                        .symbolRenderingMode(.palette)
-                                        .foregroundStyle(.white, PawTheme.accent)
-                                        .background(.background, in: Circle())
-                                }
-                            }
-                        Text(option.title)
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                        if let subtitle = option.subtitle {
-                            Text(subtitle)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
+    private var syncSummary: String {
+        switch model.state {
+        case .restoringSession: "正在恢复登录…"
+        case .signedOut: "未登录"
+        case .signingIn: "正在登录…"
+        case .guestImportRequired: "等待选择游客数据去向"
+        case .syncing: "正在同步…"
+        case .synchronized(let count): "已同步 \(count) 笔持仓"
+        case .pendingRemoteUpload(let count, let pending): "已同步 \(count) 笔，\(pending) 笔待上传"
+        case .syncPaused(let message): message
+        case .failed(let message): message
+        }
+    }
+
+    // MARK: 未登录
+
+    private var guestNote: some View {
+        VStack(spacing: 16) {
+            Image("ArtLogin")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 96, height: 96)
+                .accessibilityLabel("未登录")
+
+            Text("登录后可以自定义用户名和头像，持仓也会同步到云端。")
+                .font(PawFont.inter(13))
+                .foregroundStyle(PawTheme.ink40)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+    }
+
+    // MARK: 底部按钮
+
+    @ViewBuilder
+    private var footerButton: some View {
+        if model.isSignedIn {
+            PawPrimaryButton(title: model.isSavingProfile ? "保存中…" : "保存") {
+                Task {
+                    let saved = await model.saveProfile(
+                        displayName: draftName.trimmingCharacters(in: .whitespacesAndNewlines),
+                        avatar: draftAvatar
+                    )
+                    if saved {
+                        PawToastCenter.shared.show("个人资料已保存")
+                        dismiss()
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(option.accessibilityLabel)
-                .accessibilityAddTraits(avatar == option ? .isSelected : [])
+            }
+            .disabled(model.isSavingProfile)
+        } else {
+            PawPrimaryButton(title: "登录") {
+                Task { await model.signIn(using: .google) }
             }
         }
+    }
+
+    // MARK: 草稿
+
+    private func loadDraftIfNeeded() {
+        guard !hasLoadedDraft, let identity = model.identity else { return }
+        draftName = identity.displayName
+        draftAvatar = identity.avatar
+        hasLoadedDraft = true
+    }
+
+    private var profileErrorBinding: Binding<Bool> {
+        Binding(
+            get: { model.profileErrorMessage != nil },
+            set: { if !$0 { model.clearProfileError() } }
+        )
     }
 }
 
 private struct CatAvatarBadge: View {
     let avatar: CatAvatar
     let size: CGFloat
+    /// 与正文并排时随 Dynamic Type 缩放；头像选择网格保持固定尺寸以免破坏网格。
+    var scalesWithText = false
+
+    @ScaledMetric(relativeTo: .headline) private var scale: CGFloat = 1
+
+    private var diameter: CGFloat {
+        scalesWithText ? size * min(scale, 1.6) : size
+    }
 
     var body: some View {
         Image(avatar.assetName)
             .resizable()
             .interpolation(.high)
             .scaledToFill()
-        .frame(width: size, height: size)
+        .frame(width: diameter, height: diameter)
         .clipShape(Circle())
         .overlay {
             Circle()
-                .strokeBorder(.white.opacity(0.82), lineWidth: max(1, size * 0.025))
+                .strokeBorder(.white.opacity(0.82), lineWidth: max(1, diameter * 0.025))
         }
         .accessibilityLabel(avatar.accessibilityLabel)
     }
 }
 
-private extension CatAvatar {
+// 头像的展示信息现在也给头部用（Web 的 `.header-avatar`），所以不再是 fileprivate。
+extension CatAvatar {
     var title: String {
         switch self {
         case .faceHappy: "开心"

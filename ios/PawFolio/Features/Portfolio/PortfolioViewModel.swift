@@ -383,4 +383,55 @@ final class PortfolioViewModel: ObservableObject {
     private static func message(for error: Error) -> String {
         (error as? LocalizedError)?.errorDescription ?? "本地持仓保存失败，请重试。"
     }
+
+    // MARK: 快捷添加
+    //
+    // 对应 Web 的 `RECOMMENDED_ASSETS` 与 `#portfolio-recommend`。整块可以关掉，
+    // 关掉的选择记在本地（Web 用 `PORTFOLIO_RECOMMEND_DISMISSED_KEY`）。
+
+    static let recommendedAssets: [AssetSearchResult] = [
+        AssetSearchResult(
+            symbol: "VOO", quoteSymbol: "VOO", name: "Vanguard S&P 500 ETF",
+            assetType: .etf, exchange: "NYSEArca"
+        ),
+        AssetSearchResult(
+            symbol: "AAPL", quoteSymbol: "AAPL", name: "Apple Inc.",
+            assetType: .equity, exchange: "NASDAQ"
+        ),
+        AssetSearchResult(
+            symbol: "BTC", quoteSymbol: "BTC-USD", name: "Bitcoin",
+            assetType: .cryptocurrency, exchange: "CCC"
+        )
+    ]
+
+    private static let recommendDismissedKey = "pawfolio.portfolio.recommend-dismissed"
+
+    @Published private(set) var recommendQuotes: [String: MarketQuote] = [:]
+    @Published var isRecommendDismissed = UserDefaults.standard.bool(
+        forKey: PortfolioViewModel.recommendDismissedKey
+    ) {
+        didSet {
+            UserDefaults.standard.set(isRecommendDismissed, forKey: Self.recommendDismissedKey)
+        }
+    }
+
+    func recommendQuote(for asset: AssetSearchResult) -> MarketQuote? {
+        // 已持有该标的时，复用持仓那边已经取到的报价，避免重复请求。
+        quotes[asset.quoteSymbol] ?? recommendQuotes[asset.quoteSymbol]
+    }
+
+    func loadRecommendQuotes() async {
+        guard !isRecommendDismissed else { return }
+
+        let symbols = Set(Self.recommendedAssets.map(\.quoteSymbol))
+        let cached = await quoteRepository.cachedQuotes(for: symbols)
+        if !cached.isEmpty {
+            recommendQuotes = cached
+        }
+
+        let refreshed = await quoteRepository.refreshQuotes(for: symbols)
+        if !refreshed.quotes.isEmpty {
+            recommendQuotes = refreshed.quotes
+        }
+    }
 }

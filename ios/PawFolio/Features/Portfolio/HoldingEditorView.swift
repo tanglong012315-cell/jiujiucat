@@ -9,11 +9,15 @@ struct HoldingEditorView: View {
     let marketPrice: Double?
     let onSave: (Holding) async -> Bool
     let onAdjust: (HoldingAdjustmentRequest) async throws -> Void
+    /// 删除入口在弹层左上角；没传就不显示那颗按钮。
+    var onDelete: ((Holding) -> Void)?
 
     @State private var draft: HoldingDraft
     @State private var validationMessage: String?
     @State private var isSaving = false
     @State private var isAssetSearchPresented = false
+    @State private var isFrequencySheetPresented = false
+    @State private var isDeleteConfirmPresented = false
     @State private var adjustmentType = PositionAdjustmentKind.add
     @State private var adjustmentAmountText = ""
     @State private var adjustmentPriceText = ""
@@ -21,309 +25,536 @@ struct HoldingEditorView: View {
 
     init(
         holding: Holding?,
+        prefilledAsset: AssetSearchResult? = nil,
         marketPrice: Double?,
         onSave: @escaping (Holding) async -> Bool,
-        onAdjust: @escaping (HoldingAdjustmentRequest) async throws -> Void
+        onAdjust: @escaping (HoldingAdjustmentRequest) async throws -> Void,
+        onDelete: ((Holding) -> Void)? = nil
     ) {
         existingHolding = holding
         self.marketPrice = marketPrice
         self.onSave = onSave
         self.onAdjust = onAdjust
-        _draft = State(initialValue: HoldingDraft(holding: holding))
+        self.onDelete = onDelete
+
+        // Web 的「一键添加」是打开预填好标的的表单，而不是直接建仓
+        // （`app.js` 里 `openHoldingSheet(null, asset)`）。
+        var draft = HoldingDraft(holding: holding)
+        if let prefilledAsset {
+            draft.apply(prefilledAsset)
+        }
+        _draft = State(initialValue: draft)
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                kindSection
-                identitySection
-                valueSection
+        PawSheet(
+            title: existingHolding == nil ? "添加持仓" : "编辑持仓",
+            // Web 把删除放在弹层左上角，和右上角的关闭对称。
+            destructiveIcon: existingHolding == nil ? nil : "IconDelete",
+            destructiveLabel: "删除持仓",
+            onDestructive: existingHolding == nil ? nil : { isDeleteConfirmPresented = true }
+        ) {
+            VStack(alignment: .leading, spacing: 16) {
+                if existingHolding == nil {
+                    editorField("资产类型") {
+                        PawSegmented(
+                            options: [HoldingKind.market, .interest],
+                            title: { $0 == .market ? "Stock/Crypto" : "稳定生息" },
+                            selection: baseKindBinding
+                        )
+                    }
+                }
+
+                identityFields
+                valueFields
 
                 if let existingHolding {
-                    adjustmentSection(for: existingHolding)
+                    adjustmentPanel(for: existingHolding)
+                }
+
+                if canRecordDividends {
+                    incomeToggle
                 }
 
                 if draft.kind == .interest || draft.kind == .hybrid {
-                    interestSection
+                    interestFields
                 }
 
                 if draft.kind == .dividend {
-                    dividendSection
+                    dividendPanel
                 }
             }
-            .navigationTitle(existingHolding == nil ? "添加持仓" : "编辑持仓")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
-                        .disabled(isSaving)
-                }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") { save() }
-                        .fontWeight(.semibold)
-                        .disabled(isSaving)
-                }
-            }
-            .interactiveDismissDisabled(isSaving)
-            .sheet(isPresented: $isAssetSearchPresented) {
-                AssetSearchView(initialQuery: draft.symbol) { asset in
-                    draft.apply(asset)
-                }
-            }
-            .alert("无法保存", isPresented: validationAlertBinding) {
-                Button("知道了", role: .cancel) {}
-            } message: {
-                Text(validationMessage ?? "请检查输入内容。")
-            }
-            .overlay {
-                if isSaving {
-                    ProgressView("正在保存…")
-                        .padding(18)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-                }
-            }
-            .environment(\.timeZone, Self.beijingTimeZone)
+        } footer: {
+            PawPrimaryButton(title: isSaving ? "保存中…" : "保存") { save() }
+                .disabled(isSaving)
+                .opacity(isSaving ? 0.55 : 1)
         }
+        .interactiveDismissDisabled(isSaving)
+        .sheet(isPresented: $isFrequencySheetPresented) {
+            DividendFrequencySheet(selection: $draft.dividendFrequency)
+        }
+        .sheet(isPresented: $isAssetSearchPresented) {
+            AssetSearchView(initialQuery: draft.symbol) { asset in
+                draft.apply(asset)
+            }
+        }
+        .confirmationDialog(
+            "删除 \(existingHolding?.symbol ?? "")？",
+            isPresented: $isDeleteConfirmPresented,
+            titleVisibility: .visible
+        ) {
+            Button("删除持仓", role: .destructive) {
+                guard let existingHolding else { return }
+                onDelete?(existingHolding)
+                dismiss()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("这笔记录将从当前列表中移除。")
+        }
+        .alert("无法保存", isPresented: validationAlertBinding) {
+            Button("知道了", role: .cancel) {}
+        } message: {
+            Text(validationMessage ?? "请检查输入内容。")
+        }
+        .overlay {
+            if isSaving {
+                ProgressView()
+                    .tint(PawTheme.ink)
+                    .padding(18)
+                    .background(PawTheme.bg2, in: RoundedRectangle(cornerRadius: 16))
+            }
+        }
+        .environment(\.timeZone, Self.beijingTimeZone)
+    }
+
+    private var baseKindBinding: Binding<HoldingKind> {
+        Binding(
+            get: { draft.kind == .interest ? .interest : .market },
+            set: { draft.kind = $0 }
+        )
     }
 
     @ViewBuilder
-    private var kindSection: some View {
-        Section {
-            if existingHolding == nil {
-                Picker("持仓类型", selection: $draft.kind) {
-                    ForEach(HoldingKind.allCases, id: \.rawValue) { kind in
-                        Text(kind.title).tag(kind)
-                    }
-                }
-                .pickerStyle(.navigationLink)
-            } else {
-                LabeledContent("持仓类型", value: draft.kind.title)
-            }
-        } footer: {
-            Text(draft.kind.explanation)
-        }
-    }
-
-    private var identitySection: some View {
-        Section("资产信息") {
-            if draft.kind == .interest {
-                TextField("例如：美元定存", text: $draft.symbol)
+    private var identityFields: some View {
+        if draft.kind == .interest {
+            editorField("资产名称") {
+                inputShell(placeholder: "例如 USDT、USD", text: $draft.symbol, keyboard: .default)
                     .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled()
-            } else {
-                Button {
-                    isAssetSearchPresented = true
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(draft.symbol.isEmpty ? "选择标的" : draft.symbol)
-                                .foregroundStyle(draft.symbol.isEmpty ? .secondary : .primary)
-                            if !draft.name.isEmpty {
+            }
+        } else {
+            editorField("标的代码") {
+                Button { isAssetSearchPresented = true } label: {
+                    PawInputShell {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(PawTheme.ink40)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(draft.symbol.isEmpty ? "例如 AAPL、BTC" : draft.symbol)
+                                .font(PawFont.inter(16, weight: draft.symbol.isEmpty ? .regular : .medium))
+                                .foregroundStyle(draft.symbol.isEmpty ? PawTheme.ink40 : PawTheme.ink)
+                            if !draft.name.isEmpty, draft.name != draft.symbol {
                                 Text(draft.name)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .font(PawFont.inter(11))
+                                    .foregroundStyle(PawTheme.ink40)
                                     .lineLimit(1)
                             }
                         }
-                        Spacer()
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(PawTheme.accent)
+                        Spacer(minLength: 8)
+                        Image("IconArrowDownS")
+                            .renderingMode(.template)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 18, height: 18)
+                            .rotationEffect(.degrees(-90))
+                            .foregroundStyle(PawTheme.ink40)
                     }
                 }
+                .buttonStyle(PawPressableButtonStyle())
                 .accessibilityLabel(draft.symbol.isEmpty ? "搜索并选择标的" : "当前标的 \(draft.symbol)，点按重新搜索")
-            }
-
-            TextField("资产名称（选填）", text: $draft.name)
-
-            if draft.kind != .interest, !draft.symbol.isEmpty, draft.exchange == "手动" {
-                Picker("资产类别", selection: $draft.assetType) {
-                    Text("股票").tag(AssetType.equity)
-                    Text("ETF").tag(AssetType.etf)
-                    Text("加密货币").tag(AssetType.cryptocurrency)
-                }
-            } else if draft.kind != .interest, !draft.symbol.isEmpty {
-                LabeledContent("资产类别", value: draft.assetType.title)
             }
         }
     }
 
     @ViewBuilder
-    private var valueSection: some View {
+    private var valueFields: some View {
         if draft.kind == .interest {
-            Section {
-                if let principal = existingHolding?.principal {
-                    LabeledContent("当前本金") {
-                        Text(principal, format: .currency(code: "USD"))
-                            .monospacedDigit()
-                    }
-                } else {
-                    moneyField("投资本金", text: $draft.principalText)
-                }
-            } header: {
-                Text("本金")
-            } footer: {
-                if existingHolding != nil {
-                    Text("本金变化请使用“调整持仓”，以保留历史计息区间。")
-                }
+            editorField(
+                "投资本金",
+                hint: existingHolding == nil ? nil : "通过下方加仓或减仓调整本金"
+            ) {
+                moneyInput(text: $draft.principalText, placeholder: "0.00", disabled: existingHolding != nil)
             }
         } else {
-            Section {
-                if let quantity = existingHolding?.quantity {
-                    LabeledContent("当前数量") {
-                        Text(quantity, format: .number.precision(.fractionLength(0...8)))
-                            .monospacedDigit()
-                    }
-                } else {
-                    decimalField("持有数量", text: $draft.quantityText)
-                }
-                moneyField("单位成本", text: $draft.costPerShareText)
-            } header: {
-                Text("仓位")
-            } footer: {
-                Text(
-                    existingHolding == nil
-                        ? "单位成本用于计算持仓盈亏；当前市值会按实时行情自动更新。"
-                        : "数量变化请使用“调整持仓”；单位成本可用于修正录入错误。"
-                )
+            editorField(
+                "持有数量",
+                hint: existingHolding == nil ? nil : "通过下方加仓或减仓调整数量"
+            ) {
+                inputShell(placeholder: "0", text: $draft.quantityText, disabled: existingHolding != nil)
             }
+            editorField("单位成本价（可选）", hint: "不填写时，将使用保存时的最新价格作为成本价") {
+                moneyInput(text: $draft.costPerShareText, placeholder: "0.00")
+            }
+        }
+
+        noteField
+    }
+
+    /// 备注。计息类持仓没有成本价字段，所以它挂在 `valueFields` 末尾而不是成本价之后，
+    /// 这样两种类型下它都在这一组的最后一行。
+    private var noteField: some View {
+        editorField("备注（可选）", hint: "最多 \(Holding.noteCharacterLimit) 个字，会显示在盈亏明细里") {
+            PawTextFieldShell(
+                placeholder: "例如：定投账户",
+                text: Binding(
+                    get: { draft.note },
+                    // 直接截断而不是拒绝输入：拒绝的话中文输入法在拼音候选阶段就会被卡住，
+                    // 拼一半的字母被当成正文数进长度里。
+                    set: { draft.note = String($0.prefix(Holding.noteCharacterLimit)) }
+                ),
+                keyboard: .default
+            )
         }
     }
 
-    private func adjustmentSection(for holding: Holding) -> some View {
-        Section {
-            Picker("调整方向", selection: $adjustmentType) {
-                Text("加仓").tag(PositionAdjustmentKind.add)
-                Text("减仓").tag(PositionAdjustmentKind.reduce)
-            }
-            .pickerStyle(.segmented)
-
-            if holding.holdingKind == .interest {
-                moneyField("调整金额", text: $adjustmentAmountText)
-                DatePicker(
-                    "生效日期",
-                    selection: $adjustmentEffectiveDate,
-                    in: Self.beijingStartOfToday...,
-                    displayedComponents: .date
-                )
-            } else {
-                HStack {
-                    decimalField("调整数量", text: $adjustmentAmountText)
-                    if adjustmentType == .reduce {
-                        Button("全部") {
-                            adjustmentAmountText = Self.numberText(holding.quantity)
-                        }
-                        .buttonStyle(.borderless)
-                    }
-                }
-                moneyField("成交价格", text: $adjustmentPriceText)
-
-                if let marketPrice {
-                    LabeledContent("美元实时价") {
-                        Text(marketPrice, format: .currency(code: "USD"))
-                            .monospacedDigit()
-                    }
-                }
-            }
-
-            Button {
-                applyAdjustment(to: holding)
-            } label: {
-                HStack {
-                    Spacer()
-                    if isSaving {
-                        ProgressView()
-                    }
-                    Text(adjustmentType == .add ? "确认加仓" : "确认减仓")
-                        .fontWeight(.semibold)
-                    Spacer()
-                }
-            }
-            .disabled(isSaving || adjustmentAmountText.trimmingCharacters(in: .whitespaces).isEmpty)
-        } header: {
+    private func adjustmentPanel(for holding: Holding) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
             Text("调整持仓")
-        } footer: {
+                .font(PawFont.inter(14, weight: .semibold))
+                .foregroundStyle(PawTheme.ink)
+
+            PawSegmented(
+                options: [PositionAdjustmentKind.add, .reduce],
+                title: { $0 == .add ? "加仓" : "减仓" },
+                selection: $adjustmentType
+            )
+
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 12) { adjustmentFields(for: holding) }
+                VStack(alignment: .leading, spacing: 14) { adjustmentFields(for: holding) }
+            }
+
+            Text(adjustmentHint(for: holding))
+                .font(PawFont.inter(12))
+                .foregroundStyle(PawTheme.ink40)
+
+            Button { applyAdjustment(to: holding) } label: {
+                Text(adjustmentType == .add ? "确认加仓" : "确认减仓")
+                    .font(PawFont.inter(13, weight: .semibold))
+                    .foregroundStyle(PawTheme.bg1)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 42)
+                    .background(PawTheme.ink, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .buttonStyle(PawPressableButtonStyle())
+            .disabled(isSaving || adjustmentAmountText.trimmingCharacters(in: .whitespaces).isEmpty)
+            .opacity(adjustmentAmountText.trimmingCharacters(in: .whitespaces).isEmpty ? 0.45 : 1)
+        }
+        .padding(16)
+        .background(PawTheme.ink4, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func adjustmentFields(for holding: Holding) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                PawFieldLabel(holding.holdingKind == .interest ? "调整金额" : "调整数量")
+                Spacer()
+                if holding.holdingKind != .interest, adjustmentType == .reduce {
+                    Button("全部") { adjustmentAmountText = Self.numberText(holding.quantity) }
+                        .font(PawFont.inter(12, weight: .semibold))
+                        .foregroundStyle(PawTheme.accent)
+                        .buttonStyle(.plain)
+                }
+            }
             if holding.holdingKind == .interest {
-                Text("新本金从生效日次日 16:00（北京时间）的结算起参与计息，历史利息不变。")
-            } else if adjustmentType == .add {
-                Text(
-                    marketPrice == nil
-                        ? "当前没有可用的美元实时价，请填写成交价格；加仓会重新计算加权平均成本。"
-                        : "成交价格留空时使用上方美元实时价；加仓会重新计算加权平均成本。"
-                )
+                moneyInput(text: $adjustmentAmountText, placeholder: "0.00", compact: true)
             } else {
-                Text(
-                    (marketPrice == nil ? "当前没有可用的美元实时价，请填写成交价格。" : "")
-                        + "卖出所得会在同一时刻转入 0% APR 的 USDT 持仓；选择“全部”会保留清仓历史。"
+                inputShell(placeholder: "0", text: $adjustmentAmountText, compact: true)
+            }
+        }
+        .frame(maxWidth: .infinity)
+
+        if holding.holdingKind == .interest {
+            editorField("生效日期") {
+                dateInput(selection: $adjustmentEffectiveDate, minimumDate: Self.beijingStartOfToday)
+            }
+            .frame(maxWidth: .infinity)
+        } else {
+            editorField("成交价格") {
+                moneyInput(
+                    text: $adjustmentPriceText,
+                    placeholder: marketPrice.map { Self.numberText($0) } ?? "市场价",
+                    compact: true
                 )
             }
+            .frame(maxWidth: .infinity)
         }
     }
 
-    private var interestSection: some View {
-        Section("收益设置") {
-            HStack {
-                TextField("年化利率", text: $draft.annualRateText)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .monospacedDigit()
-                Text("%")
-                    .foregroundStyle(.secondary)
-            }
+    private var canRecordDividends: Bool {
+        draft.kind != .interest && (draft.assetType == .equity || draft.assetType == .etf)
+    }
 
-            Picker("计息方式", selection: $draft.interestMode) {
-                ForEach(InterestMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
+    private var incomeToggle: some View {
+        Button {
+            draft.kind = draft.kind == .market ? .dividend : .market
+        } label: {
+            HStack(spacing: 12) {
+                Image(draft.kind == .market ? "IconCheckboxBlank" : "IconCheckboxFill")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 22, height: 22)
+                    .foregroundStyle(PawTheme.ink)
+
+                Text("记录分红")
+                    .font(PawFont.inter(14, weight: .semibold))
+                    .foregroundStyle(PawTheme.ink)
+
+                Spacer()
+            }
+            .frame(minHeight: 24)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PawPressableButtonStyle())
+    }
+
+    private var interestFields: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            editorField("年化利率（APR）") {
+                PawInputShell {
+                    TextField("0.00", text: $draft.annualRateText)
+                        .keyboardType(.decimalPad)
+                        .font(PawFont.inter(16, weight: .medium).monospacedDigit())
+                        .foregroundStyle(PawTheme.ink)
+                    Text("%")
+                        .font(PawFont.inter(16, weight: .medium))
+                        .foregroundStyle(PawTheme.ink40)
                 }
             }
 
-            DatePicker(
-                "起息日期",
-                selection: $draft.interestStartDate,
-                displayedComponents: .date
-            )
+            editorField("计息方式") {
+                PawSegmented(
+                    options: InterestMode.allCases,
+                    title: { $0 == .simple ? "单利" : "每日复利" },
+                    selection: $draft.interestMode
+                )
+            }
+
+            editorField("起息日期", hint: "首次结算为起息日次日，可选未来日期（T+1／T+2 起息）") {
+                dateInput(selection: $draft.interestStartDate)
+            }
+
+            yieldPreview
         }
     }
 
-    private var dividendSection: some View {
-        Section("分红设置") {
-            moneyField("每股／份分红", text: $draft.dividendPerShareText)
+    private var dividendPanel: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("本次分红")
+                .font(PawFont.inter(14, weight: .semibold))
+                .foregroundStyle(PawTheme.ink)
 
-            Picker("频率", selection: $draft.dividendFrequency) {
-                ForEach(DividendFrequency.allCases, id: \.rawValue) { frequency in
-                    Text(frequency.title).tag(frequency)
+            editorField(draft.assetType == .etf ? "每份分红" : "每股分红") {
+                moneyInput(text: $draft.dividendPerShareText, placeholder: "0.00")
+            }
+
+            // 和分红记录弹层用同一个频率选择器，Web 那边也是同一个 overlay。
+            editorField("分红频率", hint: "频率仅用于说明，不会自动推算未公告的分红") {
+                Button {
+                    isFrequencySheetPresented = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Text(draft.dividendFrequency.controlTitle)
+                            .font(PawFont.inter(16, weight: .medium))
+                            .foregroundStyle(PawTheme.ink)
+
+                        Spacer(minLength: 0)
+
+                        Image("IconArrowRightS")
+                            .renderingMode(.template)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 16, height: 16)
+                            .foregroundStyle(PawTheme.ink40)
+                    }
+                    .padding(.horizontal, 16)
+                    .frame(height: 52)
+                    .background(
+                        PawTheme.ink4,
+                        in: RoundedRectangle(cornerRadius: PawTheme.radiusCard, style: .continuous)
+                    )
+                }
+                .buttonStyle(PawPressableButtonStyle())
+            }
+
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    dividendDateFields
+                }
+                VStack(alignment: .leading, spacing: 16) {
+                    dividendDateFields
                 }
             }
 
-            DatePicker(
-                "除息日",
-                selection: $draft.dividendExDate,
-                displayedComponents: .date
-            )
-            Toggle("已确定派息日", isOn: $draft.hasDividendPayDate)
+            Text("分红在除息日确认，派息日只用于记录实际到账时间")
+                .font(PawFont.inter(12))
+                .foregroundStyle(PawTheme.ink40)
+
+            dividendPreview
+        }
+        .padding(16)
+        .background(PawTheme.bg2, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(PawTheme.ink10, lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private var dividendDateFields: some View {
+        editorField("除息日") { dateInput(selection: $draft.dividendExDate) }
+            .frame(maxWidth: .infinity)
+        editorField("派息日（可选）") {
             if draft.hasDividendPayDate {
-                DatePicker(
-                    "派息日",
-                    selection: $draft.dividendPayDate,
-                    displayedComponents: .date
-                )
+                dateInput(selection: $draft.dividendPayDate)
+            } else {
+                Button { draft.hasDividendPayDate = true } label: {
+                    PawInputShell(horizontalPadding: 12) {
+                        Text("选择日期")
+                            .font(PawFont.inter(16))
+                            .foregroundStyle(PawTheme.ink40)
+                        Spacer()
+                        Image(systemName: "calendar")
+                            .foregroundStyle(PawTheme.ink40)
+                    }
+                }
+                .buttonStyle(PawPressableButtonStyle())
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var yieldPreview: some View {
+        let principal = Self.number(from: draft.kind == .interest ? draft.principalText : draft.quantityText)
+        let rate = Self.number(from: draft.annualRateText)
+        let basis = draft.kind == .hybrid
+            ? (principal ?? 0) * (Self.number(from: draft.costPerShareText) ?? marketPrice ?? 0)
+            : (principal ?? 0)
+        let text = basis > 0 && (rate ?? 0) > 0
+            ? "预计每日收益 \(currencyText(basis * (rate ?? 0) / 100 / 365)) · 每日 16:00（北京时间）更新"
+            : (draft.kind == .hybrid ? "填写数量与年化利率后显示预计收益" : "填写本金与年化利率后显示预计收益")
+        return preview(text)
+    }
+
+    private var dividendPreview: some View {
+        let quantity = Self.number(from: draft.quantityText) ?? 0
+        let perShare = Self.number(from: draft.dividendPerShareText) ?? 0
+        let text = quantity > 0 && perShare > 0
+            ? "本次预计分红 \(currencyText(quantity * perShare)) · 不按日累计，不计算复利"
+            : "填写数量与每股分红后显示本次收益"
+        return preview(text)
+    }
+
+    private func preview(_ text: String) -> some View {
+        Text(text)
+            .font(PawFont.inter(12).monospacedDigit())
+            .foregroundStyle(PawTheme.ink80)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(PawTheme.ink4, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(PawTheme.ink10, lineWidth: 1)
+            )
+    }
+
+    private func editorField<Content: View>(
+        _ label: String,
+        hint: String? = nil,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            PawFieldLabel(label)
+
+            // 说明贴着控件走，用嵌套的 4pt 间距而不是负 padding——
+            // 负 padding 会让外层少算高度。
+            VStack(alignment: .leading, spacing: 4) {
+                content()
+                if let hint {
+                    Text(hint)
+                        .font(PawFont.inter(12))
+                        .foregroundStyle(PawTheme.ink40)
+                }
             }
         }
     }
 
-    private func decimalField(_ title: LocalizedStringKey, text: Binding<String>) -> some View {
-        TextField(title, text: text)
-            .keyboardType(.decimalPad)
-            .multilineTextAlignment(.trailing)
-            .monospacedDigit()
+    private func inputShell(
+        placeholder: String,
+        text: Binding<String>,
+        keyboard: UIKeyboardType = .decimalPad,
+        disabled: Bool = false,
+        compact: Bool = false
+    ) -> some View {
+        PawInputShell(horizontalPadding: compact ? 12 : 16) {
+            TextField(placeholder, text: text)
+                .keyboardType(keyboard)
+                .font(PawFont.inter(16, weight: .medium).monospacedDigit())
+                .foregroundStyle(disabled ? PawTheme.ink40 : PawTheme.ink)
+                .disabled(disabled)
+        }
     }
 
-    private func moneyField(_ title: LocalizedStringKey, text: Binding<String>) -> some View {
-        HStack {
+    private func moneyInput(
+        text: Binding<String>,
+        placeholder: String,
+        disabled: Bool = false,
+        compact: Bool = false
+    ) -> some View {
+        PawInputShell(horizontalPadding: compact ? 12 : 16) {
             Text("$")
-                .foregroundStyle(.secondary)
-            decimalField(title, text: text)
+                .font(PawFont.inter(16, weight: .medium))
+                .foregroundStyle(PawTheme.ink40)
+            TextField(placeholder, text: text)
+                .keyboardType(.decimalPad)
+                .font(PawFont.inter(16, weight: .medium).monospacedDigit())
+                .foregroundStyle(disabled ? PawTheme.ink40 : PawTheme.ink)
+                .disabled(disabled)
         }
+    }
+
+    private func dateInput(selection: Binding<Date>, minimumDate: Date? = nil) -> some View {
+        PawInputShell(horizontalPadding: 12) {
+            if let minimumDate {
+                DatePicker("", selection: selection, in: minimumDate...Date.distantFuture, displayedComponents: .date)
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+                    .tint(PawTheme.ink)
+            } else {
+                DatePicker("", selection: selection, displayedComponents: .date)
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+                    .tint(PawTheme.ink)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func adjustmentHint(for holding: Holding) -> String {
+        if holding.holdingKind == .interest {
+            return "生效日次日的结算起按新本金计息，已发放的利息不变"
+        }
+        if adjustmentType == .add {
+            return "按成交价计入成本；留空使用市场价，操作瞬间总盈亏不变"
+        }
+        return "按成交价卖出，卖得的金额自动转成 USDT 持仓；点「全部」即清仓"
+    }
+
+    private func currencyText(_ value: Double) -> String {
+        "$" + value.formatted(.number.grouping(.automatic).precision(.fractionLength(2)))
     }
 
     private var validationAlertBinding: Binding<Bool> {
@@ -335,12 +566,18 @@ struct HoldingEditorView: View {
 
     private func save() {
         do {
-            let holding = try draft.makeHolding(existing: existingHolding)
+            let holding = try draft.makeHolding(
+                existing: existingHolding,
+                fallbackPrice: marketPrice
+            )
             isSaving = true
             Task {
                 let didSave = await onSave(holding)
                 isSaving = false
                 if didSave {
+                    PawToastCenter.shared.show(
+                        existingHolding == nil ? "\(holding.symbol) 已添加" : "\(holding.symbol) 已更新"
+                    )
                     dismiss()
                 } else {
                     validationMessage = "本地数据暂时无法写入，请重试。"
@@ -382,6 +619,10 @@ struct HoldingEditorView: View {
             do {
                 try await onAdjust(request)
                 isSaving = false
+                // Web 在加减仓完成后给一条 toast，说明动作确实生效了。
+                PawToastCenter.shared.show(
+                    adjustmentType == .add ? "已完成加仓" : "已完成减仓"
+                )
                 dismiss()
             } catch {
                 isSaving = false
@@ -442,6 +683,7 @@ private struct HoldingDraft {
     var dividendExDate: Date
     var hasDividendPayDate: Bool
     var dividendPayDate: Date
+    var note: String
 
     init(holding: Holding?) {
         kind = holding?.holdingKind ?? .market
@@ -465,9 +707,10 @@ private struct HoldingDraft {
         dividendExDate = Self.date(from: holding?.dividendExDate) ?? Date()
         hasDividendPayDate = !(holding?.dividendPayDate ?? "").isEmpty
         dividendPayDate = Self.date(from: holding?.dividendPayDate) ?? Date()
+        note = holding?.note ?? ""
     }
 
-    func makeHolding(existing: Holding?) throws -> Holding {
+    func makeHolding(existing: Holding?, fallbackPrice: Double? = nil) throws -> Holding {
         let normalizedSymbol = symbol
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .uppercased()
@@ -478,7 +721,9 @@ private struct HoldingDraft {
         let normalizedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let now = Date().timeIntervalSince1970 * 1_000
         let quantity = Self.number(from: quantityText)
-        let costPerShare = Self.number(from: costPerShareText)
+        // 留空时落到保存那一刻的最新价；连行情都没有就真的不带成本，
+        // 由估值那边按「行情不可用」处理，而不是拦着不让保存。
+        let costPerShare = Self.number(from: costPerShareText) ?? fallbackPrice
         let principal = Self.number(from: principalText)
         let annualRate = Self.number(from: annualRateText)
         let dividendPerShare = Self.number(from: dividendPerShareText)
@@ -491,8 +736,12 @@ private struct HoldingDraft {
             guard let quantity, quantity.isFinite, quantity > 0 else {
                 throw HoldingDraftError.invalidQuantity
             }
-            guard let costPerShare, costPerShare.isFinite, costPerShare > 0 else {
-                throw HoldingDraftError.invalidCost
+            // 成本可以不填——字段标签写的就是「单位成本价（可选）」，提示还承诺
+            // 不填时用最新价补上。只有填了却填得不对才拦。
+            if !costPerShareText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                guard let costPerShare, costPerShare.isFinite, costPerShare > 0 else {
+                    throw HoldingDraftError.invalidCost
+                }
             }
         }
 
@@ -584,6 +833,7 @@ private struct HoldingDraft {
             interestSkips: existing?.interestSkips ?? [],
             dividendRecords: dividendRecords,
             dividendRecordId: dividendRecordID,
+            note: note,
             createdAt: existing?.createdAt ?? now,
             updatedAt: existing?.updatedAt,
             closedAt: existing?.closedAt,

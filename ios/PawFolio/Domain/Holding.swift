@@ -99,6 +99,9 @@ struct Holding: Codable, Equatable, Identifiable, Sendable {
     var interestSkips: [String]
     var dividendRecords: [DividendRecord]
     var dividendRecordId: String?
+    /// 用户备注，最多 20 字。空备注一律存 nil，不存空串——空串会让「有没有备注」
+    /// 在两端出现两种判法。截断在 `Holding.normalizedNote` 里做。
+    var note: String?
     var createdAt: TimeInterval
     var updatedAt: TimeInterval?
     var closedAt: TimeInterval?
@@ -129,6 +132,7 @@ struct Holding: Codable, Equatable, Identifiable, Sendable {
         interestSkips: [String] = [],
         dividendRecords: [DividendRecord] = [],
         dividendRecordId: String? = nil,
+        note: String? = nil,
         createdAt: TimeInterval,
         updatedAt: TimeInterval? = nil,
         closedAt: TimeInterval? = nil,
@@ -158,11 +162,26 @@ struct Holding: Codable, Equatable, Identifiable, Sendable {
         self.interestSkips = interestSkips
         self.dividendRecords = dividendRecords
         self.dividendRecordId = dividendRecordId
+        self.note = Holding.normalizedNote(note)
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.closedAt = closedAt
         self.deletedAt = deletedAt
     }
+
+    /// 备注的统一口径：去首尾空白，最多 20 个字符，空的算没有。
+    ///
+    /// 数的是 `Character`，不是 UTF-16 —— 中文和 emoji 都按一个字算，和 Web 那边
+    /// `[...text].length` 的计法一致；`String.count` 换成 `utf16.count` 会让同一条备注
+    /// 在两端裁出不同长度。
+    static func normalizedNote(_ raw: String?) -> String? {
+        guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty
+        else { return nil }
+        return String(trimmed.prefix(noteCharacterLimit))
+    }
+
+    static let noteCharacterLimit = 20
 
     var isClosed: Bool {
         closedAt != nil
@@ -210,6 +229,7 @@ struct Holding: Codable, Equatable, Identifiable, Sendable {
         case interestSkips
         case dividendRecords
         case dividendRecordId
+        case note
         case createdAt
         case updatedAt
         case closedAt
@@ -255,6 +275,9 @@ struct Holding: Codable, Equatable, Identifiable, Sendable {
         interestSkips = try container.decodeIfPresent([String].self, forKey: .interestSkips) ?? []
         dividendRecords = try container.decodeIfPresent([DividendRecord].self, forKey: .dividendRecords) ?? []
         dividendRecordId = try container.decodeIfPresent(String.self, forKey: .dividendRecordId)
+        // 云端和 Web 都可能写进更长的备注（比如有人绕过表单直接改数据）。
+        // 读进来就按同一把尺子裁掉，免得原生这边显示出一条 Web 上看不全的备注。
+        note = Holding.normalizedNote(try container.decodeIfPresent(String.self, forKey: .note))
         createdAt = try container.decodeIfPresent(TimeInterval.self, forKey: .createdAt) ?? 0
         updatedAt = try container.decodeIfPresent(TimeInterval.self, forKey: .updatedAt)
         closedAt = try container.decodeIfPresent(TimeInterval.self, forKey: .closedAt)

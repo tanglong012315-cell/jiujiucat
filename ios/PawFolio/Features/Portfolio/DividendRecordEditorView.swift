@@ -15,6 +15,7 @@ struct DividendRecordEditorView: View {
     @State private var hasPayDate: Bool
     @State private var payDate: Date
     @State private var isSaving = false
+    @State private var isFrequencySheetPresented = false
     @State private var errorMessage: String?
 
     init(
@@ -33,71 +34,104 @@ struct DividendRecordEditorView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    LabeledContent("资产", value: holding.symbol)
-                    LabeledContent(record == nil ? "当前数量" : "记录数量") {
-                        Text(recordQuantity, format: .number.precision(.fractionLength(0...8)))
-                            .monospacedDigit()
+        PawSheet(title: record == nil ? "添加分红" : "编辑分红") {
+            VStack(alignment: .leading, spacing: 16) {
+                // 数量在创建时冻结，之后加减仓只影响未来的记录。
+                PawEditorField(
+                    record == nil ? "当前数量" : "记录数量",
+                    hint: record == nil
+                        ? "创建后数量会冻结；后续加减仓只影响未来记录。"
+                        : "编辑金额或日期不会改写该记录冻结的数量。"
+                ) {
+                    HStack(spacing: 8) {
+                        Text(holding.symbol)
+                            .font(PawFont.inter(16, weight: .medium))
+                            .foregroundStyle(PawTheme.ink)
+
+                        Spacer(minLength: 0)
+
+                        Text(recordQuantity.formatted(.number.precision(.fractionLength(0...8))))
+                            .font(PawFont.inter(16, weight: .medium).monospacedDigit())
+                            .foregroundStyle(PawTheme.ink40)
                     }
-                } footer: {
-                    Text(record == nil ? "创建后数量会冻结；后续加减仓只影响未来记录。" : "编辑金额或日期不会改写该记录冻结的数量。")
+                    .padding(.horizontal, 16)
+                    .frame(height: 52)
+                    .background(
+                        PawTheme.ink4,
+                        in: RoundedRectangle(cornerRadius: PawTheme.radiusCard, style: .continuous)
+                    )
                 }
 
-                Section("分红信息") {
-                    HStack {
-                        Text("$")
-                            .foregroundStyle(.secondary)
-                        TextField("每股／份分红", text: $perShareText)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .monospacedDigit()
-                    }
+                PawEditorField("每股／份分红") {
+                    PawTextFieldShell(
+                        placeholder: "0.00",
+                        text: $perShareText,
+                        showsCurrencyPrefix: true
+                    )
+                }
 
-                    Picker("频率", selection: $frequency) {
-                        ForEach(DividendFrequency.allCases, id: \.rawValue) { item in
-                            Text(item.recordEditorTitle).tag(item)
+                // Web 把频率放进独立弹层选，字段这里只显示当前值。
+                PawEditorField("分红频率") {
+                    Button {
+                        isFrequencySheetPresented = true
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text(frequency.controlTitle)
+                                .font(PawFont.inter(16, weight: .medium))
+                                .foregroundStyle(PawTheme.ink)
+
+                            Spacer(minLength: 0)
+
+                            Image("IconArrowRightS")
+                                .renderingMode(.template)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 16, height: 16)
+                                .foregroundStyle(PawTheme.ink40)
                         }
-                    }
-
-                    DatePicker("除息日", selection: $exDate, displayedComponents: .date)
-                    Toggle("已确定派息日", isOn: $hasPayDate)
-                    if hasPayDate {
-                        DatePicker(
-                            "派息日",
-                            selection: $payDate,
-                            displayedComponents: .date
+                        .padding(.horizontal, 16)
+                        .frame(height: 52)
+                        .background(
+                            PawTheme.ink4,
+                            in: RoundedRectangle(cornerRadius: PawTheme.radiusCard, style: .continuous)
                         )
                     }
+                    .buttonStyle(PawPressableButtonStyle())
+                }
+
+                PawEditorField("除息日", hint: "到这一天这笔分红才算确认。") {
+                    PawDateFieldShell(selection: $exDate)
+                }
+
+                PawToggleRow(title: "已确定派息日", isOn: $hasPayDate)
+
+                if hasPayDate {
+                    PawEditorField("派息日") {
+                        PawDateFieldShell(selection: $payDate)
+                    }
                 }
             }
-            .navigationTitle(record == nil ? "添加分红" : "编辑分红")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
-                        .disabled(isSaving)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") { save() }
-                        .fontWeight(.semibold)
-                        .disabled(isSaving)
-                }
-            }
-            .interactiveDismissDisabled(isSaving)
-            .environment(\.timeZone, Self.beijingTimeZone)
-            .alert("无法保存", isPresented: errorAlertBinding) {
-                Button("知道了", role: .cancel) {}
-            } message: {
-                Text(errorMessage ?? "请检查输入内容。")
-            }
-            .overlay {
-                if isSaving {
-                    ProgressView("正在保存…")
-                        .padding(18)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-                }
+        } footer: {
+            PawPrimaryButton(title: isSaving ? "保存中…" : "保存") { save() }
+                .disabled(isSaving)
+                .opacity(isSaving ? 0.55 : 1)
+        }
+        .sheet(isPresented: $isFrequencySheetPresented) {
+            DividendFrequencySheet(selection: $frequency)
+        }
+        .interactiveDismissDisabled(isSaving)
+        .environment(\.timeZone, Self.beijingTimeZone)
+        .alert("无法保存", isPresented: errorAlertBinding) {
+            Button("知道了", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "请检查输入内容。")
+        }
+        .overlay {
+            if isSaving {
+                ProgressView()
+                    .tint(PawTheme.ink)
+                    .padding(18)
+                    .background(PawTheme.bg2, in: RoundedRectangle(cornerRadius: 16))
             }
         }
     }
@@ -177,7 +211,8 @@ struct DividendRecordEditorView: View {
     }
 }
 
-private extension DividendFrequency {
+// 频率的措辞现在也给持仓编辑用（两处共用同一个选择弹层），不再是 fileprivate。
+extension DividendFrequency {
     var recordEditorTitle: String {
         switch self {
         case .quarterly: "每季度"
@@ -186,6 +221,62 @@ private extension DividendFrequency {
         case .semiannual: "每半年"
         case .annual: "每年"
         case .irregular: "不固定"
+        }
+    }
+
+    /// 对应 `app.js` 的 `DIVIDEND_FREQUENCY_CONTROL_LABELS`，用于频率选择弹层。
+    var controlTitle: String {
+        switch self {
+        case .quarterly: "每季度一次"
+        case .monthly: "每月一次"
+        case .semimonthly: "每月两次"
+        case .semiannual: "每半年一次"
+        case .annual: "每年一次"
+        case .irregular: "不固定"
+        }
+    }
+}
+
+/// Web `#dividend-frequency-overlay`：一个独立弹层，每行一个选项，选中的打勾。
+struct DividendFrequencySheet: View {
+    @Binding var selection: DividendFrequency
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        PawSheet(title: "选择分红频率") {
+            VStack(spacing: 0) {
+                ForEach(DividendFrequency.allCases, id: \.rawValue) { item in
+                    let isSelected = selection == item
+
+                    Button {
+                        selection = item
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Text(item.controlTitle)
+                                .font(PawFont.inter(14, weight: .medium))
+                                .foregroundStyle(PawTheme.ink)
+
+                            Spacer(minLength: 0)
+
+                            if isSelected {
+                                Image("IconCheck")
+                                    .renderingMode(.template)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 20, height: 20)
+                                    .foregroundStyle(PawTheme.ink)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .frame(minHeight: 52)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(PawPressableButtonStyle())
+                    .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+                }
+            }
         }
     }
 }

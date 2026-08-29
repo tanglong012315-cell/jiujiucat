@@ -120,6 +120,83 @@ final class HoldingCompatibilityTests: XCTestCase {
         XCTAssertEqual(decoded.deletedAt, 1_780_000_100_000)
     }
 
+    func testNoteIsTrimmedToTwentyCharactersAndSurvivesEncoding() throws {
+        let holding = Holding(
+            id: "h_note",
+            symbol: "VOO",
+            holdingKind: .market,
+            quantity: 1,
+            costPerShare: 500,
+            note: "  这是一条二十一个字的备注刚好多出来一个字啊  ",
+            createdAt: 1_780_000_000_000
+        )
+
+        // 首尾空白去掉后是 21 个字，第 21 个「啊」必须被裁掉。
+        XCTAssertEqual(holding.note?.count, 20)
+        XCTAssertEqual(holding.note, "这是一条二十一个字的备注刚好多出来一个字")
+
+        let decoded = try JSONDecoder().decode(Holding.self, from: JSONEncoder().encode(holding))
+        XCTAssertEqual(decoded.note, holding.note)
+    }
+
+    func testBlankNoteBecomesNilSoItNeverRendersAnEmptyRow() throws {
+        for raw in ["", "   ", "\n\t"] {
+            let holding = Holding(
+                id: "h_blank",
+                symbol: "VOO",
+                holdingKind: .market,
+                note: raw,
+                createdAt: 1_780_000_000_000
+            )
+            XCTAssertNil(holding.note, "「\(raw)」应当被当作没有备注")
+        }
+    }
+
+    func testEmojiNoteCountsByCharacterNotUTF16() throws {
+        // 每个 emoji 在 UTF-16 里占两个单元。按 utf16.count 裁会只留下 10 个，
+        // 而且可能把代理对从中间劈开。
+        let holding = Holding(
+            id: "h_emoji",
+            symbol: "BTC",
+            holdingKind: .market,
+            note: String(repeating: "🐱", count: 25),
+            createdAt: 1_780_000_000_000
+        )
+
+        XCTAssertEqual(holding.note?.count, 20)
+        XCTAssertEqual(holding.note, String(repeating: "🐱", count: 20))
+    }
+
+    func testLegacyHoldingWithoutNoteDecodesToNil() throws {
+        let json = #"""
+        {
+          "id": "h_legacy",
+          "symbol": "AAPL",
+          "holdingKind": "market",
+          "createdAt": 1780000000000
+        }
+        """#
+
+        let holding = try JSONDecoder().decode(Holding.self, from: Data(json.utf8))
+        XCTAssertNil(holding.note)
+    }
+
+    func testOverlongNoteFromCloudIsTrimmedOnDecode() throws {
+        // Web 的 maxlength 只是个表单限制，绕过它写进云端的长备注两端都得收得住。
+        let json = #"""
+        {
+          "id": "h_cloud",
+          "symbol": "AAPL",
+          "holdingKind": "market",
+          "note": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "createdAt": 1780000000000
+        }
+        """#
+
+        let holding = try JSONDecoder().decode(Holding.self, from: Data(json.utf8))
+        XCTAssertEqual(holding.note, String(repeating: "a", count: 20))
+    }
+
     func testUnknownLegacyKindsFailSoftInsteadOfDroppingRecord() throws {
         let json = #"""
         {

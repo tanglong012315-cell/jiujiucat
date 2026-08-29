@@ -1,121 +1,37 @@
 import SwiftUI
 
+/// Web 的「盈亏明细」弹层（`#profit-sheet-overlay`）。
+///
+/// Web 这里只有一张明细清单加两个记录入口——调整是一次性操作，Web 不给它做历史列表。
+/// 原生多做了一个调整记录列表，作为第三个入口保留（见 `MIGRATION_PLAN.md`）。
 struct HoldingDetailView: View {
     @ObservedObject var model: PortfolioViewModel
 
     let holdingID: String
 
-    @State private var selectedSection = HoldingDetailSection.overview
+    @Environment(\.dismiss) private var dismiss
+
     @State private var isHoldingEditorPresented = false
+    @State private var recordsRoute: RecordsRoute?
     @State private var dividendEditorRoute: DividendEditorRoute?
     @State private var pendingInterestSkip: InterestRecordEntry?
     @State private var pendingDividendDeletion: DividendRecord?
     @State private var localErrorMessage: String?
 
+    private var now: TimeInterval { Date().timeIntervalSince1970 * 1_000 }
+
     var body: some View {
         Group {
             if let holding = model.holding(withID: holdingID) {
-                VStack(spacing: 0) {
-                    Picker("详情分类", selection: $selectedSection) {
-                        ForEach(HoldingDetailSection.allCases) { section in
-                            Text(section.title).tag(section)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-
-                    detailContent(for: holding)
-                }
-                .navigationTitle(holding.symbol)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button("编辑") {
-                            isHoldingEditorPresented = true
-                        }
-                    }
-                }
-                .sheet(isPresented: $isHoldingEditorPresented) {
-                    HoldingEditorView(
-                        holding: holding,
-                        marketPrice: model.marketPrice(for: holding),
-                        onSave: { updatedHolding in
-                            await model.upsert(updatedHolding)
-                        },
-                        onAdjust: { request in
-                            try await model.adjust(request)
-                        }
-                    )
-                }
-                .sheet(item: $dividendEditorRoute) { route in
-                    DividendRecordEditorView(
-                        holding: holding,
-                        record: route.record
-                    ) { request in
-                        try await model.upsertDividendRecord(request)
-                    }
-                }
-                .confirmationDialog(
-                    "将这一天标记为未发放？",
-                    isPresented: interestSkipDialogBinding,
-                    titleVisibility: .visible
-                ) {
-                    Button("标记未发放", role: .destructive) {
-                        guard let entry = pendingInterestSkip else { return }
-                        pendingInterestSkip = nil
-                        Task {
-                            do {
-                                try await model.skipInterestSettlement(
-                                    holdingID: holdingID,
-                                    date: entry.date
-                                )
-                            } catch {
-                                show(error)
-                            }
-                        }
-                    }
-                    Button("取消", role: .cancel) {
-                        pendingInterestSkip = nil
-                    }
-                } message: {
-                    if let entry = pendingInterestSkip {
-                        Text(interestSkipMessage(for: entry, holding: holding))
-                    }
-                }
-                .confirmationDialog(
-                    "删除这条分红记录？",
-                    isPresented: dividendDeletionDialogBinding,
-                    titleVisibility: .visible
-                ) {
-                    Button("删除记录", role: .destructive) {
-                        guard let record = pendingDividendDeletion else { return }
-                        pendingDividendDeletion = nil
-                        Task {
-                            do {
-                                try await model.deleteDividendRecord(
-                                    holdingID: holdingID,
-                                    recordID: record.id
-                                )
-                            } catch {
-                                show(error)
-                            }
-                        }
-                    }
-                    Button("取消", role: .cancel) {
-                        pendingDividendDeletion = nil
-                    }
-                } message: {
-                    if let record = pendingDividendDeletion {
-                        Text("删除后，已确认分红最多减少 \(record.amount.formatted(.currency(code: "USD")))。")
-                    }
-                }
+                sheet(for: holding)
             } else {
-                ContentUnavailableView(
-                    "持仓不可用",
-                    systemImage: "tray",
-                    description: Text("该持仓可能已经被删除。")
-                )
+                PawSheet(title: "盈亏明细") {
+                    Text("该持仓可能已经被删除。")
+                        .font(PawFont.inter(13))
+                        .foregroundStyle(PawTheme.ink40)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 32)
+                }
             }
         }
         .alert("无法更新记录", isPresented: errorAlertBinding) {
@@ -125,141 +41,500 @@ struct HoldingDetailView: View {
         }
     }
 
-    @ViewBuilder
-    private func detailContent(for holding: Holding) -> some View {
-        switch selectedSection {
-        case .overview:
-            overviewList(for: holding)
-        case .activity:
-            activityList(for: holding)
-        case .income:
-            incomeList(for: holding)
+    private func sheet(for holding: Holding) -> some View {
+        PawSheet(title: "盈亏明细") {
+            VStack(alignment: .leading, spacing: 16) {
+                summary(for: holding)
+                breakdown(for: holding)
+
+                if holding.holdingKind == .dividend, let record = latestDividendRecord(of: holding) {
+                    latestDividendCard(record: record, holding: holding)
+                }
+
+                recordEntries(for: holding)
+            }
+        } footer: {
+            PawPrimaryButton(title: "编辑持仓") {
+                isHoldingEditorPresented = true
+            }
+        }
+        .sheet(isPresented: $isHoldingEditorPresented) {
+            HoldingEditorView(
+                holding: holding,
+                marketPrice: model.marketPrice(for: holding),
+                onSave: { updatedHolding in
+                    await model.upsert(updatedHolding)
+                },
+                onAdjust: { request in
+                    try await model.adjust(request)
+                },
+                onDelete: { holding in
+                    Task {
+                        await model.delete(holding)
+                        PawToastCenter.shared.show("\(holding.symbol) 已删除")
+                    }
+                    dismiss()
+                }
+            )
+        }
+        .sheet(item: $recordsRoute) { route in
+            PawSheet(title: route.title) {
+                switch route.kind {
+                case .dividend: dividendIncomeList(for: holding)
+                case .interest: interestIncomeList(for: holding)
+                case .adjustment: activityList(for: holding)
+                }
+            }
+        }
+        .sheet(item: $dividendEditorRoute) { route in
+            DividendRecordEditorView(
+                holding: holding,
+                record: route.record
+            ) { request in
+                try await model.upsertDividendRecord(request)
+            }
+        }
+        .confirmationDialog(
+            "将这一天标记为未发放？",
+            isPresented: interestSkipDialogBinding,
+            titleVisibility: .visible
+        ) {
+            Button("标记未发放", role: .destructive) {
+                guard let entry = pendingInterestSkip else { return }
+                pendingInterestSkip = nil
+                Task {
+                    do {
+                        try await model.skipInterestSettlement(holdingID: holdingID, date: entry.date)
+                        PawToastCenter.shared.show("该日利息已删除，总利息已更新")
+                    } catch {
+                        show(error)
+                    }
+                }
+            }
+            Button("取消", role: .cancel) { pendingInterestSkip = nil }
+        } message: {
+            if let entry = pendingInterestSkip {
+                Text(interestSkipMessage(for: entry, holding: holding))
+            }
+        }
+        .confirmationDialog(
+            "删除这条分红记录？",
+            isPresented: dividendDeletionDialogBinding,
+            titleVisibility: .visible
+        ) {
+            Button("删除记录", role: .destructive) {
+                guard let record = pendingDividendDeletion else { return }
+                pendingDividendDeletion = nil
+                Task {
+                    do {
+                        try await model.deleteDividendRecord(holdingID: holdingID, recordID: record.id)
+                        PawToastCenter.shared.show("分红记录已删除，总盈亏已更新")
+                    } catch {
+                        show(error)
+                    }
+                }
+            }
+            Button("取消", role: .cancel) { pendingDividendDeletion = nil }
+        } message: {
+            if let record = pendingDividendDeletion {
+                Text("删除后，已确认分红最多减少 \(currency(record.amount))。")
+            }
         }
     }
 
-    private func overviewList(for holding: Holding) -> some View {
+    // MARK: 顶部汇总（Web `.profit-sheet-summary`）
+
+    private func summary(for holding: Holding) -> some View {
         let metrics = model.metrics(for: holding)
-        let now = Date().timeIntervalSince1970 * 1_000
+        let profit = metrics.profit
 
-        return List {
-            Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(holding.name)
-                            .font(.system(.title2, design: .rounded, weight: .bold))
-                        Spacer()
-                        Text(holding.holdingKind.title)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(PawTheme.accent)
-                    }
+        return VStack(spacing: 3) {
+            Text(holding.symbol)
+                .font(PawFont.inter(13, weight: .semibold))
+                .foregroundStyle(PawTheme.ink40)
 
-                    if let value = metrics.value {
-                        Text(value, format: .currency(code: "USD"))
-                            .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                            .monospacedDigit()
-                    } else {
-                        Text("$—")
-                            .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    }
+            Text(profit.map(signedCurrency) ?? "$—")
+                .font(PawFont.inter(30, weight: .semibold).monospacedDigit())
+                .foregroundStyle(tone(for: profit))
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
 
-                    if let profit = metrics.profit {
-                        Text(
-                            "持仓盈亏 \(profit.formatted(.currency(code: "USD"))) "
-                                + "(\(metrics.profitPercent.formatted(.number.precision(.fractionLength(2))))%)"
-                        )
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(profit > 0 ? PawTheme.gain : profit < 0 ? PawTheme.loss : .secondary)
-                        .monospacedDigit()
-                    }
-                }
-                .padding(.vertical, 8)
-                .accessibilityElement(children: .combine)
+            Text(holding.holdingKind == .interest ? "总利息" : "总盈亏")
+                .font(PawFont.inter(12))
+                .foregroundStyle(PawTheme.ink40)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: 明细清单（Web `.profit-breakdown-list`）
+
+    private func breakdown(for holding: Holding) -> some View {
+        let metrics = model.metrics(for: holding)
+        let isMarketBased = holding.holdingKind != .interest
+        let earnsInterest = holding.holdingKind == .interest || holding.holdingKind == .hybrid
+        let next = HoldingValuation.nextInterestSettlement(for: holding, at: now)
+        let last = HoldingValuation.lastInterestSettlement(for: holding, at: now)
+
+        var rows: [BreakdownRow] = [
+            BreakdownRow(
+                title: "总资产",
+                detail: "按最新价计算",
+                value: metrics.value.map(currency) ?? "$—"
+            ),
+            BreakdownRow(
+                title: "持仓盈亏",
+                detail: "当前市值减去持仓成本",
+                value: metrics.profit.map(signedCurrency) ?? "$—",
+                tone: tone(for: metrics.profit)
+            )
+        ]
+
+        if isMarketBased, metrics.quantity > 0 {
+            rows.append(
+                BreakdownRow(
+                    title: "持有份数",
+                    detail: "当前持有数量",
+                    value: metrics.quantity.formatted(.number.precision(.fractionLength(0...6)))
+                )
+            )
+            if let cost = holding.costPerShare {
+                rows.append(
+                    BreakdownRow(title: "成本价", detail: "每份买入成本", value: currency(cost))
+                )
             }
-
-            Section("仓位") {
-                if holding.holdingKind == .interest {
-                    DetailValueRow(title: "当前本金", value: holding.principal, style: .money)
-                } else {
-                    DetailValueRow(title: "当前数量", value: holding.quantity, style: .number)
-                    DetailValueRow(title: "单位成本", value: holding.costPerShare, style: .money)
-                    DetailValueRow(title: "美元实时价", value: model.marketPrice(for: holding), style: .money)
-                }
-
-                if holding.isInterestBearing {
-                    DetailValueRow(title: "年化利率", value: holding.annualRate, style: .percent)
-                    LabeledContent("计息方式", value: (holding.interestMode ?? .simple).title)
-                    DetailValueRow(title: "已结利息", value: metrics.accruedInterest, style: .money)
-                }
-
-                if holding.holdingKind == .dividend {
-                    DetailValueRow(title: "已确认分红", value: metrics.confirmedDividends, style: .money)
-                }
-            }
-
-            if holding.isInterestBearing,
-               let nextSettlement = HoldingValuation.nextInterestSettlement(for: holding, at: now) {
-                Section("下次结算") {
-                    LabeledContent("结算日", value: Self.displayDate(nextSettlement.date))
-                    DetailValueRow(title: "预计利息", value: nextSettlement.amount, style: .money)
-                }
-            }
-
-            Section("资料") {
-                LabeledContent("代码", value: holding.symbol)
-                if !holding.exchange.isEmpty {
-                    LabeledContent("交易所", value: holding.exchange)
-                }
-                LabeledContent("建立时间") {
-                    Text(HoldingDetailDateFormatting.timestamp(holding.createdAt))
-                }
+            if let price = metrics.marketPrice {
+                rows.append(
+                    BreakdownRow(title: "最新价", detail: "按最新成交价", value: currency(price))
+                )
             }
         }
-        .listStyle(.insetGrouped)
+
+        if earnsInterest {
+            if let rate = holding.annualRate {
+                rows.append(
+                    BreakdownRow(
+                        title: "年化收益率（APR）",
+                        detail: "当前持仓设置",
+                        value: rate.formatted(.number.precision(.fractionLength(2))) + "%"
+                    )
+                )
+            }
+            rows.append(
+                BreakdownRow(
+                    title: "每日预计利息",
+                    detail: "下次结算北京时间 16:00",
+                    value: signedCurrency(next?.amount ?? 0),
+                    tone: tone(for: next?.amount)
+                )
+            )
+            rows.append(
+                BreakdownRow(
+                    title: "昨日实现利息",
+                    detail: last.map { "已于 \($0.date) 结算" } ?? "暂无已结算利息",
+                    value: signedCurrency(last?.amount ?? 0),
+                    tone: tone(for: last?.amount)
+                )
+            )
+            rows.append(
+                BreakdownRow(
+                    title: "总实现利息",
+                    detail: "收益每日于北京时间 16:00 更新",
+                    value: signedCurrency(metrics.accruedInterest),
+                    tone: tone(for: metrics.accruedInterest)
+                )
+            )
+        }
+
+        if holding.holdingKind == .dividend || metrics.confirmedDividends > 0 {
+            rows.append(
+                BreakdownRow(
+                    title: "分红收益",
+                    detail: metrics.confirmedDividends > 0 ? "已确认分红合计" : "暂无已确认分红",
+                    value: signedCurrency(metrics.confirmedDividends),
+                    tone: tone(for: metrics.confirmedDividends)
+                )
+            )
+        }
+
+        // 没写备注就整行不出现——这是用户明确要的：空备注不占位。
+        if let note = holding.note {
+            rows.append(
+                BreakdownRow(
+                    title: "备注",
+                    detail: "",
+                    value: note,
+                    isProse: true
+                )
+            )
+        }
+
+        return VStack(spacing: 0) {
+            ForEach(Array(rows.enumerated()), id: \.element.title) { index, row in
+                if index > 0 {
+                    PawDivider()
+                }
+
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(row.title)
+                            .font(PawFont.inter(14, weight: .semibold))
+                            .foregroundStyle(PawTheme.ink)
+
+                        if !row.detail.isEmpty {
+                            Text(row.detail)
+                                .font(PawFont.inter(11))
+                                .foregroundStyle(PawTheme.ink40)
+                        }
+                    }
+
+                    Spacer(minLength: 0)
+
+                    Text(row.value)
+                        .font(
+                            row.isProse
+                                ? PawFont.inter(14)
+                                : PawFont.inter(14, weight: .semibold).monospacedDigit()
+                        )
+                        .foregroundStyle(row.tone ?? PawTheme.ink)
+                        .multilineTextAlignment(.trailing)
+                        .lineLimit(row.isProse ? 2 : 1)
+                        .minimumScaleFactor(row.isProse ? 1 : 0.6)
+                }
+                .frame(minHeight: 64)
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .padding(.horizontal, 16)
+        .background(
+            PawTheme.bg2,
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+        )
+    }
+
+    private struct BreakdownRow {
+        let title: String
+        let detail: String
+        let value: String
+        var tone: Color?
+        /// 备注这类右侧是文字而不是数字的行：不用等宽数字、不缩字号，允许折成两行。
+        var isProse = false
+    }
+
+    // MARK: 最近一次分红（Web `.profit-event-card`）
+
+    private func latestDividendRecord(of holding: Holding) -> DividendRecord? {
+        holding.dividendRecords.max { $0.exDate < $1.exDate }
+    }
+
+    private func latestDividendCard(record: DividendRecord, holding: Holding) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("最近一次分红")
+                .font(PawFont.inter(13, weight: .semibold))
+                .foregroundStyle(PawTheme.ink)
+
+            // 固定两列，四个字段排成 2×2——auto-fit 在窄屏下会把第四个吊在第二行。
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 2),
+                spacing: 12
+            ) {
+                eventCell("分红频率", frequencyText(record: record, holding: holding))
+                eventCell("每股分红", currency(record.perShare))
+                eventCell("除息日", record.exDate.isEmpty ? "—" : record.exDate)
+                eventCell("派息日", record.payDate.isEmpty ? "待定" : record.payDate)
+            }
+        }
+        .padding(.vertical, 14)
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(PawTheme.ink10, lineWidth: 1)
+        )
+    }
+
+    /// Web 写成「季度分红」这种形式（`DIVIDEND_FREQUENCY_LABELS` 后面直接接「分红」）。
+    private func frequencyText(record: DividendRecord, holding: Holding) -> String {
+        record.frequency.webLabel + "分红"
+    }
+
+    private func eventCell(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(PawFont.inter(11))
+                .foregroundStyle(PawTheme.ink40)
+
+            Text(value)
+                .font(PawFont.inter(12, weight: .semibold).monospacedDigit())
+                .foregroundStyle(PawTheme.ink)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: 记录入口（Web `.profit-records-btn`）
+
+    @ViewBuilder
+    private func recordEntries(for holding: Holding) -> some View {
+        let interestCount = HoldingValuation.interestRecordEntries(for: holding, at: now).count
+        let adjustmentCount = holding.positionAdjustments.count + holding.principalAdjustments.count
+
+        VStack(spacing: 8) {
+            if holding.holdingKind == .dividend || !holding.dividendRecords.isEmpty {
+                recordButton(
+                    title: "分红记录",
+                    count: holding.dividendRecords.count,
+                    kind: .dividend
+                )
+            }
+
+            if interestCount > 0 {
+                recordButton(title: "利息发放记录", count: interestCount, kind: .interest)
+            }
+
+            if adjustmentCount > 0 {
+                recordButton(title: "调整记录", count: adjustmentCount, kind: .adjustment)
+            }
+        }
+    }
+
+    private func recordButton(title: String, count: Int, kind: RecordsRoute.Kind) -> some View {
+        Button {
+            recordsRoute = RecordsRoute(kind: kind, title: title)
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(PawFont.inter(14, weight: .semibold))
+                        .foregroundStyle(PawTheme.ink)
+
+                    Text("\(count) 条记录")
+                        .font(PawFont.inter(11))
+                        .foregroundStyle(PawTheme.ink40)
+                }
+
+                Spacer(minLength: 0)
+
+                Image("IconArrowDownS")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 16, height: 16)
+                    .rotationEffect(.degrees(-90))
+                    .foregroundStyle(PawTheme.ink40)
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .background(
+                PawTheme.ink4,
+                in: RoundedRectangle(cornerRadius: PawTheme.radiusCard, style: .continuous)
+            )
+        }
+        .buttonStyle(PawPressableButtonStyle())
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: 格式化
+
+    private func tone(for value: Double?) -> Color {
+        guard let value else { return PawTheme.ink }
+        if value > 0 { return PawTheme.gain }
+        if value < 0 { return PawTheme.loss }
+        return PawTheme.flat
+    }
+
+    private func currency(_ amount: Double) -> String {
+        "$" + amount.formatted(.number.grouping(.automatic).precision(.fractionLength(2)))
+    }
+
+    private func signedCurrency(_ amount: Double) -> String {
+        (amount > 0 ? "+" : amount < 0 ? "-" : "") + currency(abs(amount))
     }
 
     private func activityList(for holding: Holding) -> some View {
         let activities = HoldingActivityItem.items(for: holding)
 
-        return List {
+        return VStack(alignment: .leading, spacing: 16) {
             if activities.isEmpty {
-                ContentUnavailableView {
-                    Label("暂无调整记录", systemImage: "arrow.left.arrow.right")
-                } description: {
-                    Text("后续加仓、减仓或本金调整会显示在这里。")
-                }
+                recordEmptyState(
+                    art: "ArtNoData",
+                    title: "暂无调整记录",
+                    detail: "后续加仓、减仓或本金调整会显示在这里。"
+                )
             } else {
-                Section {
+                Text("共 \(activities.count) 条 · 记录用于还原历史数量和本金，不会因后续编辑而覆盖")
+                    .font(PawFont.inter(12))
+                    .foregroundStyle(PawTheme.ink40)
+
+                VStack(spacing: 8) {
                     ForEach(activities) { item in
                         HoldingActivityRow(item: item)
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 16)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                PawTheme.ink4,
+                                in: RoundedRectangle(cornerRadius: PawTheme.radiusCard, style: .continuous)
+                            )
                     }
-                } header: {
-                    Text("共 \(activities.count) 条")
-                } footer: {
-                    Text("记录用于还原历史数量和本金，不会因后续编辑而覆盖。")
                 }
             }
         }
-        .listStyle(.insetGrouped)
+    }
+
+    /// 二级记录弹层的空状态，沿用 Web 的插画写法。
+    private func recordEmptyState(art: String, title: String, detail: String) -> some View {
+        VStack(spacing: 8) {
+            Image(art)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 96, height: 96)
+                .padding(.bottom, 4)
+                .accessibilityHidden(true)
+
+            Text(title)
+                .font(PawFont.inter(14, weight: .semibold))
+                .foregroundStyle(PawTheme.ink)
+
+            Text(detail)
+                .font(PawFont.inter(12))
+                .foregroundStyle(PawTheme.ink40)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, minHeight: 200)
+    }
+
+    /// 记录弹层顶部的两枚汇总数字。
+    private func recordSummary(_ pairs: [(String, String, Color)]) -> some View {
+        HStack(spacing: 8) {
+            ForEach(Array(pairs.enumerated()), id: \.offset) { _, pair in
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(pair.0)
+                        .font(PawFont.inter(11))
+                        .foregroundStyle(PawTheme.ink40)
+
+                    Text(pair.1)
+                        .font(PawFont.inter(15, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(pair.2)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 12)
+                .padding(.horizontal, 14)
+                .background(
+                    PawTheme.ink4,
+                    in: RoundedRectangle(cornerRadius: PawTheme.radiusCard, style: .continuous)
+                )
+            }
+        }
     }
 
     @ViewBuilder
-    private func incomeList(for holding: Holding) -> some View {
-        if holding.isInterestBearing {
-            interestIncomeList(for: holding)
-        } else if holding.holdingKind == .dividend {
-            dividendIncomeList(for: holding)
-        } else {
-            List {
-                ContentUnavailableView {
-                    Label("没有收益记录", systemImage: "banknote")
-                } description: {
-                    Text("该持仓未启用利息或分红记录。")
-                }
-            }
-            .listStyle(.insetGrouped)
-        }
-    }
-
     private func interestIncomeList(for holding: Holding) -> some View {
         let now = Date().timeIntervalSince1970 * 1_000
         let allEntries = HoldingValuation.interestRecordEntries(for: holding, at: now)
@@ -268,77 +543,103 @@ struct HoldingDetailView: View {
         let monthGroups = InterestMonthGroup.groups(visibleEntries: visibleEntries, allEntries: allEntries)
         let total = allEntries.reduce(0) { $0 + $1.amount }
 
-        return List {
-            Section {
-                LabeledContent("已发放利息") {
-                    Text(total, format: .currency(code: "USD"))
-                        .foregroundStyle(PawTheme.gain)
-                        .fontWeight(.semibold)
-                        .monospacedDigit()
-                }
-                LabeledContent("有效结算", value: "\(allEntries.count) 次")
-            }
+        VStack(alignment: .leading, spacing: 16) {
+            recordSummary([
+                ("已发放利息", currency(total), PawTheme.gain),
+                ("有效结算", "\(allEntries.count) 次", PawTheme.ink)
+            ])
 
             if monthGroups.isEmpty {
-                Section {
-                    Text((holding.annualRate ?? 0) > 0 ? "尚未到首次结算时间。" : "当前年化利率为 0%，不会生成利息记录。")
-                        .foregroundStyle(.secondary)
-                }
+                recordEmptyState(
+                    art: "ArtNoData",
+                    title: "还没有利息记录",
+                    detail: (holding.annualRate ?? 0) > 0
+                        ? "尚未到首次结算时间。"
+                        : "当前年化利率为 0%，不会生成利息记录。"
+                )
             } else {
                 ForEach(monthGroups) { group in
-                    Section {
-                        ForEach(group.entries) { entry in
-                            InterestRecordRow(entry: entry)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                    Button("未发放", role: .destructive) {
-                                        pendingInterestSkip = entry
-                                    }
-                                }
-                        }
-                    } header: {
+                    VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text(group.title)
-                            Spacer()
-                            Text(group.total, format: .currency(code: "USD"))
-                                .monospacedDigit()
+                                .font(PawFont.inter(12, weight: .semibold))
+                                .foregroundStyle(PawTheme.ink40)
+
+                            Spacer(minLength: 0)
+
+                            Text(currency(group.total))
+                                .font(PawFont.inter(12).monospacedDigit())
+                                .foregroundStyle(PawTheme.ink40)
+                        }
+
+                        VStack(spacing: 8) {
+                            ForEach(group.entries) { entry in
+                                InterestRecordRow(entry: entry)
+                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, 14)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(
+                                        PawTheme.ink4,
+                                        in: RoundedRectangle(
+                                            cornerRadius: PawTheme.radiusCard, style: .continuous
+                                        )
+                                    )
+                                    .contextMenu {
+                                        Button("标记未发放", role: .destructive) {
+                                            pendingInterestSkip = entry
+                                        }
+                                    }
+                            }
                         }
                     }
                 }
             }
 
             if allEntries.count > visibleEntries.count {
-                Section {
-                    Text("只显示最近 15 次，共 \(allEntries.count) 次。汇总金额包含全部记录。")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
+                Text("只显示最近 15 次，共 \(allEntries.count) 次。汇总金额包含全部记录。")
+                    .font(PawFont.inter(11))
+                    .foregroundStyle(PawTheme.ink40)
             }
 
             if !holding.interestSkips.isEmpty {
-                Section("未发放日期") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("未发放日期")
+                        .font(PawFont.inter(12, weight: .semibold))
+                        .foregroundStyle(PawTheme.ink40)
+
                     ForEach(holding.interestSkips.sorted(by: >), id: \.self) { date in
                         HStack {
-                            Label(Self.displayDate(date), systemImage: "calendar.badge.minus")
-                            Spacer()
+                            Text(Self.displayDate(date))
+                                .font(PawFont.inter(13).monospacedDigit())
+                                .foregroundStyle(PawTheme.ink)
+
+                            Spacer(minLength: 0)
+
                             Button("恢复") {
                                 Task {
                                     do {
                                         try await model.restoreInterestSettlement(
-                                            holdingID: holdingID,
-                                            date: date
+                                            holdingID: holdingID, date: date
                                         )
                                     } catch {
                                         show(error)
                                     }
                                 }
                             }
-                            .buttonStyle(.borderless)
+                            .font(PawFont.inter(13, weight: .medium))
+                            .foregroundStyle(PawTheme.accent)
+                            .buttonStyle(PawPressableButtonStyle())
                         }
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 14)
+                        .background(
+                            PawTheme.ink4,
+                            in: RoundedRectangle(cornerRadius: PawTheme.radiusCard, style: .continuous)
+                        )
                     }
                 }
             }
         }
-        .listStyle(.insetGrouped)
     }
 
     private func dividendIncomeList(for holding: Holding) -> some View {
@@ -353,37 +654,60 @@ struct HoldingDetailView: View {
             record.exDate <= today ? total + record.amount : total
         }
 
-        return List {
-            Section {
-                LabeledContent("已确认分红") {
-                    Text(confirmedTotal, format: .currency(code: "USD"))
-                        .foregroundStyle(PawTheme.gain)
-                        .fontWeight(.semibold)
-                        .monospacedDigit()
+        return VStack(alignment: .leading, spacing: 16) {
+            recordSummary([
+                ("已确认分红", currency(confirmedTotal), PawTheme.gain),
+                ("记录数量", "\(allRecords.count) 条", PawTheme.ink)
+            ])
+
+            Button {
+                dividendEditorRoute = DividendEditorRoute(record: nil)
+            } label: {
+                HStack(spacing: 6) {
+                    Image("IconAdd")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 16, height: 16)
+
+                    Text("添加分红记录")
+                        .font(PawFont.inter(13, weight: .medium))
                 }
-                LabeledContent("记录数量", value: "\(allRecords.count) 条")
-                Button {
-                    dividendEditorRoute = DividendEditorRoute(record: nil)
-                } label: {
-                    Label("添加分红记录", systemImage: "plus.circle.fill")
-                }
+                .foregroundStyle(PawTheme.ink40)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(
+                    RoundedRectangle(cornerRadius: PawTheme.radiusCard, style: .continuous)
+                        .strokeBorder(PawTheme.ink20, style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                )
             }
+            .buttonStyle(PawPressableButtonStyle())
 
             if allRecords.isEmpty {
-                Section {
-                    Text("暂无分红记录。")
-                        .foregroundStyle(.secondary)
-                }
+                recordEmptyState(
+                    art: "ArtNoData",
+                    title: "暂无分红记录",
+                    detail: "添加一条后，确认的分红会计入总收益。"
+                )
             } else {
-                Section("分红记录") {
+                VStack(spacing: 8) {
                     ForEach(visibleRecords) { record in
                         Button {
                             dividendEditorRoute = DividendEditorRoute(record: record)
                         } label: {
                             DividendRecordRow(record: record, today: today)
+                                .padding(.vertical, 10)
+                                .padding(.horizontal, 14)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(
+                                    PawTheme.ink4,
+                                    in: RoundedRectangle(
+                                        cornerRadius: PawTheme.radiusCard, style: .continuous
+                                    )
+                                )
                         }
-                        .buttonStyle(.plain)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        .buttonStyle(PawPressableButtonStyle())
+                        .contextMenu {
                             Button("删除", role: .destructive) {
                                 pendingDividendDeletion = record
                             }
@@ -392,15 +716,12 @@ struct HoldingDetailView: View {
                 }
 
                 if allRecords.count > visibleRecords.count {
-                    Section {
-                        Text("只显示最近 15 次，共 \(allRecords.count) 次。汇总金额包含全部记录。")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
+                    Text("只显示最近 15 次，共 \(allRecords.count) 次。汇总金额包含全部记录。")
+                        .font(PawFont.inter(11))
+                        .foregroundStyle(PawTheme.ink40)
                 }
             }
         }
-        .listStyle(.insetGrouped)
     }
 
     private var interestSkipDialogBinding: Binding<Bool> {
@@ -445,20 +766,18 @@ struct HoldingDetailView: View {
 
 }
 
-private enum HoldingDetailSection: String, CaseIterable, Identifiable {
-    case overview
-    case activity
-    case income
-
-    var id: Self { self }
-
-    var title: String {
-        switch self {
-        case .overview: "概览"
-        case .activity: "调整"
-        case .income: "收益"
-        }
+/// 二级记录弹层的路由。Web 的分红记录也是从明细弹层再推一层。
+private struct RecordsRoute: Identifiable {
+    enum Kind {
+        case dividend
+        case interest
+        /// Web 没有这一项：调整在那边是一次性操作，不做历史列表。原生保留它。
+        case adjustment
     }
+
+    let id = UUID()
+    let kind: Kind
+    let title: String
 }
 
 private struct DividendEditorRoute: Identifiable {
@@ -546,22 +865,22 @@ private struct HoldingActivityRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: item.type == .add ? "plus" : "minus")
-                .font(.caption.bold())
-                .foregroundStyle(item.type == .add ? PawTheme.accent : .secondary)
-                .frame(width: 30, height: 30)
-                .background(PawTheme.quietBlue, in: Circle())
-                .accessibilityHidden(true)
+            PawBadge(base: 30) {
+                Image(systemName: item.type == .add ? "plus" : "minus")
+                    .font(PawFont.inter(11, weight: .bold))
+                    .foregroundStyle(item.type == .add ? PawTheme.accent : .secondary)
+            }
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.title)
-                    .font(.headline)
+                    .font(PawFont.inter(14, weight: .semibold))
                 Text(HoldingDetailDateFormatting.timestamp(item.occurredAt))
-                    .font(.caption)
+                    .font(PawFont.inter(11))
                     .foregroundStyle(.secondary)
                 if let effectiveDate = item.effectiveDate {
                     Text("生效日 \(effectiveDate.replacingOccurrences(of: "-", with: "/"))")
-                        .font(.caption)
+                        .font(PawFont.inter(11))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -577,11 +896,11 @@ private struct HoldingActivityRow: View {
                 }
                 if let price = item.price {
                     Text("@ \(price.formatted(.currency(code: "USD")))")
-                        .font(.caption)
+                        .font(PawFont.inter(11))
                         .foregroundStyle(.secondary)
                 }
             }
-            .font(.subheadline.weight(.semibold))
+            .font(PawFont.inter(13, weight: .semibold))
             .monospacedDigit()
         }
         .accessibilityElement(children: .combine)
@@ -622,9 +941,9 @@ private struct InterestRecordRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.date.replacingOccurrences(of: "-", with: "/"))
-                    .font(.headline)
+                    .font(PawFont.inter(14, weight: .semibold))
                 Text("本金 \(entry.principal.formatted(.currency(code: "USD")))")
-                    .font(.caption)
+                    .font(PawFont.inter(11))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
@@ -648,16 +967,16 @@ private struct DividendRecordRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(record.exDate.replacingOccurrences(of: "-", with: "/"))
-                        .font(.headline)
+                        .font(PawFont.inter(14, weight: .semibold))
                     Text(record.exDate <= today ? "已确认" : "待确认")
-                        .font(.caption2.weight(.semibold))
+                        .font(PawFont.inter(10, weight: .semibold))
                         .foregroundStyle(record.exDate <= today ? PawTheme.gain : .secondary)
                 }
                 Text("\(record.frequency.recordTitle) · \(record.quantity.formatted(.number.precision(.fractionLength(0...8)))) 份")
-                    .font(.caption)
+                    .font(PawFont.inter(11))
                     .foregroundStyle(.secondary)
                 Text(record.payDate.isEmpty ? "派息日未确定" : "派息日 \(record.payDate.replacingOccurrences(of: "-", with: "/"))")
-                    .font(.caption)
+                    .font(PawFont.inter(11))
                     .foregroundStyle(.secondary)
             }
             Spacer()
@@ -673,6 +992,18 @@ private struct DividendRecordRow: View {
 }
 
 private extension DividendFrequency {
+    /// 对应 `app.js` 的 `DIVIDEND_FREQUENCY_LABELS`。
+    var webLabel: String {
+        switch self {
+        case .quarterly: "季度"
+        case .monthly: "月度"
+        case .semimonthly: "每月两次"
+        case .semiannual: "半年"
+        case .annual: "年度"
+        case .irregular: "不固定"
+        }
+    }
+
     var recordTitle: String {
         switch self {
         case .quarterly: "每季度"

@@ -25,10 +25,15 @@
 
 ## Design direction
 
-- Continue the existing SnowUI identity: quiet near-monochrome surfaces, Paw Blue (`#007AFF`) as the primary accent, and green/red only for financial meaning.
-- Use SF Pro Rounded sparingly for identity/headlines, the system text face for body copy, and monospaced digits for money.
-- Prefer native navigation, sheets, controls, haptics, and charts over web-shaped imitations.
-- Preserve the cat identity, but keep decoration subordinate to financial clarity.
+**The iOS UI replicates the Web UI. Native code, not native look.** This is the user's explicit decision of 2026-08-28, and it reverses the earlier "prefer native controls over web-shaped imitations" rule. Building screens around iOS navigation conventions is what caused the feature gaps recorded in section 6 of `ios/Docs/MIGRATION_PLAN.md`.
+
+- `public/styles.css` and the live site are the visual source of truth, exactly as `public/app.js` is the behavioral one.
+- Port the Web design tokens verbatim instead of substituting iOS system equivalents. `PawTheme` mirrors the `:root` and `:root[data-theme="dark"]` blocks of `public/styles.css`, including the ink alpha ramp, the tint pairs, and the market-session colours.
+- Reproduce the Web layout structure: the header with account avatar, rotating market ticker and theme toggle, and the three-tab bottom bar. Do not re-cut screens into iOS navigation patterns.
+- Do not add furniture the Web does not have. The introduction cards, section subtitles, and decorative paw badges that were added natively are not in the Web app and should be removed as each screen is ported.
+- When a stock SwiftUI control cannot match the Web appearance, build a custom one. Matching the Web wins.
+- Keep monospaced digits for money, and keep green/red for financial meaning only.
+- Preserve the cat identity, including the brand state illustrations in `public/illustrations/`.
 
 ## Verification
 
