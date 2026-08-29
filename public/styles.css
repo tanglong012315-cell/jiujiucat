@@ -1075,6 +1075,12 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 :root[data-theme="dark"] .date-input input { color-scheme: dark; }
 #holding-symbol-manual { text-transform: uppercase; }
 .field-hint { margin: -4px 0 0; color: var(--ink-40); font-size: 12px; line-height: 16px; }
+.field-error { margin: -4px 0 0; color: var(--loss); font-size: 12px; line-height: 16px; }
+.field-error[hidden] { display: none; }
+/* 输入框里的清除按钮。`margin-right: -8px` 把它拉进 shell 的 16px 内边距里，
+   视觉上贴住右边缘，但 .icon-btn::after 的 44px 热区不受影响。 */
+.field-clear-btn { flex: 0 0 24px; margin-right: -8px; color: var(--ink-40); }
+.field-clear-btn[hidden] { display: none; }
 .holding-market-interest-toggle {
   position: relative; min-height: 24px; margin-top: 0; padding: 0;
   display: flex; align-items: flex-end; gap: 12px; color: var(--ink); cursor: pointer;

@@ -665,6 +665,9 @@ struct PawTextFieldShell: View {
     var isCompact = false
     /// `.money-input`：前面挂一个 `$`。
     var showsCurrencyPrefix = false
+    /// 传了就在右侧挂一枚清除按钮。由调用方决定什么时候有值——空输入时传 nil，
+    /// 按钮就不出现。
+    var onClear: (() -> Void)?
 
     var body: some View {
         PawInputShell(horizontalPadding: isCompact ? 12 : 16) {
@@ -679,7 +682,26 @@ struct PawTextFieldShell: View {
                 .font(PawFont.inter(16, weight: .medium).monospacedDigit())
                 .foregroundStyle(isDisabled ? PawTheme.ink40 : PawTheme.ink)
                 .disabled(isDisabled)
+
+            if let onClear {
+                Button(action: onClear) {
+                    Image("IconClose")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 16, height: 16)
+                        .foregroundStyle(PawTheme.ink40)
+                        // 图标 16 太小点不准，撑出 44 的热区但不占版面。
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, -14)
+                .transition(.opacity)
+                .accessibilityLabel("清除")
+            }
         }
+        .animation(PawMotion.selection, value: onClear == nil)
     }
 }
 

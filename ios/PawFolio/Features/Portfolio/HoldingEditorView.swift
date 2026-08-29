@@ -86,8 +86,8 @@ struct HoldingEditorView: View {
             }
         } footer: {
             PawPrimaryButton(title: isSaving ? "保存中…" : "保存") { save() }
-                .disabled(isSaving)
-                .opacity(isSaving ? 0.55 : 1)
+                .disabled(isSaving || noteError != nil)
+                .opacity(isSaving || noteError != nil ? 0.55 : 1)
         }
         .interactiveDismissDisabled(isSaving)
         .sheet(isPresented: $isFrequencySheetPresented) {
@@ -195,26 +195,31 @@ struct HoldingEditorView: View {
             editorField("单位成本价（可选）", hint: "不填写时，将使用保存时的最新价格作为成本价") {
                 moneyInput(text: $draft.costPerShareText, placeholder: "0.00")
             }
-        }
 
-        noteField
+            noteField
+        }
     }
 
-    /// 备注。计息类持仓没有成本价字段，所以它挂在 `valueFields` 末尾而不是成本价之后，
-    /// 这样两种类型下它都在这一组的最后一行。
+    /// 备注。市场类挂在单位成本价下面；稳定生息没有成本价那一格，改挂在计息方式下面。
+    ///
+    /// 不写「最多 20 个字」这类说明：正常输入的人根本用不到，只有超了才需要被告知。
+    /// 所以既不截断也不拦输入，超了就报错并挡住保存——截断会让人以为自己打漏了字。
     private var noteField: some View {
-        editorField("备注（可选）", hint: "最多 \(Holding.noteCharacterLimit) 个字，会显示在盈亏明细里") {
+        editorField("备注（可选）", error: noteError) {
             PawTextFieldShell(
                 placeholder: "例如：定投账户",
-                text: Binding(
-                    get: { draft.note },
-                    // 直接截断而不是拒绝输入：拒绝的话中文输入法在拼音候选阶段就会被卡住，
-                    // 拼一半的字母被当成正文数进长度里。
-                    set: { draft.note = String($0.prefix(Holding.noteCharacterLimit)) }
-                ),
-                keyboard: .default
+                text: $draft.note,
+                keyboard: .default,
+                onClear: draft.note.isEmpty ? nil : { draft.note = "" }
             )
         }
+    }
+
+    /// 超出长度时的提示。数 `Character`，和 `Holding.normalizedNote` 同一把尺子。
+    private var noteError: String? {
+        let count = draft.note.trimmingCharacters(in: .whitespacesAndNewlines).count
+        guard count > Holding.noteCharacterLimit else { return nil }
+        return "备注最多 \(Holding.noteCharacterLimit) 个字，当前 \(count) 个"
     }
 
     private func adjustmentPanel(for holding: Holding) -> some View {
@@ -340,6 +345,11 @@ struct HoldingEditorView: View {
                     title: { $0 == .simple ? "单利" : "每日复利" },
                     selection: $draft.interestMode
                 )
+            }
+
+            // 只有纯生息才在这里出现。hybrid 有成本价那一格，备注跟在那儿。
+            if draft.kind == .interest {
+                noteField
             }
 
             editorField("起息日期", hint: "首次结算为起息日次日，可选未来日期（T+1／T+2 起息）") {
@@ -474,6 +484,7 @@ struct HoldingEditorView: View {
     private func editorField<Content: View>(
         _ label: String,
         hint: String? = nil,
+        error: String? = nil,
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -483,7 +494,12 @@ struct HoldingEditorView: View {
             // 负 padding 会让外层少算高度。
             VStack(alignment: .leading, spacing: 4) {
                 content()
-                if let hint {
+                // 错误顶掉说明：两条一起显示只会让人先读到不相干的那条。
+                if let error {
+                    Text(error)
+                        .font(PawFont.inter(12))
+                        .foregroundStyle(PawTheme.loss)
+                } else if let hint {
                     Text(hint)
                         .font(PawFont.inter(12))
                         .foregroundStyle(PawTheme.ink40)
@@ -718,6 +734,11 @@ private struct HoldingDraft {
             throw HoldingDraftError.missingSymbol
         }
 
+        // 界面已经挡了保存按钮，这里再拦一道：草稿还会被别的路径拿去构造持仓。
+        guard note.trimmingCharacters(in: .whitespacesAndNewlines).count <= Holding.noteCharacterLimit else {
+            throw HoldingDraftError.noteTooLong
+        }
+
         let normalizedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let now = Date().timeIntervalSince1970 * 1_000
         let quantity = Self.number(from: quantityText)
@@ -892,6 +913,7 @@ private struct HoldingDraft {
 
 private enum HoldingDraftError: LocalizedError {
     case missingSymbol
+    case noteTooLong
     case invalidQuantity
     case invalidCost
     case invalidPrincipal
@@ -902,6 +924,7 @@ private enum HoldingDraftError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingSymbol: "请填写资产代码或名称。"
+        case .noteTooLong: "备注最多 \(Holding.noteCharacterLimit) 个字。"
         case .invalidQuantity: "持有数量必须大于 0。"
         case .invalidCost: "单位成本必须大于 0。"
         case .invalidPrincipal: "投资本金必须大于 0。"

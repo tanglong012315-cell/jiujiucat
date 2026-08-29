@@ -616,6 +616,15 @@ The length rule is the fiddly part and both sides must agree:
 - Truncate rather than reject keystrokes — rejecting traps Pinyin IME mid-composition, where the
   in-progress letters count toward the limit.
 
+字数上限的呈现方式后来又改了一轮：不写「最多 20 个字」这类说明文案，也不再边输边裁。
+超过 20 个字才报红并禁用保存——截断会让人以为自己打漏了字，而说明文案对正常输入的人
+是纯噪音。输入框右侧另挂了一枚清除按钮，有内容才出现。备注的落点跟着持仓类型走：
+市场类在单位成本价下面，纯生息没有那一格，改挂在计息方式下面（Web 靠 `app.js` 把同一个
+输入框挪到另一个锚点，不做两份 input）。
+
+顺带删掉了持仓列表底部的「行情已更新」。其余几条状态提示（取数失败、走了缓存、非美元
+标的）都有信息量，保留；只有「一切正常」那条是在页面底部常驻一行废话。
+
 Five tests cover this (153 total). Verified on the simulator: the note row renders at 20 characters
 without wrapping, is absent when there is no note, and the editor field sits under 單位成本價 —
 and on the web at 390×844 for single, empty, and merged holdings.

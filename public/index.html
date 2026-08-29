@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=123" />
+  <link rel="stylesheet" href="styles.css?v=125" />
 </head>
 <body>
   <div class="app-splash" id="app-splash" aria-hidden="true"></div>
@@ -338,14 +338,18 @@
           </div>
           <p class="field-hint">不填写时，将使用保存时的最新价格作为成本价</p>
         </div>
-        <div class="field">
+        <div id="holding-note-slot-market"></div>
+        <div class="field" id="holding-note-field">
           <label class="field-label" for="holding-note">备注（可选）</label>
           <div class="input-shell">
             <!-- 不用 maxlength：它按 UTF-16 单元数，一个 emoji 算两个，会在第 10 个就卡住，
-                 和原生按字符数的 20 对不上。长度由 app.js 里的 input 处理器统一裁。 -->
+                 和原生按字符数的 20 对不上。超长由 app.js 判定并报错，不截断。 -->
             <input id="holding-note" type="text" placeholder="例如：定投账户" />
+            <button type="button" class="icon-btn field-clear-btn" id="holding-note-clear" aria-label="清除备注" hidden>
+              <i class="ri-close-line" aria-hidden="true"></i>
+            </button>
           </div>
-          <p class="field-hint">最多 20 个字，会显示在盈亏明细里</p>
+          <p class="field-error" id="holding-note-error" hidden></p>
         </div>
         <section class="holding-adjustment holding-conditional" id="holding-adjustment" hidden aria-label="调整持仓">
           <div class="holding-settings-head">
@@ -411,6 +415,9 @@
               <label><input type="radio" name="holding-interest-mode" value="compound" /><span>每日复利</span></label>
             </div>
           </fieldset>
+          <!-- 纯生息时备注会被 app.js 挪到这儿（计息方式下面）。市场类持仓有单位成本价
+               那一格，备注就跟在那儿——同一个输入框，只是换个落点，不做两份。 -->
+          <div id="holding-note-slot-yield"></div>
           <div class="field">
             <label class="field-label" for="holding-start-date">起息日期</label>
             <div class="input-shell date-input">
@@ -724,6 +731,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
   <script src="holding-sync.js?v=1"></script>
-  <script src="app.js?v=115"></script>
+  <script src="app.js?v=117"></script>
 </body>
 </html>

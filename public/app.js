@@ -2839,11 +2839,37 @@ function normalizeHoldingNote(raw) {
   return [...trimmed].slice(0, HOLDING_NOTE_LIMIT).join('');
 }
 
-// 边输边裁。这里不能 trim——正在两个词之间敲空格的人会发现空格打不出来。
-document.querySelector('#holding-note').addEventListener('input', event => {
-  const characters = [...event.target.value];
-  if (characters.length <= HOLDING_NOTE_LIMIT) return;
-  event.target.value = characters.slice(0, HOLDING_NOTE_LIMIT).join('');
+// 超长不截断也不拦输入——截断会让人以为自己打漏了字。超了就报错并挡住保存，
+// 正常长度的备注从头到尾看不到任何关于长度的文案。
+function noteOverflowCount() {
+  const input = document.querySelector('#holding-note');
+  if (!input) return 0;
+  const count = [...input.value.trim()].length;
+  return count > HOLDING_NOTE_LIMIT ? count : 0;
+}
+
+function refreshHoldingNoteState() {
+  const input = document.querySelector('#holding-note');
+  if (!input) return;
+  const overflow = noteOverflowCount();
+  const error = document.querySelector('#holding-note-error');
+  error.hidden = !overflow;
+  if (overflow) error.textContent = `备注最多 ${HOLDING_NOTE_LIMIT} 个字，当前 ${overflow} 个`;
+  input.setAttribute('aria-invalid', overflow ? 'true' : 'false');
+  // 清除按钮只在有内容时出现。
+  document.querySelector('#holding-note-clear').hidden = input.value === '';
+
+  const submit = document.querySelector('#holding-submit-btn');
+  // 别和「保存中」抢这个按钮的禁用状态。
+  if (!submit.dataset.saving) submit.disabled = Boolean(overflow);
+}
+
+document.querySelector('#holding-note').addEventListener('input', refreshHoldingNoteState);
+document.querySelector('#holding-note-clear').addEventListener('click', () => {
+  const input = document.querySelector('#holding-note');
+  input.value = '';
+  refreshHoldingNoteState();
+  input.focus();
 });
 
 function openProfitSheet(items, action) {
@@ -3350,6 +3376,12 @@ function updateHoldingFormVisibility() {
   document.querySelectorAll('[data-holding-stable]').forEach(element => { element.hidden = kind !== 'interest'; });
   document.querySelectorAll('[data-holding-yield]').forEach(element => { element.hidden = kind !== 'interest' && kind !== 'hybrid'; });
   document.querySelectorAll('[data-holding-dividend]').forEach(element => { element.hidden = kind !== 'dividend'; });
+  // 备注跟着类型换位置：纯生息没有单位成本价那一格，挪到计息方式下面。
+  const noteField = document.querySelector('#holding-note-field');
+  const noteSlot = document.querySelector(
+    kind === 'interest' ? '#holding-note-slot-yield' : '#holding-note-slot-market'
+  );
+  if (noteField.previousElementSibling !== noteSlot) noteSlot.after(noteField);
   const editingHolding = holdings.find(item => item.id === editingHoldingId);
   // 调整持仓只在「表单上的类型和这笔持仓本来的类型一致」时露出：中途切换类型
   // 时该走保存，而不是往另一种模型上加仓。
@@ -3870,6 +3902,7 @@ function openHoldingSheet(id = null, presetAsset = null) {
   document.querySelector('#holding-qty').value = holding && holdingKind !== 'interest' ? holding.quantity : '';
   document.querySelector('#holding-cost').value = holding && Number(holding.costPerShare) > 0 ? holding.costPerShare : '';
   document.querySelector('#holding-note').value = holding?.note ?? '';
+  refreshHoldingNoteState();
   document.querySelector('#holding-principal').value = holding && holdingKind === 'interest' ? holding.principal : '';
   document.querySelector('#holding-rate').value = holding && isInterestHolding(holding) ? holding.annualRate : '';
   document.querySelector(`input[name="holding-interest-mode"][value="${holding?.interestMode === 'compound' ? 'compound' : 'simple'}"]`).checked = true;
@@ -3979,6 +4012,11 @@ document.querySelector('#holding-form').addEventListener('submit', async event =
       document.querySelector('#holding-dividend-pay-date').focus();
       return showToast('派息日不能早于除息日');
     }
+  }
+
+  if (noteOverflowCount()) {
+    document.querySelector('#holding-note').focus();
+    return showToast(`备注最多 ${HOLDING_NOTE_LIMIT} 个字`);
   }
 
   const submitButton = document.querySelector('#holding-submit-btn');

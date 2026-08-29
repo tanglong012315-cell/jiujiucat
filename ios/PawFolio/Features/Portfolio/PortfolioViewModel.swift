@@ -292,7 +292,8 @@ final class PortfolioViewModel: ObservableObject {
         } else if unsupportedCurrencyCount > 0 {
             quoteStatusMessage = "\(unsupportedCurrencyCount) 个非美元标的暂未计入总资产"
         } else {
-            quoteStatusMessage = result.usedCachedValues ? "部分行情来自本地缓存" : "行情已更新"
+            // 一切正常时不提示。「行情已更新」没有信息量，只是在列表底下常驻一行字。
+            quoteStatusMessage = result.usedCachedValues ? "部分行情来自本地缓存" : nil
         }
     }
 
