@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=121" />
+  <link rel="stylesheet" href="styles.css?v=123" />
 </head>
 <body>
   <div class="app-splash" id="app-splash" aria-hidden="true"></div>
@@ -148,6 +148,7 @@
               <span class="chart-cny" id="chart-total-cny">≈¥—</span>
             </div>
             <p class="chart-sub" id="chart-change">
+              <span id="chart-scrub-label" hidden></span>
               <span id="chart-delta">+$800.00</span>
               <span id="chart-percent">+8.00%</span>
             </p>
@@ -155,7 +156,6 @@
 
           <div class="chart-wrap">
             <canvas id="growth-chart" role="img" aria-label="总资产变化折线图"></canvas>
-            <div class="chart-tooltip" id="chart-tooltip" hidden></div>
           </div>
         </div>
       </section>
@@ -337,6 +337,15 @@
             <input id="holding-cost" type="text" inputmode="decimal" placeholder="0.00" />
           </div>
           <p class="field-hint">不填写时，将使用保存时的最新价格作为成本价</p>
+        </div>
+        <div class="field">
+          <label class="field-label" for="holding-note">备注（可选）</label>
+          <div class="input-shell">
+            <!-- 不用 maxlength：它按 UTF-16 单元数，一个 emoji 算两个，会在第 10 个就卡住，
+                 和原生按字符数的 20 对不上。长度由 app.js 里的 input 处理器统一裁。 -->
+            <input id="holding-note" type="text" placeholder="例如：定投账户" />
+          </div>
+          <p class="field-hint">最多 20 个字，会显示在盈亏明细里</p>
         </div>
         <section class="holding-adjustment holding-conditional" id="holding-adjustment" hidden aria-label="调整持仓">
           <div class="holding-settings-head">
@@ -579,6 +588,11 @@
           <span><strong>分红收益</strong><small id="profit-dividend-detail">暂无已确认分红</small></span>
           <b id="profit-dividend-value">$0.00</b>
         </div>
+        <!-- 备注排在最后，和原生的盈亏明细一致。没写备注时整行不出现。 -->
+        <div class="profit-breakdown-row profit-breakdown-note" id="profit-note-row" hidden>
+          <span><strong>备注</strong></span>
+          <b id="profit-note-value"></b>
+        </div>
       </div>
       <div class="profit-event-card" id="profit-event-card" hidden>
         <!-- 下面还有一个同名的「分红记录」按钮（进历史列表），这里改叫「最近一次分红」
@@ -710,6 +724,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
   <script src="holding-sync.js?v=1"></script>
-  <script src="app.js?v=113"></script>
+  <script src="app.js?v=115"></script>
 </body>
 </html>

@@ -3,7 +3,6 @@ const principalInput = document.querySelector('#principal');
 const rateInput = document.querySelector('#rate');
 const rateSlider = document.querySelector('#rate-slider');
 const canvas = document.querySelector('#growth-chart');
-const tooltip = document.querySelector('#chart-tooltip');
 const periodButtons = [...document.querySelectorAll('[data-period]')];
 const quickAmountButtons = [...document.querySelectorAll('[data-amount]')];
 const themeToggle = document.querySelector('#theme-toggle');
@@ -941,6 +940,9 @@ function chartConfig() {
   return { count: 13, years: i => i, caption: '12 年预测', labels: i => [0,3,6,9,12].includes(i) ? (i === 0 ? '现在' : `${i}年`) : '' };
 }
 
+// 计算页预测图的长按扫描下标，-1 表示没在扫描。和总资产走势图同一套交互。
+let chartScrubIndex = -1;
+
 function drawChart() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const rect = canvas.getBoundingClientRect();
@@ -952,31 +954,65 @@ function drawChart() {
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
   const w = rect.width, h = rect.height;
-  const pad = { top: 8, right: 8, bottom: 24, left: 44 };
+  // 和总资产走势图同一套版式：去掉 Y 轴刻度之后左边不用再留 44px 给标签，
+  // 顶部留给峰值标注，底部留给 X 轴文字。
+  const pad = { top: 18, right: 6, bottom: 22, left: 6 };
   const config = chartConfig();
   const data = Array.from({ length: config.count }, (_, i) => amountAt(config.years(i)));
-  const scale = niceScale(Math.min(...data), Math.max(...data));
-  const spread = Math.max(scale.max - scale.min, 1);
-  const x = i => pad.left + i / (data.length - 1) * (w - pad.left - pad.right);
-  // 定义域来自 scale 而非数据极值，所以 y(scale.max) 正好等于 pad.top，
-  // 最高刻度贴着绘图区顶部。
-  const y = v => pad.top + (1 - (v - scale.min) / spread) * (h - pad.top - pad.bottom - 8);
+  const left = pad.left, right = w - pad.right, bottom = h - pad.bottom;
+  const y = chartScale(data, pad.top, bottom);
+  const x = i => left + i / (data.length - 1) * (right - left);
   chartPoints = data.map((value, i) => ({ x: x(i), y: y(value), value, label: i === 0 ? '现在' : state.period === 'day' ? `第 ${i} 天` : state.period === 'month' ? `第 ${i} 月` : `第 ${i} 年` }));
 
-  // SnowUI charts: no gridlines, no axis lines, no tick marks, no area fill.
-  // A single solid black monotone line; only the labels remain.
-  const tangents = monotoneTangents(chartPoints);
-  ctx.beginPath();
-  ctx.moveTo(chartPoints[0].x, chartPoints[0].y);
-  for (let i = 0; i < chartPoints.length - 1; i++) {
-    const p0 = chartPoints[i], p1 = chartPoints[i + 1], dx = (p1.x - p0.x) / 3;
-    ctx.bezierCurveTo(p0.x + dx, p0.y + tangents[i] * dx, p1.x - dx, p1.y - tangents[i + 1] * dx, p1.x, p1.y);
+  // 画法完全对齐总资产走势图：曲线下方铺点阵，游标右侧整体压暗。区别只有配色
+  // ——预测图没有涨跌可言，所以从头到尾只用 --ink，不引入红绿。
+  const cursorX = chartScrubIndex >= 0 ? x(chartScrubIndex) : null;
+  const passes = cursorX === null
+    ? [[left, right, 1]]
+    : [[left, cursorX, 1], [cursorX, right, .32]];
+
+  for (const [from, to, alpha] of passes) {
+    if (to - from < .5) continue;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(from, 0, to - from, h);
+    ctx.clip();
+
+    ctx.fillStyle = chartInk;
+    fillDotMatrix(ctx, {
+      left, right, bottom,
+      yAtX: columnHeightFn(data, x, y, left, right),
+      // 6 = 总资产走势图的 CHART_DOT_STEP。这里不引用那个常量：它定义在本文件
+      // 更后面，而 drawChart 会在顶层初始化阶段就被调用，引用会撞进 TDZ。
+      step: 6, size: 1.4, alpha: alpha * .34
+    });
+
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = chartInk;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    tracePath(ctx, x, i => y(data[i]), data.length);
+    ctx.stroke();
+    ctx.restore();
   }
-  ctx.strokeStyle = chartInk; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
 
+  // 区间最高值标在它自己的位置上方，和总资产走势图一致。
+  const peak = data.reduce((best, value, i) => value > data[best] ? i : best, 0);
+  ctx.globalAlpha = 1;
   ctx.fillStyle = chartLabel;
-  ctx.font = '400 12px Inter, system-ui, sans-serif';
+  ctx.font = '400 11px Inter, system-ui, sans-serif';
+  ctx.textBaseline = 'bottom';
+  ctx.textAlign = 'center';
+  const peakText = money.format(data[peak]);
+  const peakHalf = ctx.measureText(peakText).width / 2 + 2;
+  ctx.fillText(
+    peakText,
+    Math.max(left + peakHalf, Math.min(right - peakHalf, x(peak))),
+    Math.max(12, y(data[peak]) - 8)
+  );
 
+  ctx.font = '400 12px Inter, system-ui, sans-serif';
   ctx.textBaseline = 'bottom'; ctx.textAlign = 'center';
   data.forEach((_, i) => {
     const label = config.labels(i);
@@ -985,11 +1021,33 @@ function drawChart() {
     ctx.fillText(label, x(i), h - 4);
   });
 
-  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  const formatTick = tickFormatter(scale.step, Math.max(Math.abs(scale.min), Math.abs(scale.max)));
-  scale.ticks.forEach(value => ctx.fillText(formatTick(value), 0, y(value)));
+  if (cursorX !== null) {
+    const cursorY = y(data[chartScrubIndex]);
+    ctx.save();
+    ctx.strokeStyle = chartLabel;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(cursorX, 0);
+    ctx.lineTo(cursorX, bottom);
+    ctx.stroke();
+    ctx.restore();
 
-  const final = data.at(-1), profit = final - state.principal;
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-1').trim() || '#fff';
+    ctx.strokeStyle = chartInk;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(cursorX, cursorY, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  const scrubbing = chartScrubIndex >= 0;
+  const scrubLabel = document.querySelector('#chart-scrub-label');
+  scrubLabel.hidden = !scrubbing;
+  if (scrubbing) scrubLabel.textContent = chartPoints[chartScrubIndex].label;
+  const readout = scrubbing ? data[chartScrubIndex] : data.at(-1);
+  const final = readout, profit = final - state.principal;
   const changePercent = state.principal ? (profit / state.principal) * 100 : 0;
   const displayedProfit = roundedMovementValue(profit);
   const displayedPercent = roundedMovementValue(changePercent);
@@ -998,34 +1056,12 @@ function drawChart() {
   document.querySelector('#chart-total').textContent = metricMoney(final);
   document.querySelector('#chart-delta').textContent = `${sign}${metricMoney(displayedProfit)}`;
   document.querySelector('#chart-percent').textContent = `${displayedPercent > 0 ? '+' : ''}${displayedPercent.toFixed(2)}%`;
-  document.querySelector('#chart-change').className = `chart-sub ${movementTone(displayedProfit)}`;
+  // 预测图不用涨跌色：这里是一条按设定利率算出来的曲线，不是行情，
+  // 染成红绿会让它看起来像真实盈亏。整块保持黑白灰。
   renderCnyValues();
   canvas.setAttribute('aria-label', `${config.caption}，预计总资产从 ${money.format(state.principal)} 增长至 ${money.format(final)}`);
 }
 
-function showTooltip(event) {
-  if (!chartPoints.length) return;
-  const rect = canvas.getBoundingClientRect();
-  const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-  const localX = clientX - rect.left;
-  const point = chartPoints.reduce((a, b) => Math.abs(b.x - localX) < Math.abs(a.x - localX) ? b : a);
-  tooltip.hidden = false;
-  const cnyText = state.usdCny ? cnyMoney.format(point.value * state.usdCny) : 'CNY —';
-  const pointChange = state.principal ? ((point.value - state.principal) / state.principal) * 100 : 0;
-  const displayedPointChange = roundedMovementValue(pointChange);
-  const pointChangeText = `${displayedPointChange > 0 ? '+' : ''}${displayedPointChange.toFixed(2)}%`;
-  tooltip.textContent = `${point.label} · ${money.format(point.value)}\n${cnyText} · 涨跌 ${pointChangeText}`;
-  const tooltipWidth = tooltip.offsetWidth;
-  const tooltipHeight = tooltip.offsetHeight;
-  const edgeGap = 4;
-  const minLeft = tooltipWidth / 2 + edgeGap;
-  const maxLeft = rect.width - tooltipWidth / 2 - edgeGap;
-  tooltip.style.left = `${Math.max(minLeft, Math.min(maxLeft, point.x))}px`;
-  tooltip.style.top = `${point.y}px`;
-  tooltip.style.transform = point.y >= tooltipHeight + 12
-    ? 'translate(-50%, calc(-100% - 10px))'
-    : 'translate(-50%, 10px)';
-}
 
 principalInput.addEventListener('blur', () => {
   const value = Math.max(1, Number(principalInput.value.replace(/,/g, '')) || 1);
@@ -1046,10 +1082,74 @@ rateInput.addEventListener('change', savePreferences);
 form.elements.interest.forEach(input => input.addEventListener('change', savePreferences));
 form.addEventListener('submit', event => { event.preventDefault(); savePreferences(); renderResults(); document.querySelector('.results').scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'start' }); });
 periodButtons.forEach(button => button.addEventListener('click', () => { state.period = button.dataset.period; periodButtons.forEach(b => b.setAttribute('aria-pressed', String(b === button))); savePreferences(); drawChart(); }));
-canvas.addEventListener('mousemove', showTooltip);
-canvas.addEventListener('touchmove', showTooltip, { passive: true });
-canvas.addEventListener('mouseleave', () => tooltip.hidden = true);
-canvas.addEventListener('touchend', () => tooltip.hidden = true);
+// 预测图的读数方式和总资产走势图统一：不再是悬浮气泡，而是长按扫描——
+// 游标右侧压暗，顶部那三个数字换成落点当时的值。
+(() => {
+  let pointerId = null;
+  let origin = null;
+  let pressTimer = null;
+
+  const indexFromClientX = clientX => {
+    if (!chartPoints.length) return -1;
+    const rect = canvas.getBoundingClientRect();
+    const localX = clientX - rect.left;
+    let best = 0;
+    chartPoints.forEach((point, i) => {
+      if (Math.abs(point.x - localX) < Math.abs(chartPoints[best].x - localX)) best = i;
+    });
+    return best;
+  };
+
+  const setIndex = index => {
+    if (index === chartScrubIndex) return;
+    chartScrubIndex = index;
+    drawChart();
+  };
+
+  const cancelPending = () => { clearTimeout(pressTimer); pressTimer = null; };
+  const stop = () => {
+    cancelPending();
+    pointerId = null;
+    if (chartScrubIndex < 0) return;
+    chartScrubIndex = -1;
+    drawChart();
+  };
+
+  canvas.addEventListener('pointerdown', event => {
+    if (!chartPoints.length) return;
+    pointerId = event.pointerId;
+    origin = { x: event.clientX, y: event.clientY };
+    if (event.pointerType !== 'touch') {
+      canvas.setPointerCapture(event.pointerId);
+      setIndex(indexFromClientX(event.clientX));
+      return;
+    }
+    // 触屏先长按 180ms 才进入扫描，否则一上来就和页面纵向滚动抢手势。
+    pressTimer = setTimeout(() => {
+      pressTimer = null;
+      canvas.setPointerCapture(pointerId);
+      setIndex(indexFromClientX(origin.x));
+    }, 180);
+  });
+
+  canvas.addEventListener('pointermove', event => {
+    if (event.pointerId !== pointerId) return;
+    if (pressTimer) {
+      // 长按还没数满就滑走了——那是在滚页面，作废这次判定。
+      if (Math.abs(event.clientY - origin.y) > 8 || Math.abs(event.clientX - origin.x) > 12) {
+        cancelPending();
+        pointerId = null;
+      }
+      return;
+    }
+    if (chartScrubIndex < 0) return;
+    setIndex(indexFromClientX(event.clientX));
+  });
+
+  canvas.addEventListener('pointerup', stop);
+  canvas.addEventListener('pointercancel', stop);
+  canvas.addEventListener('pointerleave', event => { if (event.pointerType !== 'touch') stop(); });
+})();
 window.addEventListener('resize', () => {
   drawChart();
   requestAnimationFrame(fitMetricNumbers);
@@ -2728,6 +2828,24 @@ function setProfitValue(element, value) {
   if (Number.isFinite(value)) element.classList.add(movementTone(value));
 }
 
+// 备注的统一口径，对应原生的 `Holding.normalizedNote`：去首尾空白、最多 20 个字、
+// 空的一律存 null。用展开符数码点而不是 `slice`，否则 emoji 会被从代理对中间截断，
+// 两端也会数出不同的长度。
+const HOLDING_NOTE_LIMIT = 20;
+
+function normalizeHoldingNote(raw) {
+  const trimmed = String(raw ?? '').trim();
+  if (!trimmed) return null;
+  return [...trimmed].slice(0, HOLDING_NOTE_LIMIT).join('');
+}
+
+// 边输边裁。这里不能 trim——正在两个词之间敲空格的人会发现空格打不出来。
+document.querySelector('#holding-note').addEventListener('input', event => {
+  const characters = [...event.target.value];
+  if (characters.length <= HOLDING_NOTE_LIMIT) return;
+  event.target.value = characters.slice(0, HOLDING_NOTE_LIMIT).join('');
+});
+
 function openProfitSheet(items, action) {
   clearTimeout(profitSheetCloseTimer);
   const holdingsForBreakdown = Array.isArray(items) ? items : [items];
@@ -2877,6 +2995,13 @@ function openProfitSheet(items, action) {
   if (latestPrice !== null) {
     document.querySelector('#profit-latest-price-value').textContent = `${money.format(latestPrice)}/份`;
   }
+  // 合并查看时可能有多笔各写各的备注，逐条列出并去重；一条都没有就整行不显示。
+  const notes = [...new Set(
+    holdingsForBreakdown.map(item => normalizeHoldingNote(item.note)).filter(Boolean)
+  )];
+  document.querySelector('#profit-note-row').hidden = notes.length === 0;
+  if (notes.length) document.querySelector('#profit-note-value').textContent = notes.join(' · ');
+
   document.querySelector('#profit-edit-btn').textContent = action?.label || '编辑持仓';
   openOverlay(document.querySelector('#profit-sheet-overlay'));
   document.querySelector('#profit-close-btn').focus();
@@ -3744,6 +3869,7 @@ function openHoldingSheet(id = null, presetAsset = null) {
   document.querySelector('#holding-symbol-manual').value = holdingKind === 'interest' ? holding.symbol : '';
   document.querySelector('#holding-qty').value = holding && holdingKind !== 'interest' ? holding.quantity : '';
   document.querySelector('#holding-cost').value = holding && Number(holding.costPerShare) > 0 ? holding.costPerShare : '';
+  document.querySelector('#holding-note').value = holding?.note ?? '';
   document.querySelector('#holding-principal').value = holding && holdingKind === 'interest' ? holding.principal : '';
   document.querySelector('#holding-rate').value = holding && isInterestHolding(holding) ? holding.annualRate : '';
   document.querySelector(`input[name="holding-interest-mode"][value="${holding?.interestMode === 'compound' ? 'compound' : 'simple'}"]`).checked = true;
@@ -3890,7 +4016,8 @@ document.querySelector('#holding-form').addEventListener('submit', async event =
       dividendPerShare: holdingKind === 'dividend' ? dividendPerShare : null,
       dividendFrequency: holdingKind === 'dividend' ? dividendFrequency : null,
       dividendExDate: holdingKind === 'dividend' ? dividendExDate : null,
-      dividendPayDate: holdingKind === 'dividend' ? dividendPayDate : null
+      dividendPayDate: holdingKind === 'dividend' ? dividendPayDate : null,
+      note: normalizeHoldingNote(document.querySelector('#holding-note').value)
     };
 
     let savedHolding;
