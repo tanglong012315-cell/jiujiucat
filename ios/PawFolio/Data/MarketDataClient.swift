@@ -8,7 +8,7 @@ struct APIConfiguration: Equatable, Sendable {
     )
 }
 
-enum MarketDataClientError: LocalizedError {
+enum MarketDataClientError: LocalizedError, Equatable {
     case invalidQuery
     case invalidResponse
     case unavailable
@@ -120,7 +120,39 @@ struct LiveMarketDataClient: MarketDataServing {
         return url
     }
 
+    // 移动网络下单次请求的瞬时失败很常见，而调用方是无并发上限地同时拉全部持仓
+    // 的报价 —— 一次抖动就会让那个标的这一轮拿不到价。重试两次、间隔递增，
+    // 抖动基本能被吃掉。
+    private static let maxAttempts = 3
+    private static let retryBackoffNanoseconds: [UInt64] = [300_000_000, 900_000_000]
+
     private func responseData(from url: URL) async throws -> Data {
+        var lastError: Error = MarketDataClientError.unavailable
+
+        for attempt in 0..<Self.maxAttempts {
+            do {
+                return try await singleResponseData(from: url)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch let error as MarketDataClientError {
+                // 4xx 与解析类错误重试多少次都是同样的结果，直接抛。
+                guard case .unavailable = error else { throw error }
+                lastError = error
+            } catch {
+                lastError = error
+            }
+
+            if attempt < Self.retryBackoffNanoseconds.count {
+                // sleep 会响应取消：任务被取消时这里抛 CancellationError，
+                // 不会白白占着一次退避等待。
+                try await Task.sleep(nanoseconds: Self.retryBackoffNanoseconds[attempt])
+            }
+        }
+
+        throw lastError
+    }
+
+    private func singleResponseData(from url: URL) async throws -> Data {
         var request = URLRequest(url: url)
         request.timeoutInterval = 8
         request.cachePolicy = .reloadIgnoringLocalCacheData

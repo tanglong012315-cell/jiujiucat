@@ -81,19 +81,21 @@ actor CachedMarketQuoteRepository: MarketQuoteRepositoryServing {
             try? saveCache(updatedCache)
         }
 
-        let now = Date().timeIntervalSince1970 * 1_000
+        // 拿不到新价时一律回退到本地缓存，**不再按 12 小时把旧价丢掉**。
+        // 丢掉的后果是该标的在界面上直接没有价格（调用方是整体替换），刷新几次
+        // 就会看到价格忽有忽无 —— 一个过期的价格配上「来自缓存」的提示，
+        // 比凭空消失要有用。failedSymbols 仍然如实包含它们，供上层提示。
         var resolved = fetched
         var usedCachedValues = false
         for symbol in failed {
-            guard let cachedQuote = cached[symbol],
-                  now - cachedQuote.fetchedAtMilliseconds <= cacheLifetimeMilliseconds else {
-                continue
-            }
+            guard let cachedQuote = cached[symbol] else { continue }
             resolved[symbol] = cachedQuote
             usedCachedValues = true
         }
 
         return MarketQuoteRefresh(
+            // 只有「网络失败且本地一个价都没有」才算真的没拿到 —— 被缓存兜住的
+            // 通过 usedCachedValues 表达，两者语义不同，别合并。
             quotes: resolved,
             failedSymbols: failed.subtracting(resolved.keys),
             usedCachedValues: usedCachedValues

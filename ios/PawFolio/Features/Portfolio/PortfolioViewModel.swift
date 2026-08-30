@@ -279,7 +279,12 @@ final class PortfolioViewModel: ObservableObject {
         }
 
         let result = await quoteRepository.refreshQuotes(for: symbols)
-        quotes = result.quotes
+        // 合并而不是整体替换：这一轮没拿到价的标的保留上次的值，否则它会直接从
+        // 列表上消失，刷新几次就是价格忽有忽无。同时按当前持仓裁剪，避免已删除
+        // 的标的残留。
+        var merged = quotes.filter { symbols.contains($0.key) }
+        merged.merge(result.quotes) { _, fresh in fresh }
+        quotes = merged
         mergeShortHistories(from: result.quotes)
         rebuildPortfolioHistory()
 
