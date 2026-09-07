@@ -1207,7 +1207,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "今日（USD）"
+            "value": "每日（USD）"
           }
         }
       }
@@ -2445,6 +2445,17 @@
         }
       }
     },
+    "Next Payout": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下次派息"
+          }
+        }
+      }
+    },
     "No Records": {
       "localizations": {
         "zh-Hans": {
@@ -2721,6 +2732,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "支出金额"
+          }
+        }
+      }
+    },
+    "Received (USD)": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已发放（USD）"
           }
         }
       }
@@ -3995,6 +4017,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "总余额"
+          }
+        }
+      }
+    },
+    "Total PNL": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "总盈亏"
           }
         }
       }

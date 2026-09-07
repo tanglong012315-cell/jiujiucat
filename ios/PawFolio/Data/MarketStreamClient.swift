@@ -87,8 +87,14 @@ actor MarketStreamClient {
         let catalog = await catalogLoader()
         var newPairs: [String] = []
         for symbol in symbols {
+            // 必须同时排除美股和 OKX：
+            //   美股（Binance Stocks）没有公开行情流。
+            //   OKX 是另一套 WebSocket 协议，它的交易对（OKB-USDT）拿去订
+            //   Binance 的流是订不到的 —— 那个流根本不存在，于是永远收不到
+            //   推送，价格就永远停在首次取到的那个值。
             guard let instrument = catalog.resolve(symbol: symbol),
                   !instrument.isEquity,
+                  instrument.venue != "okx",
                   let pair = instrument.pair else { continue }
             quoteCurrencies[instrument.symbol] = instrument.quoteCurrency
             guard subscribed[pair] == nil else { continue }

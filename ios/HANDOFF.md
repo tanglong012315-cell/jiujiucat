@@ -137,6 +137,15 @@ OKB / CRO / LEO 都没有，只有自家 BNB。两家都没有的（BGB / HT / K
 **目录会过时**：新上市的标的要重跑一次生成脚本。只影响搜索，不影响已有持仓
 取价（取价是按代号直连的）。
 
+**订阅 WebSocket 时必须同时排除美股和 OKX。** 只排除美股是不够的 —— OKX 的
+交易对（`OKB-USDT`）拿去订 Binance 的流是订不到的，那个流根本不存在，于是
+永远收不到推送。表现是「价格更新时间停在某个点不动了」，而不是报错，很难查。
+（2026-09-07 用户在真机上发现：BTC / BNB 正常，OKB 停在 16:28。）
+
+**没有推送的标的必须有定时刷新。** 美股和 OKX 都不走推送，如果只在加载和
+下拉刷新时取价，它们就只有首次那一个值。`LedgerPortfolioViewModel` 里
+`startSlowRefreshIfNeeded` 每 60 秒调一次 `refreshValuation`，和 Web 一致。
+
 ## Current milestone
 
 Milestone 6 productization is underway. The native launch experience and the Dynamic Type / dark-mode / Reduce Motion pass are complete and verified on a real simulator. VoiceOver walkthrough and localization remain open. Milestone 5 production holding and Profile synchronization stays verified in both directions.

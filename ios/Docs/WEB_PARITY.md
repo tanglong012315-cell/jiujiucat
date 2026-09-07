@@ -41,10 +41,10 @@ The iOS `Codable` representation must continue to decode all four values.
 
 ## Earn payout totals (changed 2026-09-07)
 
-- `Total (USD)` in the Earn Holding summary means interest that has actually
+- `Received (USD)` in the Earn Holding summary means interest that has actually
   been credited through an `interest` ledger entry, not live accrued interest.
 - Interest accrued after the effective date remains visible on each holding row,
-  but does not enter `Total (USD)` before the provider payout is recorded.
+  but does not enter `Received (USD)` before the provider payout is recorded.
 - Reversed and future-dated payouts are excluded. Paid quantities are converted
   to USD using the same current valuation path as the rest of the Earn summary.
 

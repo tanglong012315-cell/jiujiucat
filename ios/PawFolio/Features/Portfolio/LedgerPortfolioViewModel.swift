@@ -39,6 +39,7 @@ final class LedgerPortfolioViewModel: ObservableObject {
     private let quoteRepository: (any MarketQuoteRepositoryServing)?
     private let streamClient: MarketStreamClient?
     private var streamTask: Task<Void, Never>?
+    private var slowRefreshTask: Task<Void, Never>?
     private let exchangeRateClient: (any ExchangeRateServing)?
     private let preferences: (any ExchangeRatePreferencesStoring)?
     private let portfolioPreferences: (any PortfolioPreferencesStoring)?
@@ -405,7 +406,7 @@ final class LedgerPortfolioViewModel: ObservableObject {
         return values.compactMap { $0 }.reduce(0, +)
     }
 
-    /// Earn summary total: interest that has reached Spot or Earn through an
+    /// Earn summary received amount: interest that has reached Spot or Earn through an
     /// actual payout entry. It intentionally excludes the live accrual shown on
     /// individual holding rows before the next payout time.
     var totalEarnPaidInterestUSD: Double? {
@@ -743,6 +744,7 @@ final class LedgerPortfolioViewModel: ObservableObject {
             // 持仓变了订阅集合就得跟着变。start 对已订过的标的是幂等的，
             // 所以这里每轮都调没有额外代价。
             await startStreamingIfNeeded(symbols: symbols)
+            startSlowRefreshIfNeeded()
         }
         if let exchangeRateClient {
             do {
@@ -802,16 +804,35 @@ final class LedgerPortfolioViewModel: ObservableObject {
         recalculateSummary()
     }
 
+    /// 定时刷新那些**没有推送**的标的：美股（Binance Stocks 没有公开行情流）
+    /// 和 OKX 的币（另一套 WS 协议，为几个长尾平台币再实现一遍不值得）。
+    ///
+    /// 不做这个的话它们只有首次加载那一个值 —— 用户看到的就是「价格更新时间
+    /// 停在某个点不动了」。60 秒一轮，和 Web 端一致。
+    private func startSlowRefreshIfNeeded() {
+        guard quoteRepository != nil, slowRefreshTask == nil else { return }
+        slowRefreshTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 60 * 1_000_000_000)
+                guard !Task.isCancelled else { return }
+                await self?.refreshValuation()
+            }
+        }
+    }
+
     /// 页面消失 / App 进后台时调用。后台留着连接既费电，回来时它多半也已经死了。
     func stopStreaming() {
         streamTask?.cancel()
         streamTask = nil
+        slowRefreshTask?.cancel()
+        slowRefreshTask = nil
         let client = streamClient
         Task { await client?.stop() }
     }
 
     deinit {
         streamTask?.cancel()
+        slowRefreshTask?.cancel()
     }
 
     func selectHistoryRange(_ range: PortfolioHistoryRange) {

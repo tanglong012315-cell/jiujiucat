@@ -537,7 +537,10 @@ final class LocalizationResourceTests: XCTestCase {
         XCTAssertEqual(bundle.localizedString(forKey: "tab.currency", value: nil, table: nil), "汇率")
         XCTAssertEqual(bundle.localizedString(forKey: "Subscribe", value: nil, table: nil), "申购")
         XCTAssertEqual(bundle.localizedString(forKey: "Reverse transaction", value: nil, table: nil), "冲正交易")
-        XCTAssertEqual(bundle.localizedString(forKey: "PNL", value: nil, table: nil), "盈亏")
+        XCTAssertEqual(bundle.localizedString(forKey: "Total PNL", value: nil, table: nil), "总盈亏")
+        XCTAssertEqual(bundle.localizedString(forKey: "Daily (USD)", value: nil, table: nil), "每日（USD）")
+        XCTAssertEqual(bundle.localizedString(forKey: "Received (USD)", value: nil, table: nil), "已发放（USD）")
+        XCTAssertEqual(bundle.localizedString(forKey: "Next Payout", value: nil, table: nil), "下次派息")
 
         let buyFormat = bundle.localizedString(forKey: "Buy %@", value: nil, table: nil)
         XCTAssertEqual(String(format: buyFormat, locale: Locale(identifier: "zh-Hans"), "BTC"), "买入 BTC")

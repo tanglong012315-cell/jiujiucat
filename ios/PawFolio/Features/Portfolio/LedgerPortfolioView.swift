@@ -420,7 +420,7 @@ struct LedgerPortfolioView: View {
     }
 
     private var pnlLabel: String {
-        guard scrubbedPoint != nil else { return "PNL" }
+        guard scrubbedPoint != nil else { return "Total PNL" }
         switch model.historyRange {
         case .day: return "vs. 24 hours ago"
         case .week: return "vs. 7 days ago"
@@ -3090,7 +3090,7 @@ private struct LedgerEarnView: View {
             }
             .buttonStyle(.plain)
             .accessibilityHint("Shows the daily profit breakdown")
-            earnSummaryBlock("Total (USD)", value: model.totalEarnPaidInterestUSD)
+            earnSummaryBlock("Received (USD)", value: model.totalEarnPaidInterestUSD)
         }
         .padding(10)
         .background(Nvwa.backgroundCard, in: RoundedRectangle(cornerRadius: 12))
@@ -3334,10 +3334,8 @@ private struct LedgerEarnDailySheet: View {
                         .nvwaTextStyle(Nvwa.Typography.titleSection, linesFillLineHeight: false)
                         .foregroundStyle(Nvwa.marketBuy)
                         .monospacedDigit()
-                    Text(
-                        verbatim: "\(ledgerDailyPayoutFormatter.string(from: nextDailyPayoutDate)) "
-                            + String(localized: "Payout")
-                    )
+                    (Text("Next Payout")
+                        + Text(verbatim: " \(ledgerDailyPayoutFormatter.string(from: nextDailyPayoutDate))"))
                         .nvwaTextStyle(Nvwa.Typography.bodySmall, linesFillLineHeight: false)
                         .foregroundStyle(Nvwa.textSecondary)
                         .monospacedDigit()
