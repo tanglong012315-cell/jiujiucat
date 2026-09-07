@@ -1,0 +1,47 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Flags">
+<g id="Uruguay">
+<g clip-path="url(#clip0_0_1)">
+<g id="Clip path group">
+<mask id="mask0_0_1" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+<g id="clip0_199_10215">
+<path id="Vector" d="M64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64C49.6731 64 64 49.6731 64 32Z" fill="white"/>
+</g>
+</mask>
+<g mask="url(#mask0_0_1)">
+<g id="Group">
+<path id="Vector_2" d="M64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64C49.6731 64 64 49.6731 64 32Z" fill="white"/>
+<g id="Mask group">
+<mask id="mask1_0_1" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+<g id="Group_2">
+<path id="Vector_3" d="M32 64C49.6731 64 64 49.6731 64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64Z" fill="white"/>
+</g>
+</mask>
+<g mask="url(#mask1_0_1)">
+<g id="Group_3">
+<path id="Vector_4" d="M0 0H96V64H0V0Z" fill="white"/>
+<path id="Vector_5" d="M18 24C21.3137 24 24 21.3137 24 18C24 14.6863 21.3137 12 18 12C14.6863 12 12 14.6863 12 18C12 21.3137 14.6863 24 18 24Z" fill="#FFD400"/>
+<path id="Vector_6" d="M18.0003 6L20.0788 12.9H15.9219L18.0003 6Z" fill="#FFD400"/>
+<path id="Vector_7" d="M17.9999 30L15.9214 23.1H20.0783L17.9999 30Z" fill="#FFD400"/>
+<path id="Vector_8" d="M26.4854 9.51462L23.0761 15.8633L20.1367 12.924L26.4854 9.51462Z" fill="#FFD400"/>
+<path id="Vector_9" d="M9.51465 26.4854L12.924 20.1367L15.8634 23.076L9.51465 26.4854Z" fill="#FFD400"/>
+<path id="Vector_10" d="M30.0001 18.0003L23.1001 20.0788V15.9219L30.0001 18.0003Z" fill="#FFD400"/>
+<path id="Vector_11" d="M6 17.9997L12.9 15.9212V20.0781L6 17.9997Z" fill="#FFD400"/>
+<path id="Vector_12" d="M26.4854 26.4858L20.1367 23.0765L23.076 20.1371L26.4854 26.4858Z" fill="#FFD400"/>
+<path id="Vector_13" d="M9.51465 9.51419L15.8633 12.9235L12.924 15.8629L9.51465 9.51419Z" fill="#FFD400"/>
+<path id="Vector_14" d="M35.5556 7.11084H96V14.222H35.5556V7.11084ZM35.5556 21.3331H96V28.4442H35.5556V21.3331ZM0 35.5554H96V42.6664H0V35.5554ZM0 49.7775H96V56.8887H0V49.7775Z" fill="#231D9A"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_0_1">
+<rect width="64" height="64" rx="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>

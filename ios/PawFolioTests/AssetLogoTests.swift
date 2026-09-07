@@ -1,4 +1,7 @@
 import XCTest
+#if canImport(UIKit)
+import UIKit
+#endif
 @testable import PawFolio
 
 final class AssetLogoTests: XCTestCase {
@@ -77,4 +80,92 @@ final class AssetLogoTests: XCTestCase {
         let tooLong = String(repeating: "A", count: 21)
         XCTAssertTrue(urls(tooLong, .cryptocurrency).isEmpty)
     }
+
+    func testBundledSnapshotsContainExactlyOneHundredUniqueEntries() {
+        XCTAssertEqual(AssetLogoCatalog.crypto.count, 100)
+        XCTAssertEqual(AssetLogoCatalog.stocks.count, 100)
+        XCTAssertEqual(Set(AssetLogoCatalog.crypto.map(\.symbol)).count, 100)
+        XCTAssertEqual(Set(AssetLogoCatalog.stocks.map(\.symbol)).count, 100)
+        XCTAssertEqual(AssetLogoCatalog.crypto.map(\.rank), Array(1...100))
+        XCTAssertEqual(AssetLogoCatalog.stocks.map(\.rank), Array(1...100))
+    }
+
+    func testBundledLogoLookupNormalizesYahooSymbolsAndAliases() {
+        XCTAssertEqual(
+            AssetLogoCatalog.assetName(
+                quoteSymbol: "btc-usd",
+                assetType: .cryptocurrency
+            ),
+            "AssetLogoCrypto_BTC"
+        )
+        XCTAssertEqual(
+            AssetLogoCatalog.assetName(quoteSymbol: "BRK.B", assetType: .equity),
+            "AssetLogoStock_BRK_B"
+        )
+        XCTAssertEqual(
+            AssetLogoCatalog.assetName(quoteSymbol: "GOOGL", assetType: .equity),
+            "AssetLogoStock_GOOG"
+        )
+        XCTAssertEqual(
+            AssetLogoCatalog.assetName(quoteSymbol: "RNDR-USD", assetType: .cryptocurrency),
+            "AssetLogoCrypto_RENDER"
+        )
+        XCTAssertEqual(
+            AssetLogoCatalog.assetName(quoteSymbol: "USDG", assetType: .stable),
+            "AssetLogoCrypto_USDG"
+        )
+    }
+
+    func testSupplementalStrategyLogosAreBundled() {
+        XCTAssertEqual(
+            AssetLogoCatalog.assetName(quoteSymbol: "MSTR", assetType: .equity),
+            "AssetLogoStock_MSTR"
+        )
+        XCTAssertEqual(
+            AssetLogoCatalog.assetName(quoteSymbol: "STRC", assetType: .equity),
+            "AssetLogoStock_STRC"
+        )
+    }
+
+    func testUnknownBundledLogoKeepsRemoteFallbackAvailable() {
+        XCTAssertNil(
+            AssetLogoCatalog.assetName(quoteSymbol: "NOT-A-REAL-ASSET", assetType: .equity)
+        )
+        XCTAssertFalse(urls("NOTREAL", .equity).isEmpty)
+    }
+
+    #if canImport(UIKit)
+    func testEverySnapshotEntryHasAnAssetCatalogImage() {
+        for entry in AssetLogoCatalog.crypto + AssetLogoCatalog.stocks {
+            XCTAssertNotNil(UIImage(named: entry.assetName), entry.assetName)
+        }
+        for assetName in AssetLogoCatalog.supplementalStocks.values {
+            XCTAssertNotNil(UIImage(named: assetName), assetName)
+        }
+    }
+
+    @MainActor
+    func testBundledLogoLoadsWithoutARequest() async {
+        FlakyURLProtocol.reset(failuresBeforeSuccess: .max, successBody: Data())
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [FlakyURLProtocol.self]
+        let store = AssetLogoStore(
+            configuration: APIConfiguration(
+                baseURL: URL(string: "https://example.invalid/")!
+            ),
+            session: URLSession(configuration: configuration)
+        )
+
+        for symbol in ["BTC-USD", "MSTR", "STRC"] {
+            let assetType: AssetType = symbol == "BTC-USD" ? .cryptocurrency : .equity
+            let image = await store.image(
+                quoteSymbol: symbol,
+                assetType: assetType,
+                name: symbol
+            )
+            XCTAssertNotNil(image, symbol)
+        }
+        XCTAssertEqual(FlakyURLProtocol.attemptCount(), 0)
+    }
+    #endif
 }

@@ -1,6 +1,7 @@
+import Nvwa
 import SwiftUI
 
-/// Web `.toast`：贴在底部导航上方的一枚药丸，`--ink-80` 底配 `--bg-1` 字，
+/// PawFolio 的 toast 调度器；视觉由独立 Nvwa 组件库提供。
 /// 2.4 秒后淡出。Web 里有 33 处调用，是主要的操作反馈机制。
 @MainActor
 final class PawToastCenter: ObservableObject {
@@ -27,13 +28,7 @@ private struct PawToastOverlay: ViewModifier {
     func body(content: Content) -> some View {
         content.overlay(alignment: .bottom) {
             if let message = center.message {
-                Text(message)
-                    .font(PawFont.inter(13, weight: .medium))
-                    .foregroundStyle(PawTheme.bg1)
-                    .lineLimit(1)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 10)
-                    .background(PawTheme.ink80, in: Capsule())
+                NvwaToast(message)
                     // Web 把它放在贴底导航上方 80pt 处。
                     .padding(.bottom, 80)
                     // 进场从下方推上来并轻微放大，出场只是淡掉、不再往下掉：

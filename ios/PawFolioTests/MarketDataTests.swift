@@ -3,97 +3,80 @@ import XCTest
 @testable import PawFolio
 
 final class MarketDataTests: XCTestCase {
-    func testSearchPayloadDecodesSupportedAssetsAndDropsUnknownTypes() throws {
+    /// 客户端测试用的最小目录。真目录走 /api/catalog，那条路由由
+    /// MarketCatalogTests 单独覆盖。
+    static let testCatalog = MarketCatalog(
+        equities: ["AAPL": .init(name: "Apple Inc.", assetType: .equity)],
+        cryptos: [:]
+    )
+
+    // 2026-09-07：Worker 改为返回自己整理过的 {price, change, series}，不再透传
+    // Yahoo 的 chart.result[0]。搜索端点整个下线，改由本地目录过滤（见
+    // MarketCatalogTests）。这里只覆盖新的解码路径。
+
+    func testQuotePayloadDecodesWorkerShape() throws {
         let data = Data(#"""
-        {
-          "results": [
-            {"symbol":"AAPL","quoteSymbol":"AAPL","name":"Apple Inc.","assetType":"EQUITY","exchange":"NASDAQ"},
-            {"symbol":"BTC","quoteSymbol":"BTC-USD","name":"Bitcoin USD","assetType":"CRYPTOCURRENCY","exchange":"CCC"},
-            {"symbol":"BAD","quoteSymbol":"BAD","name":"Unknown","assetType":"FUTURE","exchange":"TEST"}
-          ]
-        }
+        {"price": 110, "change": 10, "series": [[1756308600000, 100], [1756312200000, 105]]}
         """#.utf8)
-
-        let results = try MarketDataPayloadDecoder.searchResults(from: data)
-
-        XCTAssertEqual(results.map(\.symbol), ["AAPL", "BTC"])
-        XCTAssertEqual(results.last?.assetType, .cryptocurrency)
-    }
-
-    func testQuotePayloadUsesBeijingMidnightReferenceAndBuildsSeries() throws {
-        let beforeMidnight = Int(seconds("2026-08-27T15:30:00Z"))
-        let afterMidnight = Int(seconds("2026-08-27T16:30:00Z"))
-        let data = Data("""
-        {
-          "chart": {
-            "result": [{
-              "meta": {
-                "currency": "USD",
-                "symbol": "AAPL",
-                "regularMarketPrice": 110,
-                "regularMarketTime": \(afterMidnight)
-              },
-              "timestamp": [\(beforeMidnight), \(afterMidnight)],
-              "indicators": {"quote": [{"close": [100, 105]}]}
-            }],
-            "error": null
-          }
-        }
-        """.utf8)
 
         let quote = try MarketDataPayloadDecoder.quote(
             from: data,
             requestedSymbol: "AAPL",
+            conversionRate: 1,
             fetchedAtMilliseconds: milliseconds("2026-08-28T05:00:00Z")
         )
 
         XCTAssertEqual(quote.price, 110)
+        // 涨跌幅由 Worker 按「北京时间今日」算好下发，客户端不再自己找基准 ——
+        // 两端各算一次就必然会出现两个数。
         XCTAssertEqual(quote.changePercent, 10, accuracy: 0.000_001)
         XCTAssertEqual(quote.series.count, 2)
         XCTAssertEqual(quote.series.last?.price, 105)
     }
 
-    func testQuotePayloadFallsBackToLatestValidClose() throws {
-        let timestamp = Int(seconds("2026-08-27T16:30:00Z"))
-        let data = Data("""
-        {
-          "chart": {
-            "result": [{
-              "meta": {"currency":"USD","symbol":"VOO","regularMarketPrice":null},
-              "timestamp": [\(timestamp)],
-              "indicators": {"quote": [{"close": [512.25]}]}
-            }]
-          }
-        }
-        """.utf8)
+    /// USDT 计价的盘口要乘 USDT/USD 才是美元价，但涨跌幅**不**乘 —— 分子分母
+    /// 同乘一个数比值不变，乘了只会把汇率抖动混成标的自己的涨跌。
+    func testConversionRateAppliesToPriceButNotChange() throws {
+        let data = Data(#"{"price": 200, "change": -3, "series": [[1, 100], [2, 200]]}"#.utf8)
 
         let quote = try MarketDataPayloadDecoder.quote(
             from: data,
-            requestedSymbol: "VOO",
-            fetchedAtMilliseconds: milliseconds("2026-08-28T05:00:00Z")
+            requestedSymbol: "BTC-USD",
+            conversionRate: 0.9998,
+            fetchedAtMilliseconds: 0
         )
 
-        XCTAssertEqual(quote.price, 512.25)
-        XCTAssertEqual(quote.changePercent, 0)
+        XCTAssertEqual(quote.price, 199.96, accuracy: 1e-9)
+        XCTAssertEqual(quote.changePercent, -3, accuracy: 1e-9)
+        XCTAssertEqual(quote.series.first?.price ?? 0, 99.98, accuracy: 1e-9)
+    }
+
+    func testQuotePayloadRejectsMissingPrice() {
+        let data = Data(#"{"price": null, "change": 1, "series": []}"#.utf8)
+
+        XCTAssertThrowsError(try MarketDataPayloadDecoder.quote(
+            from: data,
+            requestedSymbol: "VOO",
+            conversionRate: 1,
+            fetchedAtMilliseconds: 0
+        ))
     }
 
     func testOneYearHistoryDecoderRetainsMoreThanShortQuoteLimit() throws {
-        let timestamps = (0..<260).map { 1_700_000_000 + $0 * 86_400 }
-        let closes = (0..<260).map { Double($0 + 1) }
-        let payload: [String: Any] = [
-            "chart": [
-                "result": [[
-                    "meta": ["currency": "USD", "symbol": "VOO"],
-                    "timestamp": timestamps,
-                    "indicators": ["quote": [["close": closes]]]
-                ]]
-            ]
-        ]
-        let data = try JSONSerialization.data(withJSONObject: payload)
+        // 分开写而不是一行 map：一行的字面量数组会让类型检查器爆掉
+        // （"unable to type-check this expression in reasonable time"）。
+        var series: [[Double]] = []
+        for index in 0..<260 {
+            let timestamp: Double = 1_700_000_000_000 + Double(index) * 86_400_000
+            let price: Double = Double(index + 1)
+            series.append([timestamp, price])
+        }
+        let data = try JSONSerialization.data(withJSONObject: ["price": 260, "change": 1, "series": series])
 
         let history = try MarketDataPayloadDecoder.history(
             from: data,
             requestedSymbol: "VOO",
+            conversionRate: 1,
             fetchedAtMilliseconds: 2_000_000_000_000
         )
 
@@ -173,29 +156,15 @@ final class MarketDataTests: XCTestCase {
 
     // 回归：移动网络的瞬时失败要被重试吃掉，而不是让这一轮的报价整个作废。
     func testLiveClientRetriesTransientFailures() async throws {
-        let timestamp = Int(seconds("2026-08-27T16:30:00Z"))
-        let body = Data("""
-        {
-          "chart": {
-            "result": [{
-              "meta": {
-                "currency": "USD",
-                "symbol": "AAPL",
-                "regularMarketPrice": 110,
-                "regularMarketTime": \(timestamp)
-              },
-              "timestamp": [\(timestamp)],
-              "indicators": {"quote": [{"close": [110]}]}
-            }],
-            "error": null
-          }
-        }
-        """.utf8)
+        let body = Data(#"{"price": 110, "change": 0, "series": [[1756312200000, 110]]}"#.utf8)
         FlakyURLProtocol.reset(failuresBeforeSuccess: 2, successBody: body)
 
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [FlakyURLProtocol.self]
-        let client = LiveMarketDataClient(session: URLSession(configuration: configuration))
+        let client = LiveMarketDataClient(
+            session: URLSession(configuration: configuration),
+            catalogCache: MarketCatalogCache(seeded: Self.testCatalog)
+        )
 
         let quote = try await client.quote(symbol: "AAPL")
 
@@ -209,7 +178,10 @@ final class MarketDataTests: XCTestCase {
 
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [FlakyURLProtocol.self]
-        let client = LiveMarketDataClient(session: URLSession(configuration: configuration))
+        let client = LiveMarketDataClient(
+            session: URLSession(configuration: configuration),
+            catalogCache: MarketCatalogCache(seeded: Self.testCatalog)
+        )
 
         do {
             _ = try await client.quote(symbol: "AAPL")
@@ -234,6 +206,38 @@ final class MarketDataTests: XCTestCase {
         XCTAssertTrue(result.quotes.isEmpty)
         XCTAssertEqual(result.failedSymbols, ["AAPL"])
         XCTAssertFalse(result.usedCachedValues)
+    }
+
+    /// 缓存写盘失败**不能拖垮本次刷新**（报价已经在手里了），但也不能像原来的
+    /// `try?` 那样悄无声息——磁盘满或数据保护未解锁时缓存会永久写不进去，
+    /// 表现是每次都要重新联网、离线一片空白，而且完全查不到原因。
+    func testCacheWriteFailureIsCountedButDoesNotBreakTheRefresh() async throws {
+        // 把缓存目录的位置先占成一个**文件**，`createDirectory` 就一定会失败。
+        let blocker = FileManager.default.temporaryDirectory
+            .appendingPathComponent("pawfolio-unwritable-\(UUID().uuidString)", isDirectory: false)
+        try Data("occupied".utf8).write(to: blocker)
+        defer { try? FileManager.default.removeItem(at: blocker) }
+
+        let quote = MarketQuote(
+            symbol: "AAPL",
+            currency: "USD",
+            price: 100,
+            changePercent: 0,
+            series: [],
+            marketTimeMilliseconds: nil,
+            fetchedAtMilliseconds: Date().timeIntervalSince1970 * 1_000
+        )
+        let repository = CachedMarketQuoteRepository(
+            client: StubMarketDataClient(quotes: ["AAPL": quote]),
+            fileURL: blocker.appendingPathComponent("quotes.json", isDirectory: false)
+        )
+
+        let result = await repository.refreshQuotes(for: ["AAPL"])
+
+        XCTAssertEqual(result.quotes["AAPL"]?.price, 100)
+        XCTAssertTrue(result.failedSymbols.isEmpty)
+        let failures = await repository.cacheWriteFailureCount
+        XCTAssertEqual(failures, 1)
     }
 
     func testOneYearHistoryRepositoryReusesFreshDiskCache() async throws {

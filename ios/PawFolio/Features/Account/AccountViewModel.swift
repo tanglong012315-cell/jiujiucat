@@ -49,6 +49,7 @@ final class AccountViewModel: ObservableObject {
     private let decisionStore: any GuestImportDecisionStoring
     private let profileStore: any AccountProfileStoring
     private let profileSyncCoordinator: (any ProfileSyncCoordinating)?
+    private let ledgerGuestImporter: (any LedgerGuestImporting)?
     private let cloudSyncAvailability: AccountCloudSyncAvailability
     private let nowMilliseconds: @Sendable () -> TimeInterval
     private var localProfile = LocalAccountProfile()
@@ -62,6 +63,7 @@ final class AccountViewModel: ObservableObject {
         decisionStore: any GuestImportDecisionStoring,
         profileStore: any AccountProfileStoring,
         profileSyncCoordinator: (any ProfileSyncCoordinating)? = nil,
+        ledgerGuestImporter: (any LedgerGuestImporting)? = nil,
         cloudSyncAvailability: AccountCloudSyncAvailability = .enabled,
         nowMilliseconds: @escaping @Sendable () -> TimeInterval = {
             Date().timeIntervalSince1970 * 1_000
@@ -73,6 +75,7 @@ final class AccountViewModel: ObservableObject {
         self.decisionStore = decisionStore
         self.profileStore = profileStore
         self.profileSyncCoordinator = profileSyncCoordinator
+        self.ledgerGuestImporter = ledgerGuestImporter
         self.cloudSyncAvailability = cloudSyncAvailability
         self.nowMilliseconds = nowMilliseconds
     }
@@ -123,13 +126,21 @@ final class AccountViewModel: ObservableObject {
             switch policy {
             case .keepSeparate:
                 try await decisionStore.save(.keepSeparate, for: session.userID)
-                try await synchronize(using: .keepSeparate, session: session)
+                _ = try await synchronize(using: .keepSeparate, session: session)
             case .copyIntoAccount:
-                try await synchronize(using: .copyIntoAccount, session: session)
+                let guestHoldings = try await localRepository.load(for: .guest)
+                let accountHoldings = try await synchronize(using: .copyIntoAccount, session: session)
+                try await ledgerGuestImporter?.copyGuestLedgerIntoAccount(
+                    userID: session.userID,
+                    guestHoldings: guestHoldings,
+                    accountHoldings: accountHoldings,
+                    openingAt: Date()
+                )
                 // Mark the copy only after the coordinator has persisted the merged
                 // account state. Future syncs must not act like a continuing link.
                 try await decisionStore.save(.copiedIntoAccount, for: session.userID)
             }
+            switchScope(to: .account(userID: session.userID))
         } catch {
             state = .failed(message: Self.message(for: error))
         }
@@ -245,9 +256,8 @@ final class AccountViewModel: ObservableObject {
         }
         identity = Self.makeIdentity(session: candidate, profile: localProfile)
         await synchronizeProfileIfEnabled(session: candidate)
-        switchScope(to: .account(userID: userID))
-
         if case let .paused(reason) = cloudSyncAvailability {
+            switchScope(to: .account(userID: userID))
             state = .syncPaused(message: reason)
             return
         }
@@ -255,20 +265,25 @@ final class AccountViewModel: ObservableObject {
         let decision = try await decisionStore.decision(for: userID)
         if decision == nil {
             let guestHoldings = try await localRepository.load(for: .guest)
-            let guestCount = guestHoldings.filter { !$0.isDeleted }.count
+            let legacyGuestCount = guestHoldings.filter { !$0.isDeleted }.count
+            let guestCount = try await ledgerGuestImporter?.guestAssetCount(
+                guestHoldings: guestHoldings,
+                openingAt: Date()
+            ) ?? legacyGuestCount
             if guestCount > 0 {
                 state = .guestImportRequired(count: guestCount)
                 return
             }
         }
 
-        try await synchronize(using: .keepSeparate, session: candidate)
+        _ = try await synchronize(using: .keepSeparate, session: candidate)
+        switchScope(to: .account(userID: userID))
     }
 
     private func synchronize(
         using policy: GuestHoldingImportPolicy,
         session: AuthenticatedSession
-    ) async throws {
+    ) async throws -> [Holding] {
         state = .syncing
         let outcome = try await syncCoordinator.synchronize(guestImportPolicy: policy)
         guard outcome.userID == session.userID.trimmingCharacters(in: .whitespacesAndNewlines) else {
@@ -284,6 +299,7 @@ final class AccountViewModel: ObservableObject {
                 pendingCount: count
             )
         }
+        return outcome.holdings
     }
 
     private func switchScope(to scope: HoldingStorageScope) {
@@ -326,7 +342,7 @@ final class AccountViewModel: ObservableObject {
         let localName = normalizedDisplayName(profile.displayName)
         let providerName = normalizedDisplayName(session.displayName)
         return AccountIdentityPresentation(
-            displayName: localName ?? providerName ?? "PawFolio 账户",
+            displayName: localName ?? providerName ?? "PawFolio Account",
             maskedAccount: maskedAccount(email: session.email, userID: session.userID),
             providerName: session.provider == .apple ? "Apple" : "Google",
             avatar: profile.avatar

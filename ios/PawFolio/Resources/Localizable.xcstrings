@@ -1,0 +1,4481 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "": {},
+    " ": {},
+    "$": {},
+    "%": {},
+    "%@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "%@ Earn Details": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 理财详情"
+          }
+        }
+      }
+    },
+    "%@ PnL Details": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 盈亏明细"
+          }
+        }
+      }
+    },
+    "%@ combined yield": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 合并收益"
+          }
+        }
+      }
+    },
+    "%@ portrait": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 的头像"
+          }
+        }
+      }
+    },
+    "%@ total asset chart": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 总资产走势图"
+          }
+        }
+      }
+    },
+    "%@ use current-price estimates because full history is unavailable.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "由于缺少完整历史行情，%@ 使用当前价格估算。"
+          }
+        }
+      }
+    },
+    "%@ · %@ shares": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ · %2$@ shares"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · %2$@ 股"
+          }
+        }
+      }
+    },
+    "%@%@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@%2$@ %3$@"
+          }
+        }
+      }
+    },
+    "%@, %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@, %2$@"
+          }
+        }
+      }
+    },
+    "%@, %lld positions": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@, %2$lld positions"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@，%2$lld 个持仓"
+          }
+        }
+      }
+    },
+    "%lld change still needs to upload.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还有 %lld 项更改待上传。"
+          }
+        }
+      }
+    },
+    "%lld changes still need to upload.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还有 %lld 项更改待上传。"
+          }
+        }
+      }
+    },
+    "(%@)": {},
+    "(0.00%)": {},
+    "*": {},
+    "***": {},
+    "0": {},
+    "1 %@ = %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "1 %1$@ = %2$@ %3$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 %1$@ = %2$@ %3$@"
+          }
+        }
+      }
+    },
+    "10 Year": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "10 年"
+          }
+        }
+      }
+    },
+    "16:00 Friday, Weekly": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每周五 16:00"
+          }
+        }
+      }
+    },
+    "16:00, Daily": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每日 16:00"
+          }
+        }
+      }
+    },
+    "16:00, Monthly": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每月 16:00"
+          }
+        }
+      }
+    },
+    "20 Year": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "20 年"
+          }
+        }
+      }
+    },
+    "5 Year": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 年"
+          }
+        }
+      }
+    },
+    "A USD market price is unavailable. Enter a valid transaction price.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无美元市场价格，请输入有效的成交价格。"
+          }
+        }
+      }
+    },
+    "A deleted or closed position can’t be adjusted.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已删除或已平仓的持仓无法调整。"
+          }
+        }
+      }
+    },
+    "A transaction must contain postings.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交易必须包含记账分录。"
+          }
+        }
+      }
+    },
+    "APR": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "APR"
+          }
+        }
+      }
+    },
+    "APR must be between 0% and 1,000%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "APR 必须介于 0% 至 1,000% 之间。"
+          }
+        }
+      }
+    },
+    "APR must be between 0% and 100%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "APR 必须介于 0% 至 100% 之间。"
+          }
+        }
+      }
+    },
+    "APY": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "APY"
+          }
+        }
+      }
+    },
+    "APY %@%%": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "APY %@%%"
+          }
+        }
+      }
+    },
+    "APY must be between 0% and 1,000%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "APY 必须介于 0% 至 1,000% 之间。"
+          }
+        }
+      }
+    },
+    "Account": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账户"
+          }
+        }
+      }
+    },
+    "Accounts": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账户"
+          }
+        }
+      }
+    },
+    "Accrued Interest": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "累计利息"
+          }
+        }
+      }
+    },
+    "Accrued interest will remain unaffected.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已累计利息不受影响。"
+          }
+        }
+      }
+    },
+    "Add": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加"
+          }
+        }
+      }
+    },
+    "Add %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加%@"
+          }
+        }
+      }
+    },
+    "Add Amount": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "增加金额"
+          }
+        }
+      }
+    },
+    "Add Currency": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加币种"
+          }
+        }
+      }
+    },
+    "Add Dividend": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新增分红"
+          }
+        }
+      }
+    },
+    "Add Dividend Record": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新增分红记录"
+          }
+        }
+      }
+    },
+    "Add Earn": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新增理财"
+          }
+        }
+      }
+    },
+    "Add Earn Products": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新增理财产品"
+          }
+        }
+      }
+    },
+    "Add Position": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新增持仓"
+          }
+        }
+      }
+    },
+    "Add Positions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新增持仓"
+          }
+        }
+      }
+    },
+    "Add position": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新增持仓"
+          }
+        }
+      }
+    },
+    "Add your first currency to continue": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先添加一种币种"
+          }
+        }
+      }
+    },
+    "Age unknown": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "年龄未知"
+          }
+        }
+      }
+    },
+    "Alipay": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支付宝"
+          }
+        }
+      }
+    },
+    "All": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部"
+          }
+        }
+      }
+    },
+    "Amount": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "金额"
+          }
+        }
+      }
+    },
+    "Amount in %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@金额"
+          }
+        }
+      }
+    },
+    "Amounts": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数量"
+          }
+        }
+      }
+    },
+    "An unknown error occurred.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发生未知错误。"
+          }
+        }
+      }
+    },
+    "Annual": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每年"
+          }
+        }
+      }
+    },
+    "Annual percentage rate": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "年利率"
+          }
+        }
+      }
+    },
+    "Asset": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "资产"
+          }
+        }
+      }
+    },
+    "Asset Name": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "资产名称"
+          }
+        }
+      }
+    },
+    "Asset Trend": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "资产走势"
+          }
+        }
+      }
+    },
+    "Assets": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "资产"
+          }
+        }
+      }
+    },
+    "Assets at Selection": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选定时资产"
+          }
+        }
+      }
+    },
+    "At Maturity": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到期派息"
+          }
+        }
+      }
+    },
+    "Avatar": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "头像"
+          }
+        }
+      }
+    },
+    "Back": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "返回"
+          }
+        }
+      }
+    },
+    "Balance": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "余额"
+          }
+        }
+      }
+    },
+    "Bank": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "银行账户"
+          }
+        }
+      }
+    },
+    "Baseline": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "基准值"
+          }
+        }
+      }
+    },
+    "Buy": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "买入"
+          }
+        }
+      }
+    },
+    "Buy successful": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "买入成功"
+          }
+        }
+      }
+    },
+    "Deposit successful": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入账成功"
+          }
+        }
+      }
+    },
+    "Interest recorded": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "利息已记录"
+          }
+        }
+      }
+    },
+    "Payment successful": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支出成功"
+          }
+        }
+      }
+    },
+    "Redeemed": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已赎回"
+          }
+        }
+      }
+    },
+    "Sell successful": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卖出成功"
+          }
+        }
+      }
+    },
+    "Buy %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "买入 %@"
+          }
+        }
+      }
+    },
+    "Buy Amounts": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "买入数量"
+          }
+        }
+      }
+    },
+    "Buy Assets": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "买入资产"
+          }
+        }
+      }
+    },
+    "Buy Price": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "买入价"
+          }
+        }
+      }
+    },
+    "CI": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复利"
+          }
+        }
+      }
+    },
+    "Calculate": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "计算"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消"
+          }
+        }
+      }
+    },
+    "Cash": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "现金"
+          }
+        }
+      }
+    },
+    "Change language": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切换语言"
+          }
+        }
+      }
+    },
+    "Check your entries and try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请检查输入内容后重试。"
+          }
+        }
+      }
+    },
+    "Checking login status": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在确认登录状态"
+          }
+        }
+      }
+    },
+    "Checked": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已选中"
+          }
+        }
+      }
+    },
+    "Clear": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
+          }
+        }
+      }
+    },
+    "Close %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭%@"
+          }
+        }
+      }
+    },
+    "Collapse portfolio chart": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "收起资产走势图"
+          }
+        }
+      }
+    },
+    "Compound": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复利"
+          }
+        }
+      }
+    },
+    "Compounding loses a day from %@; total interest drops by at least %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除 %@ 的记录会中断当日复利，累计利息至少减少 %@。"
+          }
+        }
+      }
+    },
+    "Confirm": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "确认"
+          }
+        }
+      }
+    },
+    "Confirmation": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "确认详情"
+          }
+        }
+      }
+    },
+    "Confirmed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已确认"
+          }
+        }
+      }
+    },
+    "Confirmed Dividends": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已确认分红"
+          }
+        }
+      }
+    },
+    "Confirmed dividends drop by up to %@.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已确认分红最多将减少 %@。"
+          }
+        }
+      }
+    },
+    "Copy to Account": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制到账户"
+          }
+        }
+      }
+    },
+    "Cost Price": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成本价"
+          }
+        }
+      }
+    },
+    "Cost price applies if left blank.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "留空时将沿用当前成本价。"
+          }
+        }
+      }
+    },
+    "Cost price must be greater than 0.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成本价必须大于 0。"
+          }
+        }
+      }
+    },
+    "Could not adjust the position. Please try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法调整持仓，请重试。"
+          }
+        }
+      }
+    },
+    "Could not save locally. Please try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法保存到本机，请重试。"
+          }
+        }
+      }
+    },
+    "Could not save the dividend record. Please try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法保存分红记录，请重试。"
+          }
+        }
+      }
+    },
+    "Couldn’t Update Record": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法更新记录"
+          }
+        }
+      }
+    },
+    "Couldn’t save profile": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法保存个人资料"
+          }
+        }
+      }
+    },
+    "Couldn’t save the local position. Please try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法在本机保存持仓，请重试。"
+          }
+        }
+      }
+    },
+    "Cryptocurrency": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数字货币"
+          }
+        }
+      }
+    },
+    "Currency": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "币种"
+          }
+        }
+      }
+    },
+    "Current Investment": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前本金"
+          }
+        }
+      }
+    },
+    "Current Position %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前持仓 %@"
+          }
+        }
+      }
+    },
+    "Current Shares": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前持股"
+          }
+        }
+      }
+    },
+    "Daily": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每日"
+          }
+        }
+      }
+    },
+    "Daily (USD)": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日（USD）"
+          }
+        }
+      }
+    },
+    "Daily Interest: ": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每日利息："
+          }
+        }
+      }
+    },
+    "Daily Profits": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每日收益"
+          }
+        }
+      }
+    },
+    "Daily Yield": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每日收益"
+          }
+        }
+      }
+    },
+    "Day removed. Total interest updated.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已移除该日利息，累计利息已更新。"
+          }
+        }
+      }
+    },
+    "Days": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "天数"
+          }
+        }
+      }
+    },
+    "Delete": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除"
+          }
+        }
+      }
+    },
+    "Delete %@ Earn?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除 %@ 理财产品？"
+          }
+        }
+      }
+    },
+    "Delete %@ Position?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除 %@ 持仓？"
+          }
+        }
+      }
+    },
+    "Delete %@?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除%@？"
+          }
+        }
+      }
+    },
+    "Delete Position": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除持仓"
+          }
+        }
+      }
+    },
+    "Delete Record": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除记录"
+          }
+        }
+      }
+    },
+    "Delete and Undo": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除并撤销影响"
+          }
+        }
+      }
+    },
+    "Delete position": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除持仓"
+          }
+        }
+      }
+    },
+    "Delete record": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除记录"
+          }
+        }
+      }
+    },
+    "Delete this adjustment?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除这笔持仓调整？"
+          }
+        }
+      }
+    },
+    "Delete this dividend record?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除这笔分红记录？"
+          }
+        }
+      }
+    },
+    "Delist": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下架"
+          }
+        }
+      }
+    },
+    "Delist %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下架%@"
+          }
+        }
+      }
+    },
+    "Delisted": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已下架"
+          }
+        }
+      }
+    },
+    "Dividend": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分红"
+          }
+        }
+      }
+    },
+    "Dividend Frequency": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分红频率"
+          }
+        }
+      }
+    },
+    "Dividend Per Share": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每股分红"
+          }
+        }
+      }
+    },
+    "Dividend Per Unit": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每单位分红"
+          }
+        }
+      }
+    },
+    "Dividend per share or unit must be greater than 0.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每股或每单位分红必须大于 0。"
+          }
+        }
+      }
+    },
+    "Dividends": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分红"
+          }
+        }
+      }
+    },
+    "Dividends Records": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分红记录"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成"
+          }
+        }
+      }
+    },
+    "Double-tap to collapse": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轻点两下收起"
+          }
+        }
+      }
+    },
+    "Double-tap to expand": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轻点两下展开"
+          }
+        }
+      }
+    },
+    "Double-tap to view position details and records": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轻点两下查看持仓详情与记录"
+          }
+        }
+      }
+    },
+    "ETF": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ETF"
+          }
+        }
+      }
+    },
+    "Earn": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "理财"
+          }
+        }
+      }
+    },
+    "Earn supports fiat, stablecoins, and crypto only.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "理财仅支持法币、稳定币和数字货币。"
+          }
+        }
+      }
+    },
+    "Earn→Fiat": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "理财账户→法币账户"
+          }
+        }
+      }
+    },
+    "Earn→Trading": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "理财账户→交易账户"
+          }
+        }
+      }
+    },
+    "Edit": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑"
+          }
+        }
+      }
+    },
+    "Edit %@ Earn": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑 %@ 理财"
+          }
+        }
+      }
+    },
+    "Edit %@ Position": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑 %@ 持仓"
+          }
+        }
+      }
+    },
+    "Edit Dividend": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑分红"
+          }
+        }
+      }
+    },
+    "Editing the amount or dates does not change the frozen share count.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修改金额或日期不会改变已锁定的持股数量。"
+          }
+        }
+      }
+    },
+    "End": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到底了"
+          }
+        }
+      }
+    },
+    "Enter a product name.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入产品名称。"
+          }
+        }
+      }
+    },
+    "Enter a valid APR.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入有效的 APR。"
+          }
+        }
+      }
+    },
+    "Enter a valid amount.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入有效金额。"
+          }
+        }
+      }
+    },
+    "Enter a valid execution price.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入有效的成交价格。"
+          }
+        }
+      }
+    },
+    "Enter a valid fee smaller than the proceeds.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入有效手续费，且手续费必须小于成交金额。"
+          }
+        }
+      }
+    },
+    "Enter an adjustment amount greater than 0.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入大于 0 的调整数量。"
+          }
+        }
+      }
+    },
+    "Enter an amount greater than 0.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入大于 0 的金额。"
+          }
+        }
+      }
+    },
+    "Enter an asset symbol or name.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入资产代码或名称。"
+          }
+        }
+      }
+    },
+    "Enter prices greater than 0.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入大于 0 的价格。"
+          }
+        }
+      }
+    },
+    "Enter the strike and knock-out prices.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入执行价和敲出价。"
+          }
+        }
+      }
+    },
+    "Est. Dividend: ": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预计分红："
+          }
+        }
+      }
+    },
+    "Ex-Dividend Date": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "除息日"
+          }
+        }
+      }
+    },
+    "Ex. AAPL, BTC": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "例如 AAPL、BTC"
+          }
+        }
+      }
+    },
+    "Ex. Auto-Invest Account": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "例如 定投账户"
+          }
+        }
+      }
+    },
+    "Ex. JPY, Japan, Yen": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "例如 JPY、日本、日元"
+          }
+        }
+      }
+    },
+    "Ex. Salary": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "例如 工资入账"
+          }
+        }
+      }
+    },
+    "Ex. USD Flexible Term": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "例如 USD 活期"
+          }
+        }
+      }
+    },
+    "Ex. USD,CNY": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "例如 USD、CNY"
+          }
+        }
+      }
+    },
+    "Ex. USDT": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "例如 USDT"
+          }
+        }
+      }
+    },
+    "Exchange": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交易所账户"
+          }
+        }
+      }
+    },
+    "External": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外部账户"
+          }
+        }
+      }
+    },
+    "Favorites": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "常用"
+          }
+        }
+      }
+    },
+    "Fee": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手续费"
+          }
+        }
+      }
+    },
+    "Fees": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手续费"
+          }
+        }
+      }
+    },
+    "Fiat": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "法币账户"
+          }
+        }
+      }
+    },
+    "Fiat / Spot supports currencies and stablecoins only.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "法币/现货账户仅支持法币和稳定币。"
+          }
+        }
+      }
+    },
+    "Fiat Earn": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "法币理财"
+          }
+        }
+      }
+    },
+    "Fiat→Earn": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "法币账户→理财账户"
+          }
+        }
+      }
+    },
+    "Fiat→Trading": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "法币账户→交易账户"
+          }
+        }
+      }
+    },
+    "Fixed": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "定期"
+          }
+        }
+      }
+    },
+    "Fixed products support simple interest only.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "定期产品仅支持单利计息。"
+          }
+        }
+      }
+    },
+    "Flexible": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "活期"
+          }
+        }
+      }
+    },
+    "From Account": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "转出账户"
+          }
+        }
+      }
+    },
+    "From to": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账户流向"
+          }
+        }
+      }
+    },
+    "Full amount": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部赎回"
+          }
+        }
+      }
+    },
+    "Hide balance": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐藏余额"
+          }
+        }
+      }
+    },
+    "Hide portfolio values": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐藏资产金额"
+          }
+        }
+      }
+    },
+    "Holding": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "持仓"
+          }
+        }
+      }
+    },
+    "Hourly": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每小时"
+          }
+        }
+      }
+    },
+    "Hourly Profits": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每小时收益"
+          }
+        }
+      }
+    },
+    "Increase Principal": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "增加本金"
+          }
+        }
+      }
+    },
+    "Information": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "信息"
+          }
+        }
+      }
+    },
+    "Insufficient balance.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "余额不足。"
+          }
+        }
+      }
+    },
+    "Interest": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "利息"
+          }
+        }
+      }
+    },
+    "Interest Calculation": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "计息方式"
+          }
+        }
+      }
+    },
+    "Interest Paid": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "派息金额"
+          }
+        }
+      }
+    },
+    "Interest Payout Records": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "派息记录"
+          }
+        }
+      }
+    },
+    "Interest Release": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "利息发放"
+          }
+        }
+      }
+    },
+    "Investment": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "投资金额"
+          }
+        }
+      }
+    },
+    "Investment Adjust Records": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "持仓调整记录"
+          }
+        }
+      }
+    },
+    "Investments": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "投资本金"
+          }
+        }
+      }
+    },
+    "Keep Separate": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保持独立"
+          }
+        }
+      }
+    },
+    "Knock-Out Price": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "敲出价"
+          }
+        }
+      }
+    },
+    "Language": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语言"
+          }
+        }
+      }
+    },
+    "Later add, reduce, and principal changes appear here.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后续增持、减持和本金调整都会记录在这里。"
+          }
+        }
+      }
+    },
+    "Loading": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加载中"
+          }
+        }
+      }
+    },
+    "Loading market history…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载历史行情…"
+          }
+        }
+      }
+    },
+    "Loading portfolio": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载资产组合"
+          }
+        }
+      }
+    },
+    "Loading positions": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载持仓"
+          }
+        }
+      }
+    },
+    "Log Out": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出登录"
+          }
+        }
+      }
+    },
+    "Log in": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录"
+          }
+        }
+      }
+    },
+    "Log out?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出登录？"
+          }
+        }
+      }
+    },
+    "Logged out": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已退出登录"
+          }
+        }
+      }
+    },
+    "Login with Google": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 Google 登录"
+          }
+        }
+      }
+    },
+    "Manage Earn": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "管理理财"
+          }
+        }
+      }
+    },
+    "Mark as Unpaid": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标记为未派息"
+          }
+        }
+      }
+    },
+    "Mark this day as unpaid?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将这一天标记为未派息？"
+          }
+        }
+      }
+    },
+    "Market quotes begin on %@; earlier values use the first available price.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "行情数据始于 %@，更早的估值采用首个可用价格。"
+          }
+        }
+      }
+    },
+    "Maturity Date": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到期日"
+          }
+        }
+      }
+    },
+    "Monthly": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每月"
+          }
+        }
+      }
+    },
+    "Monthly Profits": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每月收益"
+          }
+        }
+      }
+    },
+    "More actions for %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@的更多操作"
+          }
+        }
+      }
+    },
+    "My Cats": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "我的猫咪"
+          }
+        }
+      }
+    },
+    "Name": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称"
+          }
+        }
+      }
+    },
+    "Next Time Payout": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下次派息"
+          }
+        }
+      }
+    },
+    "No Records": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无记录"
+          }
+        }
+      }
+    },
+    "No asset matches “%@”.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有与“%@”匹配的资产。"
+          }
+        }
+      }
+    },
+    "No currency matches “%@”.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有与“%@”匹配的币种。"
+          }
+        }
+      }
+    },
+    "No dividend records yet": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无分红记录"
+          }
+        }
+      }
+    },
+    "No positions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无持仓"
+          }
+        }
+      }
+    },
+    "Not Found “%@”": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到“%@”"
+          }
+        }
+      }
+    },
+    "Not enough market history yet.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "历史行情数据暂不足。"
+          }
+        }
+      }
+    },
+    "Note": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "备注"
+          }
+        }
+      }
+    },
+    "Now": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "知道了"
+          }
+        }
+      }
+    },
+    "Once delisted, all assets will be returned to your account. Accrued interest will remain unaffected.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下架后，全部资产将退回对应账户，历史累计收益不受影响。"
+          }
+        }
+      }
+    },
+    "Once redeemed, all assets will be returned to your %@ account. %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Once redeemed, all assets will be returned to your %1$@ account. %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "赎回后，全部资产将退回至%1$@账户。%2$@"
+          }
+        }
+      }
+    },
+    "Once redeemed, all assets will be returned to your Exchange account. Accrued interest will remain unaffected.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "赎回后，全部资产将退回交易所账户，历史累计收益不受影响。"
+          }
+        }
+      }
+    },
+    "Once redeemed, all assets will be returned to your Exchange account. Redeeming before maturity forfeits the interest for this term.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "赎回后，全部资产将退回交易所账户；提前赎回将不享受本期利息。"
+          }
+        }
+      }
+    },
+    "Once redeemed, all assets will be returned to your Trading account. Accrued interest will remain unaffected.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "赎回后，全部资产将退回交易账户，历史累计收益不受影响。"
+          }
+        }
+      }
+    },
+    "Once redeemed, all assets will be returned to your Trading account. Redeeming before maturity forfeits the interest for this term.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "赎回后，全部资产将退回交易账户；提前赎回将不享受本期利息。"
+          }
+        }
+      }
+    },
+    "One-year history is unavailable for some assets; shorter history is shown instead.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分资产暂无一年期历史行情，已改用较短周期数据。"
+          }
+        }
+      }
+    },
+    "Only stocks, ETFs, and crypto can be traded.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅股票、ETF 和数字货币可进行交易。"
+          }
+        }
+      }
+    },
+    "Open %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开%@"
+          }
+        }
+      }
+    },
+    "Open account": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开账户"
+          }
+        }
+      }
+    },
+    "Opening Balance": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "期初余额"
+          }
+        }
+      }
+    },
+    "P&L": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "盈亏"
+          }
+        }
+      }
+    },
+    "P&L unavailable": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无盈亏数据"
+          }
+        }
+      }
+    },
+    "PNL": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "盈亏"
+          }
+        }
+      }
+    },
+    "PawFolio": {},
+    "Pay": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支出"
+          }
+        }
+      }
+    },
+    "Pay Amounts": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支出金额"
+          }
+        }
+      }
+    },
+    "Pay Date": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "派息日"
+          }
+        }
+      }
+    },
+    "Pay date %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "派息日 %@"
+          }
+        }
+      }
+    },
+    "Pay date can’t be earlier than the ex-dividend date.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "派息日不能早于除息日。"
+          }
+        }
+      }
+    },
+    "Pay date is set": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已设置派息日"
+          }
+        }
+      }
+    },
+    "Pay date not set": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未设置派息日"
+          }
+        }
+      }
+    },
+    "Payout": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "派息"
+          }
+        }
+      }
+    },
+    "Payout Frequency": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "派息频率"
+          }
+        }
+      }
+    },
+    "Pending": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待确认"
+          }
+        }
+      }
+    },
+    "Period": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "区间"
+          }
+        }
+      }
+    },
+    "Period %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "区间 %@"
+          }
+        }
+      }
+    },
+    "Please try again later.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请稍后重试。"
+          }
+        }
+      }
+    },
+    "PnL Details": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "盈亏明细"
+          }
+        }
+      }
+    },
+    "Portfolio trend": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "资产组合走势"
+          }
+        }
+      }
+    },
+    "Position": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "持仓"
+          }
+        }
+      }
+    },
+    "Position Confirmation": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "持仓确认"
+          }
+        }
+      }
+    },
+    "Position Data Error": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "持仓数据错误"
+          }
+        }
+      }
+    },
+    "Position Type": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "持仓类型"
+          }
+        }
+      }
+    },
+    "Positions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "持仓"
+          }
+        }
+      }
+    },
+    "Preparing asset trend…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在生成资产走势…"
+          }
+        }
+      }
+    },
+    "Product": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "产品"
+          }
+        }
+      }
+    },
+    "Profile changes still need to sync.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "个人资料更改仍待同步。"
+          }
+        }
+      }
+    },
+    "Profile saved": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "个人资料已保存"
+          }
+        }
+      }
+    },
+    "Projected total %@ USD": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预计总额 %@ USD"
+          }
+        }
+      }
+    },
+    "Rate unavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无汇率"
+          }
+        }
+      }
+    },
+    "Rates unavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无汇率"
+          }
+        }
+      }
+    },
+    "Ready": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "就绪"
+          }
+        }
+      }
+    },
+    "Record Interest": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记录派息"
+          }
+        }
+      }
+    },
+    "Record deleted. Position restored.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记录已删除，持仓已恢复。"
+          }
+        }
+      }
+    },
+    "Record deleted. Total P&L updated.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记录已删除，累计盈亏已更新。"
+          }
+        }
+      }
+    },
+    "Redeem": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "赎回"
+          }
+        }
+      }
+    },
+    "Redeem Confirmation": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "赎回确认"
+          }
+        }
+      }
+    },
+    "Redeeming before maturity forfeits the interest for this term.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提前赎回将不享受本期利息。"
+          }
+        }
+      }
+    },
+    "Redeeming the full amount, %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Redeeming the full amount, %1$@ %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部赎回：%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "Reduce Amount": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "减少金额"
+          }
+        }
+      }
+    },
+    "Reduce Position": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "减持"
+          }
+        }
+      }
+    },
+    "Reduce Principal": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "减少本金"
+          }
+        }
+      }
+    },
+    "Refresh": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新"
+          }
+        }
+      }
+    },
+    "Remove %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除%@"
+          }
+        }
+      }
+    },
+    "Results": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "计算结果"
+          }
+        }
+      }
+    },
+    "Retry Sync": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试同步"
+          }
+        }
+      }
+    },
+    "Reversal": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "冲正"
+          }
+        }
+      }
+    },
+    "Reverse this transaction?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "冲正这笔交易？"
+          }
+        }
+      }
+    },
+    "Reverse transaction": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "冲正交易"
+          }
+        }
+      }
+    },
+    "SI": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "单利"
+          }
+        }
+      }
+    },
+    "Save": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存"
+          }
+        }
+      }
+    },
+    "Saving": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在保存"
+          }
+        }
+      }
+    },
+    "Saving dividend record": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在保存分红记录"
+          }
+        }
+      }
+    },
+    "Saving position": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在保存持仓"
+          }
+        }
+      }
+    },
+    "Search": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索"
+          }
+        }
+      }
+    },
+    "Search is unavailable. Showing built-in symbols.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索服务暂不可用，当前显示内置资产。"
+          }
+        }
+      }
+    },
+    "Searching Yahoo Finance": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在搜索 Yahoo Finance"
+          }
+        }
+      }
+    },
+    "Searching Yahoo Finance…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在搜索 Yahoo Finance…"
+          }
+        }
+      }
+    },
+    "Select Assets": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择资产"
+          }
+        }
+      }
+    },
+    "Select a maturity date after the start date.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请选择晚于起息日的到期日。"
+          }
+        }
+      }
+    },
+    "Select asset": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择资产"
+          }
+        }
+      }
+    },
+    "Sell": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卖出"
+          }
+        }
+      }
+    },
+    "Sell %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卖出 %@"
+          }
+        }
+      }
+    },
+    "Sell Amounts": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卖出数量"
+          }
+        }
+      }
+    },
+    "Sell Price": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卖出价"
+          }
+        }
+      }
+    },
+    "Sell Value": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卖出金额"
+          }
+        }
+      }
+    },
+    "Set As Avatar": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设为头像"
+          }
+        }
+      }
+    },
+    "Shares": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "股数"
+          }
+        }
+      }
+    },
+    "Shares Held": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "持股数量"
+          }
+        }
+      }
+    },
+    "Shares must be greater than 0.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "持股数量必须大于 0。"
+          }
+        }
+      }
+    },
+    "Show balance": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示余额"
+          }
+        }
+      }
+    },
+    "Show portfolio values": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示资产金额"
+          }
+        }
+      }
+    },
+    "Showing the latest 15 of %lld. The total covers every record.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前显示最近 15 条，共 %lld 条；汇总数据包含全部记录。"
+          }
+        }
+      }
+    },
+    "Signed in as %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前登录：%@"
+          }
+        }
+      }
+    },
+    "Signing in": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在登录"
+          }
+        }
+      }
+    },
+    "Signing in, your data is protected": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在安全登录"
+          }
+        }
+      }
+    },
+    "Simple": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "单利"
+          }
+        }
+      }
+    },
+    "Slide to Confirm": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "滑动确认"
+          }
+        }
+      }
+    },
+    "Some USD quotes are unavailable, so the portfolio trend can’t be generated yet.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分资产缺少美元报价，暂时无法生成资产走势。"
+          }
+        }
+      }
+    },
+    "Stablecoin": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "稳定币"
+          }
+        }
+      }
+    },
+    "Still Use This Symbol": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仍使用此代码"
+          }
+        }
+      }
+    },
+    "Stock": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "股票"
+          }
+        }
+      }
+    },
+    "Stock/Crypto": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "股票/数字货币"
+          }
+        }
+      }
+    },
+    "Strike Price": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "执行价"
+          }
+        }
+      }
+    },
+    "Structured": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结构化产品"
+          }
+        }
+      }
+    },
+    "Structured products support simple interest only.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结构化产品仅支持单利计息。"
+          }
+        }
+      }
+    },
+    "Subscribe": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "申购"
+          }
+        }
+      }
+    },
+    "Subscribe %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "申购 %@"
+          }
+        }
+      }
+    },
+    "Subscribe More": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追加申购"
+          }
+        }
+      }
+    },
+    "Subscribed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已申购"
+          }
+        }
+      }
+    },
+    "Succesful": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成功"
+          }
+        }
+      }
+    },
+    "Successful": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "操作成功"
+          }
+        }
+      }
+    },
+    "Successfully added": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加成功"
+          }
+        }
+      }
+    },
+    "Supports Yahoo Finance stock search.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支持通过 Yahoo Finance 搜索股票。"
+          }
+        }
+      }
+    },
+    "Symbol": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "资产代码"
+          }
+        }
+      }
+    },
+    "Symbol, %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "资产代码，%@"
+          }
+        }
+      }
+    },
+    "Symbol, required": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "资产代码，必填"
+          }
+        }
+      }
+    },
+    "Tap to edit. Swipe to delete.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轻点编辑，向左滑动删除。"
+          }
+        }
+      }
+    },
+    "The dividend counts as confirmed on this day.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分红将在该日计为已确认。"
+          }
+        }
+      }
+    },
+    "The new APY takes effect on %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新 APY 将于 %@ 生效。"
+          }
+        }
+      }
+    },
+    "The original record stays in history and a balancing reversal is added.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原记录会保留在历史中，系统将新增一笔反向分录进行冲正。"
+          }
+        }
+      }
+    },
+    "The position could not be saved. Please try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法保存持仓，请重试。"
+          }
+        }
+      }
+    },
+    "The selected account has insufficient balance.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所选账户余额不足。"
+          }
+        }
+      }
+    },
+    "The transaction is not balanced.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交易分录不平衡。"
+          }
+        }
+      }
+    },
+    "This Earn product already exists.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该理财产品已存在。"
+          }
+        }
+      }
+    },
+    "This Earn product no longer exists.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该理财产品已不存在。"
+          }
+        }
+      }
+    },
+    "This account cannot be used for the transaction.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该账户不能用于这笔交易。"
+          }
+        }
+      }
+    },
+    "This device has %lld guest position. Copy it to this account?": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此设备上有 %lld 个访客持仓，是否复制到当前账户？"
+          }
+        }
+      }
+    },
+    "This device has %lld guest positions. Copy them to this account?": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此设备上有 %lld 个访客持仓，是否复制到当前账户？"
+          }
+        }
+      }
+    },
+    "This ledger version is not supported.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂不支持此账本版本。"
+          }
+        }
+      }
+    },
+    "This payout will be credited to the funding account.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本次派息将转入申购资金账户。"
+          }
+        }
+      }
+    },
+    "This payout will be reinvested into the Earn principal.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本次派息将计入理财本金继续计息。"
+          }
+        }
+      }
+    },
+    "This position can no longer be edited.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该持仓已无法编辑。"
+          }
+        }
+      }
+    },
+    "This position may have been deleted.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该持仓可能已被删除。"
+          }
+        }
+      }
+    },
+    "This position no longer exists.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该持仓已不存在。"
+          }
+        }
+      }
+    },
+    "This position will be removed from the current list.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该持仓将从当前列表中移除。"
+          }
+        }
+      }
+    },
+    "This position will be removed from your portfolio.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该持仓将从资产组合中移除。"
+          }
+        }
+      }
+    },
+    "This transaction cannot be reversed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该交易无法冲正。"
+          }
+        }
+      }
+    },
+    "This transaction has already been recorded.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该交易已记账。"
+          }
+        }
+      }
+    },
+    "This transaction ledger version is not supported.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂不支持此交易账本版本。"
+          }
+        }
+      }
+    },
+    "Time": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "时间"
+          }
+        }
+      }
+    },
+    "To Account": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "转入账户"
+          }
+        }
+      }
+    },
+    "Today": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日"
+          }
+        }
+      }
+    },
+    "Total (USD)": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "累计（USD）"
+          }
+        }
+      }
+    },
+    "Total Assets": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "总资产"
+          }
+        }
+      }
+    },
+    "Total Balance": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "总余额"
+          }
+        }
+      }
+    },
+    "Total Investment": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "投资金额"
+          }
+        }
+      }
+    },
+    "Total Investments": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "投资本金"
+          }
+        }
+      }
+    },
+    "Total Profits": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "累计收益"
+          }
+        }
+      }
+    },
+    "Total Profits After Maturity": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到期后累计收益"
+          }
+        }
+      }
+    },
+    "Total Yield": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "累计收益"
+          }
+        }
+      }
+    },
+    "Total assets trend. Press and hold, then swipe to read past values.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "总资产走势。长按后滑动可读取历史数值。"
+          }
+        }
+      }
+    },
+    "Total investment": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "投资金额"
+          }
+        }
+      }
+    },
+    "Trades support USD, USDT, and USDC settlement only.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交易仅支持使用 USD、USDT 或 USDC 结算。"
+          }
+        }
+      }
+    },
+    "Trading": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交易"
+          }
+        }
+      }
+    },
+    "Trading Assets": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交易资产"
+          }
+        }
+      }
+    },
+    "Trading→Earn": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交易账户→理财账户"
+          }
+        }
+      }
+    },
+    "Trading→Fiat": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交易账户→法币账户"
+          }
+        }
+      }
+    },
+    "Transaction Error": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交易错误"
+          }
+        }
+      }
+    },
+    "Transactions": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交易记录"
+          }
+        }
+      }
+    },
+    "Type": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "类型"
+          }
+        }
+      }
+    },
+    "USD": {},
+    "Unable to Save": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法保存"
+          }
+        }
+      }
+    },
+    "Unchecked": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未选中"
+          }
+        }
+      }
+    },
+    "Unknown error": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未知错误"
+          }
+        }
+      }
+    },
+    "Update %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新于 %@"
+          }
+        }
+      }
+    },
+    "Updated %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新于 %@"
+          }
+        }
+      }
+    },
+    "Updating market history": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在更新历史行情"
+          }
+        }
+      }
+    },
+    "Use calculated interest: %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Use calculated interest: %1$@ %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用系统计算的利息：%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "Use initials as avatar": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用姓名首字母作为头像"
+          }
+        }
+      }
+    },
+    "User Name": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用户名"
+          }
+        }
+      }
+    },
+    "User name": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入用户名"
+          }
+        }
+      }
+    },
+    "Warning": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "风险提示"
+          }
+        }
+      }
+    },
+    "Wechat": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "微信支付"
+          }
+        }
+      }
+    },
+    "Weekly": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每周"
+          }
+        }
+      }
+    },
+    "Weekly Profits": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每周收益"
+          }
+        }
+      }
+    },
+    "Welcome Back": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "欢迎回来"
+          }
+        }
+      }
+    },
+    "Yearly": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每年"
+          }
+        }
+      }
+    },
+    "Yield": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "收益"
+          }
+        }
+      }
+    },
+    "Your Data is protected.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的数据已受到保护。"
+          }
+        }
+      }
+    },
+    "Your account data will stay on this device and can sync again after you log in.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账户数据会保留在本机，再次登录后可继续同步。"
+          }
+        }
+      }
+    },
+    "tab.calculate": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calculate"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "计算"
+          }
+        }
+      }
+    },
+    "tab.currency": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Currency"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率"
+          }
+        }
+      }
+    },
+    "tab.portfolio": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PawFolio"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PawFolio"
+          }
+        }
+      }
+    },
+    "trade.settlementCurrency": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Currency"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结算币种"
+          }
+        }
+      }
+    },
+    "vs. 1 year ago": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "较 1 年前"
+          }
+        }
+      }
+    },
+    "vs. 24 hours ago": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "较 24 小时前"
+          }
+        }
+      }
+    },
+    "vs. 30 days ago": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "较 30 天前"
+          }
+        }
+      }
+    },
+    "vs. 7 days ago": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "较 7 天前"
+          }
+        }
+      }
+    },
+    "— USD": {}
+  },
+  "version": "1.0"
+}

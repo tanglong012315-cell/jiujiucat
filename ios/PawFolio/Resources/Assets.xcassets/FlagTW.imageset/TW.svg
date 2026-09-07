@@ -1,0 +1,47 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Flags">
+<g id="Taiwan">
+<g clip-path="url(#clip0_0_1)">
+<g id="Clip path group">
+<mask id="mask0_0_1" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+<g id="clip0_388_26834">
+<path id="Vector" d="M64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64C49.6731 64 64 49.6731 64 32Z" fill="white"/>
+</g>
+</mask>
+<g mask="url(#mask0_0_1)">
+<g id="Group">
+<path id="Vector_2" d="M64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64C49.6731 64 64 49.6731 64 32Z" fill="white"/>
+<g id="Mask group">
+<mask id="mask1_0_1" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+<g id="Group_2">
+<path id="Vector_3" d="M32 64C49.6731 64 64 49.6731 64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64Z" fill="white"/>
+</g>
+</mask>
+<g mask="url(#mask1_0_1)">
+<g id="Group_3">
+<path id="Vector_4" d="M0 0H64V64H0V0Z" fill="#F0263C"/>
+<path id="Vector_5" d="M-6 -6V38H48V-6H-6Z" fill="#231D9A"/>
+<path id="Vector_6" d="M25 26C28.3137 26 31 23.3137 31 20C31 16.6863 28.3137 14 25 14C21.6863 14 19 16.6863 19 20C19 23.3137 21.6863 26 25 26Z" fill="white"/>
+<path id="Vector_7" d="M25.0003 8L27.0788 14.9H22.9219L25.0003 8Z" fill="white"/>
+<path id="Vector_8" d="M25.0008 32L22.9224 25.1H27.0793L25.0008 32Z" fill="white"/>
+<path id="Vector_9" d="M33.4854 11.5146L30.0761 17.8633L27.1367 14.924L33.4854 11.5146Z" fill="white"/>
+<path id="Vector_10" d="M16.5146 28.4854L19.9239 22.1367L22.8633 25.076L16.5146 28.4854Z" fill="white"/>
+<path id="Vector_11" d="M37.0001 20.0003L30.1001 22.0788V17.9219L37.0001 20.0003Z" fill="white"/>
+<path id="Vector_12" d="M13 19.9997L19.9 17.9212V22.0781L13 19.9997Z" fill="white"/>
+<path id="Vector_13" d="M33.4854 28.4858L27.1367 25.0765L30.076 22.1371L33.4854 28.4858Z" fill="white"/>
+<path id="Vector_14" d="M16.5146 11.5142L22.8633 14.9235L19.924 17.8629L16.5146 11.5142Z" fill="white"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_0_1">
+<rect width="64" height="64" rx="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>

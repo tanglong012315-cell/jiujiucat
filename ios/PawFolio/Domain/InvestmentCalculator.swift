@@ -8,8 +8,15 @@ enum InterestMode: String, CaseIterable, Codable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .compound: "复利"
-        case .simple: "单利"
+        case .compound: "Compound"
+        case .simple: "Simple"
+        }
+    }
+
+    var abbreviation: String {
+        switch self {
+        case .compound: "CI"
+        case .simple: "SI"
         }
     }
 }
@@ -23,9 +30,9 @@ enum ForecastPeriod: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .day: "日"
-        case .month: "月"
-        case .year: "年"
+        case .day: "D"
+        case .month: "M"
+        case .year: "Y"
         }
     }
 
@@ -48,33 +55,33 @@ enum ForecastPeriod: String, CaseIterable, Identifiable, Sendable {
     func axisLabel(at index: Int) -> String? {
         switch self {
         case .day:
-            if index == 0 { return "现在" }
-            if index == 365 { return "365天" }
+            if index == 0 { return "Now" }
+            if index == 365 { return "365D" }
         case .month:
-            if index == 0 { return "现在" }
-            if [12, 24, 36].contains(index) { return "\(index)月" }
+            if index == 0 { return "Now" }
+            if [12, 24, 36].contains(index) { return "\(index)M" }
         case .year:
-            if index == 0 { return "现在" }
-            if [3, 6, 9, 12].contains(index) { return "\(index)年" }
+            if index == 0 { return "Now" }
+            if [3, 6, 9, 12].contains(index) { return "\(index)Y" }
         }
         return nil
     }
 
     /// 长按扫描时说明落点在哪一期。`axisLabel` 只给几个刻度，这里每一点都有。
     func scrubLabel(at index: Int) -> String {
-        if index == 0 { return "现在" }
+        if index == 0 { return "Now" }
         switch self {
-        case .day: return "第 \(index) 天"
-        case .month: return "第 \(index) 月"
-        case .year: return "第 \(index) 年"
+        case .day: return "Day \(index)"
+        case .month: return "Month \(index)"
+        case .year: return "Year \(index)"
         }
     }
 
     var caption: String {
         switch self {
-        case .day: "365 天预测"
-        case .month: "36 个月预测"
-        case .year: "12 年预测"
+        case .day: "365-day forecast"
+        case .month: "36-month forecast"
+        case .year: "12-year forecast"
         }
     }
 }
@@ -95,8 +102,12 @@ struct InvestmentInput: Equatable, Sendable {
 
 struct InvestmentSummary: Equatable, Sendable {
     let dailyProfit: Double
+    let weeklyProfit: Double
     let monthlyProfit: Double
     let yearlyProfit: Double
+    /// 用户 2026-09-06 调整结果区：第二行显示 Yearly / 5 Year / 10 Year。
+    let fiveYearProfit: Double
+    let tenYearProfit: Double
 }
 
 struct ForecastPoint: Identifiable, Equatable, Sendable {
@@ -122,10 +133,17 @@ enum InvestmentCalculator {
 
     static func summary(for input: InvestmentInput) -> InvestmentSummary {
         let input = input.sanitized
+        func profit(afterYears years: Double) -> Double {
+            amount(afterYears: years, input: input) - input.principal
+        }
+
         return InvestmentSummary(
-            dailyProfit: amount(afterYears: 1 / 365, input: input) - input.principal,
-            monthlyProfit: amount(afterYears: 1 / 12, input: input) - input.principal,
-            yearlyProfit: amount(afterYears: 1, input: input) - input.principal
+            dailyProfit: profit(afterYears: 1 / 365),
+            weeklyProfit: profit(afterYears: 7 / 365),
+            monthlyProfit: profit(afterYears: 1 / 12),
+            yearlyProfit: profit(afterYears: 1),
+            fiveYearProfit: profit(afterYears: 5),
+            tenYearProfit: profit(afterYears: 10)
         )
     }
 
@@ -140,4 +158,3 @@ enum InvestmentCalculator {
         }
     }
 }
-

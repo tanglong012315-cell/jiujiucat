@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build/primary.swiftdeps"
+  },
+  "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.derived/runner.swift": {
+    "dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build/runner.d",
+    "object": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build/runner.swift.o",
+    "swiftmodule": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build/runner~partial.swiftmodule",
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build/runner.swiftdeps",
+    "diagnostics": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build/runner.dia"
+  }
+}

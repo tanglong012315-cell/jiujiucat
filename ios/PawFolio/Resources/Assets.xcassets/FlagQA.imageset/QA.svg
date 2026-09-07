@@ -1,0 +1,38 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Flags">
+<g id="Qatar">
+<g clip-path="url(#clip0_0_1)">
+<g id="Clip path group">
+<mask id="mask0_0_1" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+<g id="clip0_199_9911">
+<path id="Vector" d="M64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64C49.6731 64 64 49.6731 64 32Z" fill="white"/>
+</g>
+</mask>
+<g mask="url(#mask0_0_1)">
+<g id="Group">
+<path id="Vector_2" d="M64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64C49.6731 64 64 49.6731 64 32Z" fill="white"/>
+<g id="Mask group">
+<mask id="mask1_0_1" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+<g id="Group_2">
+<path id="Vector_3" d="M32 64C49.6731 64 64 49.6731 64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64Z" fill="white"/>
+</g>
+</mask>
+<g mask="url(#mask1_0_1)">
+<g id="Group_3">
+<path id="Vector_4" d="M-4.93359 -16H91.0664V64H-4.93359V-16Z" fill="#960A3C"/>
+<path id="Vector_5" d="M9.44045 64H-5V-19H9.44045L31 -14.3888L9.44045 -9.77784L31 -5.16667L9.44045 -0.555498L31 4.0555L9.44045 8.66667L31 13.2778L9.44045 17.8888L31 22.5L9.44045 27.1112L31 31.7222L9.44045 36.3333L31 40.9445L9.44045 45.5555L31 50.1667L9.44045 54.7778L31 59.3888L9.44045 64Z" fill="white"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_0_1">
+<rect width="64" height="64" rx="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>

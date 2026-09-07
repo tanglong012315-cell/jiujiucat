@@ -1,131 +1,121 @@
-/* SnowUI — near-monochrome dashboard system.
-   Black alpha ramps instead of a gray palette; separation by fill, not borders. */
+/* Nvwa — Figma primitives first, compatibility aliases second.
+   Components keep the established PawFolio semantic names during the migration,
+   but every themeable color below resolves to one of the 18 Nvwa primitives. */
 
 :root {
-  --bg-1: #ffffff;
-  --bg-2: #f9f9fa;
-  --surface-1: rgba(255, 255, 255, .8);
-  --ink: #000000;
-  --ink-80: rgba(0, 0, 0, .8);
-  --ink-40: rgba(0, 0, 0, .4);
-  --ink-20: rgba(0, 0, 0, .2);
-  --ink-10: rgba(0, 0, 0, .1);
-  --ink-4: rgba(0, 0, 0, .04);
-  --tint-blue: #e6f1fd;
-  /* 生息类持仓的标签色。前景 #0f6d36 压在 #e3f5e9 上是 5.67:1；直接用 --gain
-     的 #12803f 只有 4.41:1，10px 的小字过不了 AA。 */
-  --tint-green: #e3f5e9;
-  --on-tint-green: #0f6d36;
-  /* 「每日复利」标签的颜色。2026-08-26 品牌色改蓝后从 --tint-purple 换过来
-     （原紫色的 --tint-purple/--on-tint-tag 已停用），前景 #8a4b00 压在
-     #fbeedd 上是 5.95:1。 */
-  --tint-orange: #fbeedd;
-  --on-tint-orange: #8a4b00;
-  /* 染色卡片上的前景色。浅色下是黑字；深色下由深色块里改写，不再写死 #000。 */
-  --on-tint: #000000;
-  /* 单利那枚身份标签的前景。#0b5cad 压在 #e6f1fd 上是 5.83:1 —— 和 --on-tint-green
-     同一个做法：10px 的小字不能直接拿 --accent 顶上去。 */
-  --on-tint-blue: #0b5cad;
-  --yield-note-bg: #eaf4ff;
-  --yield-note-text: #262536;
-  --yield-note-edge: rgba(0, 122, 255, .12);
-  --series-blue: #7dbbff;
-  --series-cyan: #a0bce8;
-  --series-mint: #6be6d3;
-  --series-purple: #b899eb;
-  --series-green: #71dd8c;
+  /* Nvwa primitives — exact values from the Figma color system. */
+  --nvwa-bright-green: #9FE870;
+  --nvwa-primary-green: #459811;
+  --nvwa-forest-green: #163300;
+  --nvwa-gray-primary: #000000;
+  --nvwa-gray-secondary: #868685;
+  --nvwa-bg: #FFFFFF;
+  --nvwa-bg-neutral: #DADED7;
+  --nvwa-bg-light: #ECEFEB;
+  --nvwa-line: #DEDEDD;
+  --nvwa-pink: #FFD7EF;
+  --nvwa-bright-orange: #FFC091;
+  --nvwa-bright-yellow: #FFEB69;
+  --nvwa-bright-blue: #A0E1E1;
+  --nvwa-sentiment-warning: #EDC843;
+  --nvwa-sentiment-positive: #2F5711;
+  --nvwa-sentiment-negative: #A8200D;
+  --nvwa-market-buy: #459811;
+  --nvwa-market-sell: #C328CE;
+
+  /* PawFolio semantic compatibility aliases. */
+  --bg-1: var(--nvwa-bg);
+  --bg-2: var(--nvwa-bg-light);
+  --surface-1: var(--nvwa-bg-neutral);
+  --ink: var(--nvwa-gray-primary);
+  --ink-80: color-mix(in srgb, var(--nvwa-gray-primary) 80%, transparent);
+  --ink-40: var(--nvwa-gray-secondary);
+  --ink-20: var(--nvwa-bg-neutral);
+  --ink-10: var(--nvwa-line);
+  --ink-4: var(--nvwa-bg-light);
+  --on-ink: var(--nvwa-bg);
+
+  /* Holding identity tags use Nvwa's shared light surface plus the named accent. */
+  --tint-blue: var(--nvwa-bg-light);
+  --on-tint-blue: var(--nvwa-bright-blue);
+  --tint-green: var(--nvwa-bg-light);
+  --on-tint-green: var(--nvwa-primary-green);
+  --tint-orange: var(--nvwa-bg-light);
+  --on-tint-orange: var(--nvwa-bright-orange);
+  --on-tint: var(--nvwa-gray-primary);
+
+  /* Retained aliases are currently dormant, but still resolve to Nvwa. */
+  --yield-note-bg: var(--nvwa-bg-light);
+  --yield-note-text: var(--nvwa-gray-primary);
+  --yield-note-edge: var(--nvwa-line);
+  --series-blue: var(--nvwa-bright-blue);
+  --series-cyan: var(--nvwa-pink);
+  --series-mint: var(--nvwa-bright-orange);
+  --series-purple: var(--nvwa-bright-yellow);
+  --series-green: var(--nvwa-bright-green);
+
   --radius-block: 20px;
   --radius-card: 16px;
   --gap-grid: 32px;
-  --thumb-ring: #ffffff;
-  /* White read as invisible against the near-identical #f9f9fa Block (1.05:1
-     luminance ratio, measured). ink-20 is the alpha-ramp step that actually
-     separates from both the Block and the ink-4 track (1.61:1 light, 1.91:1
-     dark) — one step darker than the hairline color, still within the ramp. */
-  --segment-active: var(--ink-20);
-  /* 品牌色 2026-08-26 从靛紫 #5856D6 改成 SnowUI/iOS 的 Secondary/Blue —— 和
-     --tint-blue/--on-tint-blue（单利标签、盘后行情）是同一个蓝色家族但取的
-     是更鲜艳的那支，两者不会撞色。 */
-  --accent: #007aff;
-  --gain: #12803f;
-  --loss: #c0392b;
-  --flat: #6b6b6b;
-  /* --glow-* / --glass-edge / --glass-sheen / --glass-shadow 现在没人用：
-     贴底导航只留了毛玻璃本体。留着是给 styles-archive/tabbar-floating-glass.css
-     用的，换回浮动药丸时不用再补一遍。 */
-  --glow-pink: #FF2D55;
-  --glow-teal: #30B0C7;
-  /* 交易时段色，沿用行情类应用的通行约定：绿=正在交易，琥珀=盘前，蓝=盘后，
-     靛=夜盘，灰=休市。数值是按各自主题底色反推的 —— 常见的鲜绿 #1a9c55 在白底
-     上只有 3.54:1，12px 属正文字号需要 4.5:1，所以浅色这一套整体压深。 */
-  --session-open: #12803f;    /* 5.02:1 on #fff */
-  --session-pre: #a35f00;     /* 5.01:1 */
-  --session-after: #0a6ed1;   /* 5.04:1 */
-  --session-night: #5b4bd6;   /* 6.14:1 */
-  --session-closed: #6b6b6b;  /* 5.33:1 */
-  --glass-bg: rgba(255, 255, 255, .42);
+  --thumb-ring: var(--nvwa-bg);
+  --segment-active: var(--nvwa-bg-neutral);
+  --accent: var(--nvwa-primary-green);
+  --gain: var(--nvwa-market-buy);
+  --loss: var(--nvwa-market-sell);
+  --flat: var(--nvwa-gray-secondary);
+  --destructive: var(--nvwa-sentiment-negative);
+  --error: var(--nvwa-sentiment-negative);
+
+  /* Market direction and market-session state remain separate semantics. */
+  --session-open: var(--nvwa-sentiment-positive);
+  --session-pre: var(--nvwa-sentiment-warning);
+  --session-after: var(--nvwa-sentiment-warning);
+  --session-night: var(--nvwa-sentiment-negative);
+  --session-closed: var(--nvwa-sentiment-negative);
+
+  /* Fixed-white media treatments pick the primitive that is white in each theme. */
+  --on-strong-color: var(--nvwa-bg);
+  --media-backdrop: var(--nvwa-gray-primary);
+  --photo-paper: var(--nvwa-bg);
+
+  /* Overlays and shadows use Nvwa's black primitive without recoloring media. */
+  --overlay-scrim: color-mix(in srgb, var(--nvwa-gray-primary) 42%, transparent);
+  --sheet-shadow: 0 -8px 40px color-mix(in srgb, var(--nvwa-gray-primary) 18%, transparent);
+  --dialog-shadow: 0 16px 48px color-mix(in srgb, var(--nvwa-gray-primary) 22%, transparent);
+
+  --glass-bg: color-mix(in srgb, var(--nvwa-bg) 42%, transparent);
   --glass-filter: blur(28px) saturate(200%) brightness(1.08);
-  --glass-edge: linear-gradient(to bottom, rgba(255, 255, 255, 1), rgba(0, 0, 0, .06));
-  /* 浅色玻璃本身已是 42% 白，表面高光只需要很轻一层，重了就糊成一片白。 */
-  --glass-sheen: linear-gradient(to bottom, rgba(255, 255, 255, .5) 0%, rgba(255, 255, 255, .14) 34%, transparent 62%);
-  --glass-shadow: 0 2px 8px -3px rgba(20, 21, 26, .08), 0 14px 36px -18px rgba(20, 21, 26, .16);
+  --glass-edge: linear-gradient(to bottom, var(--nvwa-bg), color-mix(in srgb, var(--nvwa-gray-primary) 6%, transparent));
+  --glass-sheen: linear-gradient(to bottom, color-mix(in srgb, var(--nvwa-bg) 50%, transparent) 0%, color-mix(in srgb, var(--nvwa-bg) 14%, transparent) 34%, transparent 62%);
+  --glass-shadow: 0 2px 8px -3px color-mix(in srgb, var(--nvwa-gray-primary) 8%, transparent),
+    0 14px 36px -18px color-mix(in srgb, var(--nvwa-gray-primary) 16%, transparent);
+  --glow-pink: var(--nvwa-pink);
+  --glow-teal: var(--nvwa-bright-blue);
 }
 
-/* Derived dark surfaces (documented derivation in the skill, not read from the
-   Figma frame — the source file is light-theme only). Tints keep black text. */
+/* Nvwa supplies explicit dark neutrals. Accent, sentiment and market primitives
+   are shared with light mode; aliases above resolve again after these overrides. */
 :root[data-theme="dark"] {
-  --bg-1: #1c1c1c;
-  --bg-2: rgba(255, 255, 255, .05);
-  --surface-1: rgba(255, 255, 255, .06);
-  --ink: #ffffff;
-  --ink-80: rgba(255, 255, 255, .8);
-  --ink-40: rgba(255, 255, 255, .4);
-  --ink-20: rgba(255, 255, 255, .2);
-  --ink-10: rgba(255, 255, 255, .1);
-  --ink-4: rgba(255, 255, 255, .04);
-  /* 染色卡片改为「同色相低透明度铺在暗底上」，而不是沿用浅色那两个近白色值。
-     原先深色下 .metric / .fx-row 仍是 #e6f1fd 配强制黑字，在暗页面上是三块
-     刺眼的白板（底部玻璃导航被削顶成白条也是这个原因）。 */
-  --tint-blue: rgba(125, 187, 255, .16);
-  /* 同色相低透明度铺在暗底上，合成后 ≈ #40342a，配 #ffb340 为 6.80:1。 */
-  --tint-orange: rgba(255, 179, 64, .16);
-  --on-tint-orange: #ffb340;
-  /* 同色相低透明度铺在暗底上。合成后是 #294234，配 #3ddc84 为 6.04:1。 */
-  --tint-green: rgba(61, 220, 132, .16);
-  --on-tint-green: #3ddc84;
-  --on-tint: #ffffff;
-  --on-tint-blue: #7dbbff;
-  --thumb-ring: #1c1c1c;
-  /* iOS 系统蓝的暗色值本就是为暗底调过的，在 #1c1c1c 上实测 4.67:1，不用再
-     像旧的 #5856D6 那样另外提亮。 */
-  --accent: #0a84ff;
-  --gain: #3ddc84;
-  --loss: #f87171;
-  --flat: #8e8e8e;
-  --yield-note-bg: rgba(10, 132, 255, .12);
-  --yield-note-text: rgba(255, 255, 255, .8);
-  --yield-note-edge: rgba(10, 132, 255, .22);
-  /* --glow-* / --glass-edge / --glass-sheen / --glass-shadow 现在没人用：
-     贴底导航只留了毛玻璃本体。留着是给 styles-archive/tabbar-floating-glass.css
-     用的，换回浮动药丸时不用再补一遍。 */
-  --glow-pink: #FF5C7C;
-  --glow-teal: #5AC8DE;
-  /* 深色底上反过来提亮，同样逐个校验过（最低 5.20:1）。 */
-  --session-open: #3ddc84;    /* 9.55:1 on #1c1c1c */
-  --session-pre: #f5a623;     /* 8.41:1 */
-  --session-after: #4da3ff;   /* 6.49:1 */
-  --session-night: #a99cff;   /* 7.21:1 */
-  --session-closed: #8e8e8e;  /* 5.20:1 */
-  /* 深色玻璃要压暗背景，不能提亮。原来是 brightness(1.25)：意图是把暗背景提起来
-     做出磨砂感，但底部导航浮在「日/月/年收益」那三张卡片上方，而那些卡片在深色
-     模式下依然是近白色的 —— 1.25 倍一乘直接削顶成纯白，整条栏变成一块白板。
-     改为压暗并提高自身不透明度，观感就不再取决于背后恰好是什么颜色。 */
-  --glass-bg: rgba(30, 30, 32, .62);
+  --nvwa-gray-primary: #FFFFFF;
+  --nvwa-bg: #000000;
+  --nvwa-bg-neutral: #21231D;
+  --nvwa-bg-light: #2A2C29;
+  --nvwa-line: #2B2B2B;
+
+  /* These treatments remain white/black by role while still using Nvwa values. */
+  --on-strong-color: var(--nvwa-gray-primary);
+  --media-backdrop: var(--nvwa-bg);
+  --photo-paper: var(--nvwa-gray-primary);
+  --overlay-scrim: color-mix(in srgb, var(--nvwa-bg) 42%, transparent);
+  --sheet-shadow: 0 -8px 40px color-mix(in srgb, var(--nvwa-bg) 18%, transparent);
+  --dialog-shadow: 0 16px 48px color-mix(in srgb, var(--nvwa-bg) 22%, transparent);
+
+  --glass-bg: color-mix(in srgb, var(--nvwa-bg) 62%, transparent);
   --glass-filter: blur(28px) saturate(180%) brightness(.85);
-  --glass-edge: linear-gradient(to bottom, rgba(255, 255, 255, .55), rgba(255, 255, 255, .08));
-  /* 深色玻璃是 62% 暗底，高光有对比空间，可以给得比浅色实一点。 */
-  --glass-sheen: linear-gradient(to bottom, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, .05) 34%, transparent 62%);
-  --glass-shadow: 0 2px 8px -3px rgba(0, 0, 0, .28), 0 14px 36px -18px rgba(0, 0, 0, .42);
+  --glass-edge: linear-gradient(to bottom, color-mix(in srgb, var(--nvwa-gray-primary) 55%, transparent), color-mix(in srgb, var(--nvwa-gray-primary) 8%, transparent));
+  --glass-sheen: linear-gradient(to bottom, color-mix(in srgb, var(--nvwa-gray-primary) 16%, transparent) 0%, color-mix(in srgb, var(--nvwa-gray-primary) 5%, transparent) 34%, transparent 62%);
+  --glass-shadow: 0 2px 8px -3px color-mix(in srgb, var(--nvwa-bg) 28%, transparent),
+    0 14px 36px -18px color-mix(in srgb, var(--nvwa-bg) 42%, transparent);
 }
 
 * { box-sizing: border-box; }
@@ -161,7 +151,7 @@ img { max-width: 100%; }
   /* 两版都按 cover 全屏铺满。「镜头拉远」是做进素材本身的，不要再用 CSS 去
      缩放留白 —— 那样顶部会多出一段纯色，反而把设计好的构图割成两块。兜底色
      取图顶的近黑色，只在图加载完成前的一瞬可见。*/
-  background-color: #060606;
+  background-color: var(--media-backdrop);
   background-size: cover;
   background-position: 50% 50%;
   background-repeat: no-repeat;
@@ -169,7 +159,7 @@ img { max-width: 100%; }
   transition: opacity .4s ease;
 }
 @media (orientation: landscape) {
-  .app-splash { background-image: url('splash-bg-wide.jpg'); background-color: #111214; }
+  .app-splash { background-image: url('splash-bg-wide.jpg'); background-color: var(--media-backdrop); }
 }
 .app-splash.is-hidden { opacity: 0; pointer-events: none; }
 /* 2026-08-27：PawFolio 那行字现在印在图里了（竖版在底部、横版在右侧中段），
@@ -193,14 +183,12 @@ img { max-width: 100%; }
   border-block-end: 1px solid var(--ink-10);
 }
 .header-identity { min-width: 0; flex: 1 1 auto; display: flex; align-items: center; gap: 8px; }
-/* 顶栏原来是「猫头像 + JiuJiu生财」，现在换成当前账号的身份。单击开个人资料，
-   双击弹出那只猫（见 app.js 里的 headerAccountClickTimer）。 */
+/* 顶栏原来是「猫头像 + JiuJiu生财」，现在换成当前账号的身份；点按直接开个人资料。 */
 .header-account {
   min-width: 0; display: flex; align-items: center; gap: 8px;
   padding: 0; border: 0; border-radius: 999px; background: none; color: var(--ink);
   font-size: 14px; line-height: 20px; text-align: start; cursor: pointer;
   transition-property: opacity; transition-duration: 150ms;
-  /* 双击要能用：不加这条的话移动端会把第二下当成「双击缩放」吃掉。 */
   touch-action: manipulation;
   -webkit-user-select: none; user-select: none;
 }
@@ -217,16 +205,16 @@ img { max-width: 100%; }
    （见 applyProfileAvatar），这里只管几何和图标颜色。 */
 .avatar-chip {
   flex: 0 0 auto; display: grid; place-items: center;
-  border: 2px solid transparent; border-radius: 50%; color: #ffffff; padding: 0;
+  border: 2px solid transparent; border-radius: 50%; color: var(--on-strong-color); padding: 0;
   background-size: cover; background-position: center;
 }
 /* 头像是猫照片时：白边（和猫墙上的相片同一套语言），不再有图标。 */
-.avatar-chip.is-photo { color: transparent; border-color: #ffffff; }
+.avatar-chip.is-photo { color: transparent; border-color: var(--photo-paper); }
 .avatar-chip > i { line-height: 1; }
 .header-avatar { width: 30px; height: 30px; }
 .header-avatar > i { font-size: 18px; }
 
-/* Ticker — direction reads from the arrow glyph, never from color (SnowUI) */
+/* Ticker — direction reads from the arrow glyph as well as Nvwa market color. */
 /* 从 div 改成 button：键盘可聚焦、Enter/Space 自动生效、屏幕阅读器会报成
    可点击控件 —— 这些都是给 div 挂 click 拿不到的。以下是清掉浏览器默认按钮
    样式，让外观与改动前完全一致。 */
@@ -330,7 +318,7 @@ img { max-width: 100%; }
 }
 h2 { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; }
 
-/* Spacing scale (SnowUI: 4 8 12 16 20 24 32)
+/* Spacing scale (PawFolio: 4 8 12 16 20 24 32)
    32 between modules · 24 Block padding · 16 between field groups
    ·  8 label→control and option→option ·  4 label→value inside a Card */
 form { display: flex; flex-direction: column; gap: 16px; }
@@ -363,8 +351,7 @@ legend.field-label { margin-bottom: 8px; }
 }
 .quick-amounts button::after { content: ""; position: absolute; inset: -4px 0; }
 @media (hover: hover) { .quick-amounts button:hover { background: var(--ink-10); } }
-.quick-amounts button[aria-pressed="true"] { color: var(--bg-1); background: var(--ink); }
-:root[data-theme="dark"] .quick-amounts button[aria-pressed="true"] { color: #1c1c1c; }
+.quick-amounts button[aria-pressed="true"] { color: var(--on-ink); background: var(--ink); }
 .quick-amounts button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 /* 112px holds "100.00" plus the % suffix without clipping. */
@@ -385,12 +372,8 @@ input[type="range"]:focus-visible { outline: 2px solid var(--ink); outline-offse
 .rate-input span { flex: 0 0 auto; color: var(--ink-40); font-size: 12px; line-height: 16px; }
 
 fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
-/* SnowUI's active-nav language: idle is transparent, active is a quiet ink-4 fill
-   with a 4x16 indicator. No heavy filled pill. */
-/* Needs its own track, like .period-tabs — without it the checked pill
-   (--segment-active, near-white in light) sits directly on the Block's
-   near-identical #f9f9fa and reads as invisible. 12/8 with 4px padding
-   keeps the radii concentric (8 + 4 = 12). */
+/* Nvwa segmented controls use BG Light for the track and BG Neutral for the
+   selected surface. The 12/8 radii with 4px padding stay concentric. */
 /* position:relative 是给下面那两个 opacity:0 的 radio 兜底的：它们是 absolute
    且没写偏移，没有定位祖先时会一路逃到初始包含块，iOS 上聚焦这种控件会引发
    莫名其妙的滚动。 */
@@ -417,11 +400,10 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .calculate-btn {
   position: relative; width: 100%; height: 40px; margin-top: 8px;
   display: flex; align-items: center; justify-content: center;
-  border: 0; border-radius: 12px; color: var(--bg-1); background: var(--ink);
+  border: 0; border-radius: 12px; color: var(--on-ink); background: var(--ink);
   font-size: 14px; line-height: 20px; font-weight: 600; cursor: pointer;
   transition-property: opacity; transition-duration: 150ms;
 }
-:root[data-theme="dark"] .calculate-btn { color: #1c1c1c; }
 .calculate-btn::after { content: ""; position: absolute; inset: -2px 0; }
 @media (hover: hover) { .calculate-btn:hover { opacity: .8; } }
 .calculate-btn:active { opacity: .7; }
@@ -432,13 +414,10 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .results-meta { min-width: 0; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .fx-line { margin: 0; color: var(--ink-40); font-size: 12px; line-height: 16px; }
 
-/* Card — inside a Block, so Surface/1; diagonal tints echo the reference 2×2 */
+/* Card — inside a Block, so the Nvwa light surface carries the hierarchy. */
 .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-/* 2026-08-27：收益预估这三张和下面的汇率行原来铺 --tint-blue。品牌色改蓝之后
-   页面上蓝的东西太多了（按钮、链接、单利标签、图标底），大面积的卡片底色再占
-   一份蓝就成了噪音。改成 --ink-4 —— 这是本文件里「块内填充面」既有的那一档
-   （.segmented 的槽用的也是它），浅色下是 4% 黑、深色下是 4% 白，两边都不用
-   另写值。文字随之从 --on-tint（染色卡片上的强制黑字）换回 --ink。 */
+/* --ink-4 is a compatibility alias for Nvwa BG Light, shared with the
+   segmented-control track and other quiet data surfaces. */
 .metric { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; border-radius: var(--radius-card); background: var(--ink-4); color: var(--ink); }
 .metric > span { color: inherit; opacity: .6; font-size: 12px; line-height: 16px; }
 .metric strong { display: block; overflow: hidden; max-width: 100%; font-size: 24px; line-height: 32px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -453,8 +432,8 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .chart-value { min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .chart-value strong { font-size: 24px; line-height: 32px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .chart-cny { color: var(--ink-40); font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; }
-/* Gain/loss is colored per the brief — SnowUI keeps deltas black, so this is a
-   deliberate override. The +/- sign carries the same meaning without color. */
+/* Nvwa Market Buy/Sell color the delta; the +/- sign keeps direction legible
+   without relying on color alone. */
 .chart-sub { margin: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; color: var(--ink-40); font-size: 12px; line-height: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 .period-tabs { flex: 0 0 auto; display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--ink-4); }
@@ -547,7 +526,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
    2026-08-27 用户重出了**带透明通道**的一套，一套图同时服务深浅两个主题 ——
    不再需要按 [data-theme] 换图，也不再受限于只能铺在 --bg-1 上（上一版的底色
    是烤进图里的，浅色版还带一层淡渐变，在白底上会露出方块）。主体自带轮廓光，
-   压在 #1c1c1c 上也认得出。 */
+   压在 Nvwa 深色 BG 上也认得出。 */
 .state-art {
   flex: 0 0 auto; display: block; width: 96px; height: 96px;
   background-repeat: no-repeat; background-position: center; background-size: contain;
@@ -556,14 +535,21 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .state-art[data-art="login"]    { background-image: url('illustrations/login.png'); }
 .state-art[data-art="notfound"] { background-image: url('illustrations/notfound.png'); }
 .state-art[data-art="no_data"]  { background-image: url('illustrations/no_data.png'); }
-.state-art[data-art="loading"]  { background-image: url('illustrations/loading.png'); }
+.state-art[data-art="loading"]  { background-image: url('illustrations/loading-anim.png'); }
 .state-art[data-art="net_fail"] { background-image: url('illustrations/net_fail.png'); }
+/* loading 这一态 2026-08-30 换成用户给的跑步循环（APNG，36 帧 1.51s，见资产目录
+   的 build_loading_anim.py）。文件名照样是 .png —— APNG 本来就是合法 PNG，
+   带 .apng 后缀会被当成 octet-stream 发下来，浏览器就不播了。
+   减少动态偏好下退回同一只猫的静帧，别让它一直跑。 */
+@media (prefers-reduced-motion: reduce) {
+  .state-art[data-art="loading"] { background-image: url('illustrations/loading.png'); }
+}
 
 /* ── Portfolio — holdings ─────────────────────────────────
    概览采用单块账本式布局；持仓行的视觉抄 .fx-row（同款 tint 背景、
    hover/active/focus 处理），换成两行信息 + 徽标。 */
-/* --gain / --loss 本身就是随主题切换的 token（见文件顶部两套 :root），
-   这里直接用，不需要再叠一层深色覆盖 —— 和 .chart-sub 的做法一致。 */
+/* --gain / --loss 分别绑定 Nvwa Market Buy/Sell；这里直接复用，和
+   .chart-sub 的方向语义保持一致。 */
 #portfolio-app { display: grid; gap: var(--gap-grid); width: 100%; max-width: 720px; margin-inline: auto; }
 #portfolio-app[hidden], .portfolio-summary[hidden] { display: none; }
 /* Portfolio sections share the page surface. Spacing, rather than nested
@@ -703,7 +689,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .recommend-change.is-flat { color: var(--flat); }
 .recommend-add-btn {
   width: 100%; height: 32px; margin-top: 8px; padding: 0 8px;
-  border: 0; border-radius: 8px; background: var(--ink); color: var(--bg-1);
+  border: 0; border-radius: 8px; background: var(--ink); color: var(--on-ink);
   font-size: 12px; line-height: 16px; font-weight: 600; cursor: pointer;
   transition-property: opacity, scale; transition-duration: 150ms;
 }
@@ -952,7 +938,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
    UA 默认的 [hidden] 规则。 */
 .sheet-overlay[hidden], .confirm-overlay[hidden], .asset-search-overlay[hidden] { display: none; }
 .sheet-overlay.is-open, .confirm-overlay.is-open, .asset-search-overlay.is-open { opacity: 1; pointer-events: auto; }
-.sheet-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, .42); }
+.sheet-scrim { position: absolute; inset: 0; background: var(--overlay-scrim); }
 
 .sheet-panel {
   --sheet-inline: 20px;
@@ -961,7 +947,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   padding: 10px 0 0;
   border-radius: 26px 26px 0 0; background: var(--bg-1);
   display: flex; flex-direction: column;
-  box-shadow: 0 -8px 40px rgba(0, 0, 0, .18);
+  box-shadow: var(--sheet-shadow);
   translate: 0 24px; transition: translate 220ms cubic-bezier(.2, 0, 0, 1);
 }
 .sheet-overlay.is-open .sheet-panel { translate: 0 0; }
@@ -982,12 +968,12 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 }
 .sheet-close-btn i, .sheet-delete-btn i { font-size: 20px; line-height: 1; }
 .sheet-close-btn { inset-inline-end: var(--sheet-inline); color: var(--ink); }
-.sheet-delete-btn { inset-inline-start: var(--sheet-inline); color: var(--loss); }
+.sheet-delete-btn { inset-inline-start: var(--sheet-inline); color: var(--destructive); }
 .sheet-close-btn::after, .sheet-delete-btn::after { content: ""; position: absolute; inset: -6px; }
 @media (hover: hover) { .sheet-close-btn:hover { background: var(--ink-4); color: var(--ink); } }
-@media (hover: hover) { .sheet-delete-btn:hover { background: color-mix(in srgb, var(--loss) 12%, transparent); } }
+@media (hover: hover) { .sheet-delete-btn:hover { background: color-mix(in srgb, var(--destructive) 12%, transparent); } }
 .sheet-close-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
-.sheet-delete-btn:focus-visible { outline: 2px solid var(--loss); outline-offset: 1px; }
+.sheet-delete-btn:focus-visible { outline: 2px solid var(--destructive); outline-offset: 1px; }
 /* 新增模式下这个按钮带 hidden：同样的 display:grid 会盖过 [hidden]，
    不补就会在“添加持仓”弹层里露出一个能点的删除图标。 */
 .sheet-delete-btn[hidden] { display: none; }
@@ -1036,12 +1022,12 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .profile-guest-note > p { margin: 0; max-width: 30ch; }
 .profile-signout-btn {
   min-height: 44px; padding: 0 16px; border: 0; border-radius: var(--radius-card);
-  background: color-mix(in srgb, var(--loss) 10%, transparent); color: var(--loss);
+  background: color-mix(in srgb, var(--destructive) 10%, transparent); color: var(--destructive);
   font-size: 14px; line-height: 20px; font-weight: 600; cursor: pointer;
   transition-property: opacity; transition-duration: 150ms;
 }
 @media (hover: hover) { .profile-signout-btn:hover { opacity: .8; } }
-.profile-signout-btn:focus-visible { outline: 2px solid var(--loss); outline-offset: 2px; }
+.profile-signout-btn:focus-visible { outline: 2px solid var(--destructive); outline-offset: 2px; }
 .sheet-footer .calculate-btn[hidden] { display: none; }
 #holding-form {
   min-height: 0; flex: 1 1 auto; overflow: hidden;
@@ -1075,7 +1061,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 :root[data-theme="dark"] .date-input input { color-scheme: dark; }
 #holding-symbol-manual { text-transform: uppercase; }
 .field-hint { margin: -4px 0 0; color: var(--ink-40); font-size: 12px; line-height: 16px; }
-.field-error { margin: -4px 0 0; color: var(--loss); font-size: 12px; line-height: 16px; }
+.field-error { margin: -4px 0 0; color: var(--error); font-size: 12px; line-height: 16px; }
 .field-error[hidden] { display: none; }
 /* 输入框里的清除按钮。`margin-right: -8px` 把它拉进 shell 的 16px 内边距里，
    视觉上贴住右边缘，但 .icon-btn::after 的 44px 热区不受影响。 */
@@ -1132,13 +1118,12 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .holding-adjustment-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .holding-adjustment-grid .input-shell { padding-inline: 12px; }
 .holding-adjustment-submit {
-  min-height: 42px; border: 0; border-radius: 12px; background: var(--ink); color: var(--bg-1);
+  min-height: 42px; border: 0; border-radius: 12px; background: var(--ink); color: var(--on-ink);
   font: inherit; font-size: 13px; line-height: 18px; font-weight: 650; cursor: pointer;
   transition-property: opacity, scale; transition-duration: 150ms;
 }
 .holding-adjustment-submit:active { scale: .96; }
 .holding-adjustment-submit:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-:root[data-theme="dark"] .holding-adjustment-submit { color: #1c1c1c; }
 @media (max-width: 359px) { .holding-adjustment-grid { grid-template-columns: 1fr; gap: 14px; } }
 .holding-yield-settings[hidden] { display: none; }
 .holding-settings-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -1163,9 +1148,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .holding-date-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .holding-date-grid .input-shell { padding-inline: 12px; }
 @media (max-width: 359px) { .holding-date-grid { grid-template-columns: 1fr; gap: 16px; } }
-/* 2026-08-27 一并去蓝：这块预览条是持仓面板里唯一剩下的大面积蓝底，和上面
-   两处（.metric / .fx-row）同一个理由。--yield-note-* 三个 token 到此没人用了，
-   留着是因为深色那份的推导过程还有参考价值。 */
+/* 预览条沿用 Nvwa BG Light；保留的 --yield-note-* 兼容别名也已经指向 Nvwa。 */
 .holding-yield-preview {
   margin: 0; padding: 10px 12px; border: 1px solid var(--ink-10); border-radius: 12px;
   background: var(--ink-4); color: var(--ink-80);
@@ -1196,107 +1179,11 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .dividend-record-amount.is-loss { color: var(--loss); }
 .dividend-record-delete {
   position: relative; width: 36px; height: 36px; flex: 0 0 36px; border: 0; border-radius: 10px;
-  display: grid; place-items: center; background: transparent; color: var(--loss); cursor: pointer;
+  display: grid; place-items: center; background: transparent; color: var(--destructive); cursor: pointer;
 }
-@media (hover: hover) { .dividend-record-delete:hover { background: color-mix(in srgb, var(--loss) 10%, transparent); } }
-.dividend-record-delete:focus-visible { outline: 2px solid var(--loss); outline-offset: 1px; }
+@media (hover: hover) { .dividend-record-delete:hover { background: color-mix(in srgb, var(--destructive) 10%, transparent); } }
+.dividend-record-delete:focus-visible { outline: 2px solid var(--destructive); outline-offset: 1px; }
 .dividend-record-delete > i { font-size: 18px; line-height: 1; }
-/* ── 猫 ───────────────────────────────────────────────── */
-.cat-sheet-body { display: flex; flex-direction: column; gap: 16px; }
-.cat-sheet-note { margin: 0; color: var(--ink-40); font-size: 13px; line-height: 20px; text-align: center; }
-.cat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 12px; }
-.cat-cell {
-  min-width: 0; padding: 0; border: 0; background: none; color: var(--ink);
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  font: inherit; cursor: pointer;
-  transition-property: scale; transition-duration: 150ms;
-}
-.cat-cell:disabled { cursor: default; }
-@media (hover: hover) { .cat-cell:not(:disabled):hover { scale: 1.04; } }
-.cat-cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; border-radius: 20px; }
-/* 做成洗出来的相片：4px 白边 + 一点投影，圆角收小（相纸是方的）。
-   **这是全站唯一用投影的地方** —— SnowUI 里没有 drop shadow，但这一块本来就是
-   彩蛋，模拟的是实物照片，不投影就立不起来；浅色页面上白边和白底同色，
-   全靠这层投影把相片托起来。
-   没照片的格子只剩白边和一块底，位置先占住。 */
-.cat-photo {
-  /* 不占满整格：相片之间留出空隙，九张摆在一起才不挤。 */
-  width: 86%; aspect-ratio: 1;
-  /* 直角：洗出来的相片没有圆角。 */
-  border: 4px solid #ffffff; border-radius: 0;
-  background-color: var(--ink-4); background-size: cover; background-position: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, .16), 0 10px 20px -8px rgba(0, 0, 0, .34);
-}
-/* 深色下白边照旧（相片就该是白边），但投影要更沉一点才看得出来。 */
-:root[data-theme="dark"] .cat-photo {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, .5), 0 10px 22px -10px rgba(0, 0, 0, .6);
-}
-/* 选中：在相片外面套一圈墨色环，中间用页面底色隔开，不压住相片自己的白边。 */
-.cat-cell[aria-pressed="true"] .cat-photo {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, .16), 0 10px 20px -8px rgba(0, 0, 0, .34),
-    0 0 0 6px var(--bg-1), 0 0 0 8px var(--ink);
-}
-.cat-cell { gap: 6px; }
-/* 长按看大图：别让系统的「保存图片」菜单和文字选中插进来。 */
-.cat-cell { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
-.cat-name {
-  min-height: 16px; display: inline-flex; align-items: center; gap: 4px;
-  font-size: 12px; line-height: 16px; font-weight: 550;
-}
-/* 性别图标：粉=母、蓝=公。深浅两个主题共用同一组色 —— 和头像的身份色一样，
-   它表示的是「这只猫是什么」，不随主题走。 */
-.cat-sex { font-size: 13px; line-height: 1; }
-.cat-sex.is-female { color: #E0629B; }
-.cat-sex.is-male { color: #4A90E2; }
-/* 介绍是次要信息：小一号、淡一档，和名字拉开层级。 */
-.cat-desc {
-  min-height: 16px; max-width: 100%; overflow: hidden;
-  color: var(--ink-40); font-size: 11px; line-height: 16px;
-  text-overflow: ellipsis; white-space: nowrap;
-}
-/* 还没填的名字和介绍都用灰条占位，宽度按各自的字数给（名字两三个字、介绍
-   五六个字），照片补齐时不会整片跳版。 */
-.cat-name:empty::after,
-.cat-desc:empty::after {
-  content: ""; display: block; height: 8px; margin: 4px auto 0;
-  border-radius: 999px; background: var(--ink-10);
-}
-.cat-name:empty::after { width: 32px; }
-.cat-desc:empty::after { width: 60px; background: var(--ink-4); }
-/* 大图：盖在猫弹层之上的一层。相片沿用白边 + 投影，只是放大。 */
-.photo-viewer {
-  position: fixed; inset: 0; z-index: 40;
-  display: grid; place-items: center; padding: 24px;
-  opacity: 0; pointer-events: none;
-  transition: opacity 200ms ease-out;
-}
-.photo-viewer[hidden] { display: none; }
-.photo-viewer.is-open { opacity: 1; pointer-events: auto; }
-.photo-viewer-scrim {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  padding: 0; border: 0; background: rgba(0, 0, 0, .72); cursor: zoom-out;
-}
-.photo-viewer-frame {
-  position: relative; z-index: 1; margin: 0; max-width: min(420px, 100%);
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
-  pointer-events: none;
-}
-.photo-viewer-frame img {
-  max-width: 100%; max-height: min(70vh, 520px); display: block;
-  border: 6px solid #ffffff; background: #ffffff;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
-}
-.photo-viewer-frame figcaption {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  color: #ffffff; text-align: center;
-}
-.photo-viewer-frame strong {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 15px; line-height: 22px; font-weight: 600;
-}
-.photo-viewer-frame span { color: rgba(255, 255, 255, .7); font-size: 12px; line-height: 18px; }
-.photo-viewer-meta { color: rgba(255, 255, 255, .5); font-variant-numeric: tabular-nums; }
-.photo-viewer-meta:empty { display: none; }
 .records-more-note { margin: 0; padding-block: 14px; color: var(--ink-40); font-size: 11px; line-height: 16px; text-align: center; }
 .dividend-records-empty { margin: 0; padding-block: 28px; color: var(--ink-40); font-size: 13px; line-height: 20px; text-align: center; }
 /* 利息按天列，一个月就是 30 条。月份小标题吸顶，滚到哪个月一眼看得到；
@@ -1311,7 +1198,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .records-month-head > span:last-child { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 .records-month-head + .dividend-record-row { border-top: 1px solid var(--ink-10); }
 
-/* SnowUI 单选列表：靠轻填充表达当前项，不额外套卡片或堆叠分割线。 */
+/* Nvwa 单选列表：靠 BG Light 表达当前项，不额外套卡片或堆叠分割线。 */
 .frequency-sheet-overlay { z-index: 26; }
 .frequency-sheet-panel { gap: 0; }
 .frequency-sheet-body {
@@ -1362,7 +1249,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   padding: 10px 0 0;
   border-radius: 26px 26px 0 0; background: var(--bg-1);
   display: flex; flex-direction: column; overflow: hidden;
-  box-shadow: 0 -8px 40px rgba(0, 0, 0, .18);
+  box-shadow: var(--sheet-shadow);
   translate: 0 24px; transition: translate 220ms cubic-bezier(.2, 0, 0, 1);
 }
 .asset-search-overlay.is-open .asset-search-sheet { translate: 0 0; }
@@ -1390,9 +1277,8 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .asset-search-input-shell input::placeholder { color: var(--ink-40); opacity: 1; }
 .asset-search-submit {
   flex: 0 0 auto; height: 36px; padding: 0 12px; border: 0; border-radius: 10px;
-  background: var(--ink); color: var(--bg-1); font-size: 13px; font-weight: 600; cursor: pointer;
+  background: var(--ink); color: var(--on-ink); font-size: 13px; font-weight: 600; cursor: pointer;
 }
-:root[data-theme="dark"] .asset-search-submit { color: #1c1c1c; }
 .asset-search-submit:disabled { opacity: .35; cursor: wait; }
 .asset-search-cancel {
   height: 44px; padding: 0; border: 0; background: none; color: var(--ink);
@@ -1449,7 +1335,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   max-height: calc(100dvh - 184px); overflow: hidden;
   padding: 22px; border-radius: var(--radius-block); background: var(--bg-1);
   display: flex; flex-direction: column; gap: 8px; text-align: center;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, .22);
+  box-shadow: var(--dialog-shadow);
   scale: .96; transition: scale 200ms cubic-bezier(.2, 0, 0, 1);
 }
 .confirm-overlay.is-open .confirm-dialog { scale: 1; }
@@ -1465,7 +1351,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 }
 .confirm-cancel { background: var(--ink-4); color: var(--ink); }
 @media (hover: hover) { .confirm-cancel:hover { background: var(--ink-10); } }
-.confirm-delete { background: var(--loss); color: #ffffff; }
+.confirm-delete { background: var(--destructive); color: var(--on-strong-color); }
 @media (hover: hover) { .confirm-delete:hover { opacity: .88; } }
 .confirm-cancel:focus-visible, .confirm-delete:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
@@ -1473,13 +1359,12 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .toast {
   position: fixed; z-index: 30; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom));
   translate: -50% 8px; padding: 10px 18px; border-radius: 999px;
-  background: var(--ink-80); color: var(--bg-1);
+  background: var(--ink-80); color: var(--on-ink);
   font-size: 13px; font-weight: 500; white-space: nowrap;
   opacity: 0; pointer-events: none;
   transition-property: opacity, translate; transition-duration: 200ms; transition-timing-function: ease-out;
 }
 .toast.is-visible { opacity: 1; translate: -50% 0; }
-:root[data-theme="dark"] .toast { background: var(--ink-80); color: #000000; }
 
 @media (prefers-reduced-motion: reduce) {
   .sheet-panel, .asset-search-sheet, .confirm-dialog, .toast { transition-duration: .01ms !important; }
@@ -1504,7 +1389,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
 }
-/* 没有 backdrop-filter 时 42% 的白纱只会把内容原样透出来，直接改成实色。 */
+/* 没有 backdrop-filter 时半透明底会把内容原样透出来，直接改成 Nvwa BG 实色。 */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .tabbar { background: var(--bg-1); }
 }

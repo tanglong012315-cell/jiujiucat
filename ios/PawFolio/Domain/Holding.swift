@@ -19,15 +19,6 @@ enum PositionAdjustmentKind: String, Codable, Hashable, Sendable {
     case reduce
 }
 
-enum DividendFrequency: String, CaseIterable, Codable, Sendable {
-    case quarterly
-    case monthly
-    case semimonthly
-    case semiannual
-    case annual
-    case irregular
-}
-
 struct PositionAdjustment: Codable, Equatable, Identifiable, Sendable {
     let id: String
     let type: PositionAdjustmentKind
@@ -61,15 +52,23 @@ struct PrincipalAdjustment: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-struct DividendRecord: Codable, Equatable, Identifiable, Sendable {
+/// 「从 `date` 起年化利率变成 `annualRate`」。
+///
+/// 为什么要单独记而不是直接改 `Holding.annualRate`：后者是个标量，所有利息计算
+/// 都读它，一改就把全部历史按新利率重算了。变更可选择历史或未来生效日；
+/// 生效日前仍使用旧利率，历史生效日会明确重算该日之后的收益。
+struct RateAdjustment: Codable, Equatable, Identifiable, Sendable {
     let id: String
-    var perShare: Double
-    var quantity: Double
-    var amount: Double
-    var frequency: DividendFrequency
-    var exDate: String
-    var payDate: String
+    let annualRate: Double
+    let date: String
     let createdAt: TimeInterval
+
+    init(id: String, annualRate: Double, date: String, createdAt: TimeInterval) {
+        self.id = id
+        self.annualRate = annualRate
+        self.date = date
+        self.createdAt = createdAt
+    }
 }
 
 struct Holding: Codable, Equatable, Identifiable, Sendable {
@@ -90,15 +89,10 @@ struct Holding: Codable, Equatable, Identifiable, Sendable {
     var annualRate: Double?
     var interestMode: InterestMode?
     var interestStartDate: String?
-    var dividendPerShare: Double?
-    var dividendFrequency: DividendFrequency?
-    var dividendExDate: String?
-    var dividendPayDate: String?
     var positionAdjustments: [PositionAdjustment]
     var principalAdjustments: [PrincipalAdjustment]
+    var rateAdjustments: [RateAdjustment]
     var interestSkips: [String]
-    var dividendRecords: [DividendRecord]
-    var dividendRecordId: String?
     /// 用户备注，最多 20 字。空备注一律存 nil，不存空串——空串会让「有没有备注」
     /// 在两端出现两种判法。截断在 `Holding.normalizedNote` 里做。
     var note: String?
@@ -123,15 +117,10 @@ struct Holding: Codable, Equatable, Identifiable, Sendable {
         annualRate: Double? = nil,
         interestMode: InterestMode? = nil,
         interestStartDate: String? = nil,
-        dividendPerShare: Double? = nil,
-        dividendFrequency: DividendFrequency? = nil,
-        dividendExDate: String? = nil,
-        dividendPayDate: String? = nil,
         positionAdjustments: [PositionAdjustment] = [],
         principalAdjustments: [PrincipalAdjustment] = [],
+        rateAdjustments: [RateAdjustment] = [],
         interestSkips: [String] = [],
-        dividendRecords: [DividendRecord] = [],
-        dividendRecordId: String? = nil,
         note: String? = nil,
         createdAt: TimeInterval,
         updatedAt: TimeInterval? = nil,
@@ -153,15 +142,10 @@ struct Holding: Codable, Equatable, Identifiable, Sendable {
         self.annualRate = annualRate
         self.interestMode = interestMode
         self.interestStartDate = interestStartDate
-        self.dividendPerShare = dividendPerShare
-        self.dividendFrequency = dividendFrequency
-        self.dividendExDate = dividendExDate
-        self.dividendPayDate = dividendPayDate
         self.positionAdjustments = positionAdjustments
         self.principalAdjustments = principalAdjustments
+        self.rateAdjustments = rateAdjustments
         self.interestSkips = interestSkips
-        self.dividendRecords = dividendRecords
-        self.dividendRecordId = dividendRecordId
         self.note = Holding.normalizedNote(note)
         self.createdAt = createdAt
         self.updatedAt = updatedAt
@@ -220,15 +204,10 @@ struct Holding: Codable, Equatable, Identifiable, Sendable {
         case annualRate
         case interestMode
         case interestStartDate
-        case dividendPerShare
-        case dividendFrequency
-        case dividendExDate
-        case dividendPayDate
         case positionAdjustments
         case principalAdjustments
+        case rateAdjustments
         case interestSkips
-        case dividendRecords
-        case dividendRecordId
         case note
         case createdAt
         case updatedAt
@@ -263,18 +242,12 @@ struct Holding: Codable, Equatable, Identifiable, Sendable {
             interestMode = .simple
         }
         interestStartDate = try container.decodeIfPresent(String.self, forKey: .interestStartDate)
-        dividendPerShare = try container.decodeIfPresent(Double.self, forKey: .dividendPerShare)
-
-        let dividendFrequencyValue = try container.decodeIfPresent(String.self, forKey: .dividendFrequency)
-        dividendFrequency = dividendFrequencyValue.flatMap(DividendFrequency.init(rawValue:))
-        dividendExDate = try container.decodeIfPresent(String.self, forKey: .dividendExDate)
-        dividendPayDate = try container.decodeIfPresent(String.self, forKey: .dividendPayDate)
-
         positionAdjustments = try container.decodeIfPresent([PositionAdjustment].self, forKey: .positionAdjustments) ?? []
         principalAdjustments = try container.decodeIfPresent([PrincipalAdjustment].self, forKey: .principalAdjustments) ?? []
+        // 旧数据没有这个字段 —— 缺省空数组即「全程只有 annualRate 一档利率」，
+        // 与改动前的行为完全一致。
+        rateAdjustments = try container.decodeIfPresent([RateAdjustment].self, forKey: .rateAdjustments) ?? []
         interestSkips = try container.decodeIfPresent([String].self, forKey: .interestSkips) ?? []
-        dividendRecords = try container.decodeIfPresent([DividendRecord].self, forKey: .dividendRecords) ?? []
-        dividendRecordId = try container.decodeIfPresent(String.self, forKey: .dividendRecordId)
         // 云端和 Web 都可能写进更长的备注（比如有人绕过表单直接改数据）。
         // 读进来就按同一把尺子裁掉，免得原生这边显示出一条 Web 上看不全的备注。
         note = Holding.normalizedNote(try container.decodeIfPresent(String.self, forKey: .note))

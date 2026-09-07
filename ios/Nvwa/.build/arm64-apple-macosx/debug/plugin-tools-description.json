@@ -1,0 +1,923 @@
+{
+  "builtTestProducts" : [
+    {
+      "binaryPath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.xctest/Contents/MacOS/NvwaPackageTests",
+      "packagePath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa",
+      "productName" : "NvwaPackageTests"
+    }
+  ],
+  "copyCommands" : {
+    "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa_Nvwa.bundle/NvwaAssets.xcassets" : {
+      "inputs" : [
+        {
+          "kind" : "directory",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Resources/NvwaAssets.xcassets"
+        }
+      ],
+      "outputs" : [
+        {
+          "kind" : "directory",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa_Nvwa.bundle/NvwaAssets.xcassets"
+        }
+      ]
+    }
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.Nvwa-arm64-apple-macosx-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/sources",
+      "importPath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaButton.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaCalendar.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaComponentCatalog.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaControls.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaInputs.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaKeyFeatureIcon.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaModalHeader.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaNavigationBar.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaScrollButton.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaTooltip.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaAssets.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaColors.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaMetrics.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaTypography.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/DerivedSources/resource_bundle_accessor.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "virtual",
+          "name" : "<Nvwa-arm64-apple-macosx-debug.module-resources>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "Nvwa",
+      "moduleOutputPath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Modules/Nvwa.swiftmodule",
+      "objects" : [
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaButton.swift.o",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaCalendar.swift.o",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaComponentCatalog.swift.o",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaControls.swift.o",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaInputs.swift.o",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaKeyFeatureIcon.swift.o",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaModalHeader.swift.o",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaNavigationBar.swift.o",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaScrollButton.swift.o",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaTooltip.swift.o",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaAssets.swift.o",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaColors.swift.o",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaMetrics.swift.o",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaTypography.swift.o",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/resource_bundle_accessor.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx13.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
+        "-module-cache-path",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/include/Nvwa-Swift.h",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "nvwa"
+      ],
+      "outputFileMapPath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaButton.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaCalendar.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaComponentCatalog.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaControls.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaInputs.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaKeyFeatureIcon.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaModalHeader.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaNavigationBar.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaScrollButton.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaTooltip.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaAssets.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaColors.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaMetrics.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaTypography.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/resource_bundle_accessor.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Modules/Nvwa.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaButton.swift",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaCalendar.swift",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaComponentCatalog.swift",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaControls.swift",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaInputs.swift",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaKeyFeatureIcon.swift",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaModalHeader.swift",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaNavigationBar.swift",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaScrollButton.swift",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaTooltip.swift",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaAssets.swift",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaColors.swift",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaMetrics.swift",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaTypography.swift",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/DerivedSources/resource_bundle_accessor.swift"
+      ],
+      "tempsPath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.NvwaPackageTests-arm64-apple-macosx-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build/sources",
+      "importPath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.derived/runner.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Modules/NvwaTests.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "NvwaPackageTests",
+      "moduleOutputPath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Modules/NvwaPackageTests.swiftmodule",
+      "objects" : [
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build/runner.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx13.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build/include/NvwaPackageTests-Swift.h",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "nvwa"
+      ],
+      "outputFileMapPath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Modules/NvwaPackageTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.derived/runner.swift"
+      ],
+      "tempsPath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.NvwaTests-arm64-apple-macosx-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaTests.build/sources",
+      "importPath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Tests/NvwaTests/NvwaCalendarTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Tests/NvwaTests/NvwaComponentSpecTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Tests/NvwaTests/NvwaTokenTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Modules/Nvwa.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "NvwaTests",
+      "moduleOutputPath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Modules/NvwaTests.swiftmodule",
+      "objects" : [
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaTests.build/NvwaCalendarTests.swift.o",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaTests.build/NvwaComponentSpecTests.swift.o",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaTests.build/NvwaTokenTests.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "nvwa"
+      ],
+      "outputFileMapPath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaTests.build/NvwaCalendarTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaTests.build/NvwaComponentSpecTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaTests.build/NvwaTokenTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Modules/NvwaTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Tests/NvwaTests/NvwaCalendarTests.swift",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Tests/NvwaTests/NvwaComponentSpecTests.swift",
+        "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Tests/NvwaTests/NvwaTokenTests.swift"
+      ],
+      "tempsPath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaTests.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "Nvwa" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "Nvwa",
+      "-package-name",
+      "nvwa",
+      "-c",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaButton.swift",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaCalendar.swift",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaComponentCatalog.swift",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaControls.swift",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaInputs.swift",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaKeyFeatureIcon.swift",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaModalHeader.swift",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaNavigationBar.swift",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaScrollButton.swift",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaTooltip.swift",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaAssets.swift",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaColors.swift",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaMetrics.swift",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaTypography.swift",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/DerivedSources/resource_bundle_accessor.swift",
+      "-I",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx13.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
+      "-module-cache-path",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/include/Nvwa-Swift.h",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "nvwa",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "NvwaPackageTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "NvwaPackageTests",
+      "-package-name",
+      "nvwa",
+      "-c",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.derived/runner.swift",
+      "-I",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx13.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build/include/NvwaPackageTests-Swift.h",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "nvwa",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "NvwaTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "NvwaTests",
+      "-package-name",
+      "nvwa",
+      "-c",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Tests/NvwaTests/NvwaCalendarTests.swift",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Tests/NvwaTests/NvwaComponentSpecTests.swift",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Tests/NvwaTests/NvwaTokenTests.swift",
+      "-I",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "nvwa",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "Nvwa" : [
+
+    ],
+    "NvwaPackageTests" : [
+      "NvwaTests",
+      "Nvwa"
+    ],
+    "NvwaTests" : [
+      "Nvwa"
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+    "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.derived/runner.swift" : {
+      "inputs" : [
+
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.derived/runner.swift"
+        }
+      ]
+    }
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaButton.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaCalendar.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaComponentCatalog.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaControls.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaInputs.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaKeyFeatureIcon.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaModalHeader.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaNavigationBar.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaScrollButton.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaTooltip.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaAssets.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaColors.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaMetrics.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaTypography.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/DerivedSources/resource_bundle_accessor.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/sources"
+    },
+    "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.derived/runner.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build/sources"
+    },
+    "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaAssets.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaButton.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaCalendar.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaColors.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaComponentCatalog.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaControls.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaInputs.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaKeyFeatureIcon.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaMetrics.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaModalHeader.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaNavigationBar.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaScrollButton.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaTooltip.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaTypography.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/resource_bundle_accessor.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaTests.build/NvwaCalendarTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaTests.build/NvwaComponentSpecTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaTests.build/NvwaTokenTests.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaPackageTests.product/Objects.LinkFileList"
+    },
+    "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Tests/NvwaTests/NvwaCalendarTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Tests/NvwaTests/NvwaComponentSpecTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Tests/NvwaTests/NvwaTokenTests.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/NvwaTests.build/sources"
+    },
+    "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

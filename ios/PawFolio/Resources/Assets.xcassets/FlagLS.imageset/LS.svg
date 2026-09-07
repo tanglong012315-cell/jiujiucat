@@ -1,0 +1,46 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Flags">
+<g id="Lesotho">
+<g clip-path="url(#clip0_0_1)">
+<g id="Clip path group">
+<mask id="mask0_0_1" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+<g id="clip0_199_9636">
+<path id="Vector" d="M64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64C49.6731 64 64 49.6731 64 32Z" fill="white"/>
+</g>
+</mask>
+<g mask="url(#mask0_0_1)">
+<g id="Group">
+<path id="Vector_2" d="M64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64C49.6731 64 64 49.6731 64 32Z" fill="white"/>
+<g id="Mask group">
+<mask id="mask1_0_1" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+<g id="Group_2">
+<path id="Vector_3" d="M32 64C49.6731 64 64 49.6731 64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64Z" fill="white"/>
+</g>
+</mask>
+<g mask="url(#mask1_0_1)">
+<g id="Group_3">
+<path id="Vector_4" d="M6 0H64V64H6V0Z" fill="white"/>
+<path id="Vector_5" d="M-7 44.7261H71.0001V65.6629H-7V44.7261Z" fill="#231D9A"/>
+<path id="Vector_6" d="M-7 44.7261H71.0001V70.9997H-7V44.7261Z" fill="#005B13"/>
+<path id="Vector_7" d="M-7 -7H71.0001V13.9368H-7V-7Z" fill="#231D9A"/>
+<path id="Vector_8" d="M-7 -7H71.0001V19.2736H-7V-7Z" fill="#231D9A"/>
+<path id="Vector_9" d="M-7 18.8633H71.0001V39.8001H-7V18.8633Z" fill="white"/>
+<path id="Vector_10" d="M-7 18.8633H71.0001V45.1369H-7V18.8633Z" fill="white"/>
+<path id="Vector_11" d="M31.5 31L38 40.4545H25L31.5 31Z" fill="black"/>
+<path id="Vector_12" d="M37 29.5C37 32.5376 34.5376 35 31.5 35C28.4624 35 26 32.5376 26 29.5C26 26.4624 28.4624 24 31.5 24C34.5376 24 37 26.4624 37 29.5Z" fill="white"/>
+<path id="Vector_13" fill-rule="evenodd" clip-rule="evenodd" d="M31.5 33C33.433 33 35 31.433 35 29.5C35 27.567 33.433 26 31.5 26C29.567 26 28 27.567 28 29.5C28 31.433 29.567 33 31.5 33ZM31.5 35C34.5376 35 37 32.5376 37 29.5C37 26.4624 34.5376 24 31.5 24C28.4624 24 26 26.4624 26 29.5C26 32.5376 28.4624 35 31.5 35Z" fill="black"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_0_1">
+<rect width="64" height="64" rx="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>

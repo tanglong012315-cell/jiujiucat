@@ -1,0 +1,41 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Flags">
+<g id="Panama">
+<g clip-path="url(#clip0_0_1)">
+<g id="Clip path group">
+<mask id="mask0_0_1" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+<g id="clip0_199_10434">
+<path id="Vector" d="M64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64C49.6731 64 64 49.6731 64 32Z" fill="white"/>
+</g>
+</mask>
+<g mask="url(#mask0_0_1)">
+<g id="Group">
+<path id="Vector_2" d="M64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64C49.6731 64 64 49.6731 64 32Z" fill="#F0F0F0"/>
+<g id="Mask group">
+<mask id="mask1_0_1" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+<g id="Group_2">
+<path id="Vector_3" d="M32 64C49.6731 64 64 49.6731 64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64Z" fill="white"/>
+</g>
+</mask>
+<g mask="url(#mask1_0_1)">
+<g id="Group_3">
+<path id="Vector_4" d="M0 0H64V64H0V0Z" fill="white"/>
+<path id="Vector_5" d="M0 32H32V64H0V32Z" fill="#231D9A"/>
+<path id="Vector_6" d="M32 0H64V32H32V0Z" fill="#F0263C"/>
+<path id="Vector_7" d="M19 13L13 19L19 25L25 19L19 13Z" fill="#231D9A"/>
+<path id="Vector_8" d="M45 39L39 45L45 51L51 45L45 39Z" fill="#F0263C"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_0_1">
+<rect width="64" height="64" rx="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>

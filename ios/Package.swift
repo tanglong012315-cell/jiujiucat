@@ -20,11 +20,15 @@ let package = Package(
                 "DesignSystem",
                 "Features",
                 "Resources",
+                "Data/AssetLogoStore.swift",
                 "Data/ExchangeRateClient.swift"
             ],
             sources: [
                 "Domain",
                 "Data/HoldingRepository.swift",
+                "Data/LedgerRepository.swift",
+                "Data/LedgerBootstrapService.swift",
+                "Data/LedgerGuestImportService.swift",
                 "Data/CloudSyncContracts.swift",
                 "Data/SupabaseServices.swift",
                 "Data/KeychainSessionStore.swift",
@@ -33,14 +37,20 @@ let package = Package(
                 "Data/AccountProfileStore.swift",
                 "Data/ProfileSyncCoordinator.swift",
                 "Data/MarketDataClient.swift",
-                "Data/MarketQuoteRepository.swift"
+                "Data/MarketQuoteRepository.swift",
+                "Data/PreferencesStore.swift"
             ]
         ),
         .testTarget(
             name: "PawFolioTests",
             dependencies: ["PawFolio"],
             path: "PawFolioTests",
-            exclude: ["AccountViewModelTests.swift"]
+            exclude: [
+                "AccountViewModelTests.swift",
+                "ExchangeRateViewModelTests.swift",
+                "LedgerPortfolioViewModelTests.swift",
+                "PortfolioViewModelTests.swift"
+            ]
         )
     ]
 )

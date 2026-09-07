@@ -49,12 +49,22 @@ struct LiveExchangeRateClient: ExchangeRateServing {
             throw ExchangeRateClientError.unavailable
         }
 
-        var rates: [CurrencyCode: Double] = [.usd: 1]
-        for code in CurrencyCode.allCases {
-            guard let value = payload.rates[code.rawValue], value.isFinite, value > 0 else {
-                throw ExchangeRateClientError.invalidResponse
+        // 只留币种表里有的，别把接口那一百六十来种全存进缓存。
+        //
+        // 单个币缺价**不再**整体报错：币种表放开到七十来种之后，任何一个冷门币在
+        // 上游临时缺数据都会让整页汇率消失。缺的那个由界面单独标成不可用。
+        var rates: [CurrencyCode: Double] = [:]
+        for info in CurrencyCatalog.all {
+            guard let value = payload.rates[info.code.rawValue], value.isFinite, value > 0 else {
+                continue
             }
-            rates[code] = value
+            rates[info.code] = value
+        }
+        rates[.usd] = 1
+
+        // USD 是基准，其余全折算自它。一个都没对上说明拿到的不是汇率表。
+        guard rates.count > 1 else {
+            throw ExchangeRateClientError.invalidResponse
         }
 
         let fetchedAt = payload.timeLastUpdateUnix.map(Date.init(timeIntervalSince1970:)) ?? Date()

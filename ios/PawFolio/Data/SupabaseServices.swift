@@ -88,6 +88,104 @@ enum SupabaseServiceError: LocalizedError, Equatable {
     }
 }
 
+/// Shared PostgREST request pipeline for authenticated Supabase repositories.
+///
+/// Keeping request construction, token refresh, and error decoding here prevents
+/// each table repository from quietly developing different authentication rules.
+private struct SupabaseRESTClient: Sendable {
+    private struct ErrorPayload: Decodable {
+        let message: String?
+        let details: String?
+
+        var bestMessage: String? { message ?? details }
+    }
+
+    private let configuration: SupabaseConfiguration
+    private let tokenProvider: any SupabaseAccessTokenProviding
+    private let transport: any SupabaseHTTPTransporting
+
+    init(
+        configuration: SupabaseConfiguration,
+        tokenProvider: any SupabaseAccessTokenProviding,
+        transport: any SupabaseHTTPTransporting
+    ) {
+        self.configuration = configuration
+        self.tokenProvider = tokenProvider
+        self.transport = transport
+    }
+
+    func response(
+        table: String,
+        queryItems: [URLQueryItem],
+        method: String,
+        body: Data? = nil,
+        additionalHeaders: [String: String] = [:]
+    ) async throws -> SupabaseHTTPResponse {
+        let url = try restURL(table: table, queryItems: queryItems)
+        var token = try await tokenProvider.accessToken(forceRefresh: false)
+        var response = try await send(
+            url: url,
+            method: method,
+            body: body,
+            token: token,
+            additionalHeaders: additionalHeaders
+        )
+
+        if response.statusCode == 401 {
+            token = try await tokenProvider.accessToken(forceRefresh: true)
+            response = try await send(
+                url: url,
+                method: method,
+                body: body,
+                token: token,
+                additionalHeaders: additionalHeaders
+            )
+        }
+
+        guard 200..<300 ~= response.statusCode else {
+            let payload = try? JSONDecoder().decode(ErrorPayload.self, from: response.data)
+            throw SupabaseServiceError.requestFailed(
+                statusCode: response.statusCode,
+                message: payload?.bestMessage
+            )
+        }
+        return response
+    }
+
+    private func restURL(table: String, queryItems: [URLQueryItem]) throws -> URL {
+        var components = URLComponents(
+            url: configuration.baseURL.appendingPathComponent("rest/v1/\(table)"),
+            resolvingAgainstBaseURL: false
+        )
+        components?.queryItems = queryItems
+        guard let url = components?.url else {
+            throw SupabaseServiceError.invalidConfiguration
+        }
+        return url
+    }
+
+    private func send(
+        url: URL,
+        method: String,
+        body: Data?,
+        token: String,
+        additionalHeaders: [String: String]
+    ) async throws -> SupabaseHTTPResponse {
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.httpBody = body
+        request.timeoutInterval = 15
+        request.setValue(configuration.publishableKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        for (name, value) in additionalHeaders {
+            request.setValue(value, forHTTPHeaderField: name)
+        }
+        return try await transport.response(for: request)
+    }
+}
+
 struct StoredSupabaseSession: Codable, Equatable, Sendable {
     let accessToken: String
     let refreshToken: String
@@ -480,35 +578,27 @@ actor SupabaseCloudHoldingRepository: CloudHoldingRepository {
         let payload: Holding
     }
 
-    private struct ErrorPayload: Decodable {
-        let message: String?
-        let details: String?
-
-        var bestMessage: String? { message ?? details }
-    }
-
-    private let configuration: SupabaseConfiguration
-    private let tokenProvider: any SupabaseAccessTokenProviding
-    private let transport: any SupabaseHTTPTransporting
+    private let restClient: SupabaseRESTClient
 
     init(
         configuration: SupabaseConfiguration = .production,
         tokenProvider: any SupabaseAccessTokenProviding,
         transport: any SupabaseHTTPTransporting = URLSessionSupabaseTransport()
     ) {
-        self.configuration = configuration
-        self.tokenProvider = tokenProvider
-        self.transport = transport
+        restClient = SupabaseRESTClient(
+            configuration: configuration,
+            tokenProvider: tokenProvider,
+            transport: transport
+        )
     }
 
     func fetchAll(for userID: String) async throws -> [Holding] {
         let normalizedUserID = try validatedUserID(userID)
-        let url = try restURL(queryItems: [
+        let response = try await restClient.response(table: "holdings", queryItems: [
             URLQueryItem(name: "select", value: "payload"),
             URLQueryItem(name: "user_id", value: "eq.\(normalizedUserID)"),
             URLQueryItem(name: "order", value: "updated_at.asc")
-        ])
-        let response = try await authorizedResponse(url: url, method: "GET")
+        ], method: "GET")
         do {
             return try JSONDecoder().decode([ReadRow].self, from: response.data).map(\.payload)
         } catch {
@@ -536,82 +626,13 @@ actor SupabaseCloudHoldingRepository: CloudHoldingRepository {
             )
         }
         let body = try JSONEncoder().encode(rows)
-        let url = try restURL(queryItems: [
-            URLQueryItem(name: "on_conflict", value: "user_id,id")
-        ])
-        _ = try await authorizedResponse(
-            url: url,
+        _ = try await restClient.response(
+            table: "holdings",
+            queryItems: [URLQueryItem(name: "on_conflict", value: "user_id,id")],
             method: "POST",
             body: body,
             additionalHeaders: ["Prefer": "resolution=merge-duplicates,return=minimal"]
         )
-    }
-
-    private func authorizedResponse(
-        url: URL,
-        method: String,
-        body: Data? = nil,
-        additionalHeaders: [String: String] = [:]
-    ) async throws -> SupabaseHTTPResponse {
-        var token = try await tokenProvider.accessToken(forceRefresh: false)
-        var response = try await send(
-            url: url,
-            method: method,
-            body: body,
-            token: token,
-            additionalHeaders: additionalHeaders
-        )
-        if response.statusCode == 401 {
-            token = try await tokenProvider.accessToken(forceRefresh: true)
-            response = try await send(
-                url: url,
-                method: method,
-                body: body,
-                token: token,
-                additionalHeaders: additionalHeaders
-            )
-        }
-        guard 200..<300 ~= response.statusCode else {
-            let error = try? JSONDecoder().decode(ErrorPayload.self, from: response.data)
-            throw SupabaseServiceError.requestFailed(
-                statusCode: response.statusCode,
-                message: error?.bestMessage
-            )
-        }
-        return response
-    }
-
-    private func send(
-        url: URL,
-        method: String,
-        body: Data?,
-        token: String,
-        additionalHeaders: [String: String]
-    ) async throws -> SupabaseHTTPResponse {
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.httpBody = body
-        request.timeoutInterval = 15
-        request.setValue(configuration.publishableKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        for (name, value) in additionalHeaders {
-            request.setValue(value, forHTTPHeaderField: name)
-        }
-        return try await transport.response(for: request)
-    }
-
-    private func restURL(queryItems: [URLQueryItem]) throws -> URL {
-        var components = URLComponents(
-            url: configuration.baseURL.appendingPathComponent("rest/v1/holdings"),
-            resolvingAgainstBaseURL: false
-        )
-        components?.queryItems = queryItems
-        guard let url = components?.url else {
-            throw SupabaseServiceError.invalidConfiguration
-        }
-        return url
     }
 
     private func validatedUserID(_ userID: String) throws -> String {
@@ -650,35 +671,27 @@ actor SupabaseCloudProfileRepository: CloudProfileRepository {
         }
     }
 
-    private struct ErrorPayload: Decodable {
-        let message: String?
-        let details: String?
-
-        var bestMessage: String? { message ?? details }
-    }
-
-    private let configuration: SupabaseConfiguration
-    private let tokenProvider: any SupabaseAccessTokenProviding
-    private let transport: any SupabaseHTTPTransporting
+    private let restClient: SupabaseRESTClient
 
     init(
         configuration: SupabaseConfiguration = .production,
         tokenProvider: any SupabaseAccessTokenProviding,
         transport: any SupabaseHTTPTransporting = URLSessionSupabaseTransport()
     ) {
-        self.configuration = configuration
-        self.tokenProvider = tokenProvider
-        self.transport = transport
+        restClient = SupabaseRESTClient(
+            configuration: configuration,
+            tokenProvider: tokenProvider,
+            transport: transport
+        )
     }
 
     func fetch(for userID: String) async throws -> LocalAccountProfile? {
         let normalizedUserID = try validatedUserID(userID)
-        let url = try restURL(queryItems: [
+        let response = try await restClient.response(table: "profiles", queryItems: [
             URLQueryItem(name: "select", value: "display_name,avatar,updated_at"),
             URLQueryItem(name: "user_id", value: "eq.\(normalizedUserID)"),
             URLQueryItem(name: "limit", value: "1")
-        ])
-        let response = try await authorizedResponse(url: url, method: "GET")
+        ], method: "GET")
 
         let rows: [ReadRow]
         do {
@@ -713,82 +726,13 @@ actor SupabaseCloudProfileRepository: CloudProfileRepository {
             avatar: profile.avatar.rawValue,
             updatedAt: Self.timestamp(from: profile.updatedAtMilliseconds)
         )
-        let url = try restURL(queryItems: [
-            URLQueryItem(name: "on_conflict", value: "user_id")
-        ])
-        _ = try await authorizedResponse(
-            url: url,
+        _ = try await restClient.response(
+            table: "profiles",
+            queryItems: [URLQueryItem(name: "on_conflict", value: "user_id")],
             method: "POST",
             body: try JSONEncoder().encode(row),
             additionalHeaders: ["Prefer": "resolution=merge-duplicates,return=minimal"]
         )
-    }
-
-    private func authorizedResponse(
-        url: URL,
-        method: String,
-        body: Data? = nil,
-        additionalHeaders: [String: String] = [:]
-    ) async throws -> SupabaseHTTPResponse {
-        var token = try await tokenProvider.accessToken(forceRefresh: false)
-        var response = try await send(
-            url: url,
-            method: method,
-            body: body,
-            token: token,
-            additionalHeaders: additionalHeaders
-        )
-        if response.statusCode == 401 {
-            token = try await tokenProvider.accessToken(forceRefresh: true)
-            response = try await send(
-                url: url,
-                method: method,
-                body: body,
-                token: token,
-                additionalHeaders: additionalHeaders
-            )
-        }
-        guard 200..<300 ~= response.statusCode else {
-            let payload = try? JSONDecoder().decode(ErrorPayload.self, from: response.data)
-            throw SupabaseServiceError.requestFailed(
-                statusCode: response.statusCode,
-                message: payload?.bestMessage
-            )
-        }
-        return response
-    }
-
-    private func send(
-        url: URL,
-        method: String,
-        body: Data?,
-        token: String,
-        additionalHeaders: [String: String]
-    ) async throws -> SupabaseHTTPResponse {
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.httpBody = body
-        request.timeoutInterval = 15
-        request.setValue(configuration.publishableKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        for (name, value) in additionalHeaders {
-            request.setValue(value, forHTTPHeaderField: name)
-        }
-        return try await transport.response(for: request)
-    }
-
-    private func restURL(queryItems: [URLQueryItem]) throws -> URL {
-        var components = URLComponents(
-            url: configuration.baseURL.appendingPathComponent("rest/v1/profiles"),
-            resolvingAgainstBaseURL: false
-        )
-        components?.queryItems = queryItems
-        guard let url = components?.url else {
-            throw SupabaseServiceError.invalidConfiguration
-        }
-        return url
     }
 
     private func validatedUserID(_ userID: String) throws -> String {

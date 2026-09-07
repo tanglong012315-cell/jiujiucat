@@ -88,27 +88,45 @@ final class AssetLogoStore: ObservableObject {
 
     // MARK: 解析
 
-    func cachedImage(for quoteSymbol: String) -> UIImage? {
-        if case .image(let image) = entries[quoteSymbol] { return image }
+    private func cacheKey(quoteSymbol: String, assetType: AssetType) -> String {
+        "\(assetType.rawValue)|\(quoteSymbol.uppercased())"
+    }
+
+    func cachedImage(for quoteSymbol: String, assetType: AssetType) -> UIImage? {
+        let key = cacheKey(quoteSymbol: quoteSymbol, assetType: assetType)
+        if case .image(let image) = entries[key] { return image }
         return nil
     }
 
-    func isUnavailable(_ quoteSymbol: String) -> Bool {
-        if case .unavailable = entries[quoteSymbol] { return true }
+    func isUnavailable(_ quoteSymbol: String, assetType: AssetType) -> Bool {
+        let key = cacheKey(quoteSymbol: quoteSymbol, assetType: assetType)
+        if case .unavailable = entries[key] { return true }
         return false
     }
 
     func image(quoteSymbol: String, assetType: AssetType, name: String) async -> UIImage? {
         guard !quoteSymbol.isEmpty else { return nil }
+        let key = cacheKey(quoteSymbol: quoteSymbol, assetType: assetType)
 
-        if let cached = entries[quoteSymbol] {
+        if let cached = entries[key] {
             switch cached {
             case .image(let image): return image
             case .unavailable: return nil
             }
         }
 
-        if let existing = inFlight[quoteSymbol] { return await existing.value }
+        if let existing = inFlight[key] { return await existing.value }
+
+        // 市值 Top 100 随 App 安装，优先于任何网络源。这样常见标的首次出现时
+        // 不闪占位、不依赖网络，也不会消耗 CMC / Parqet 的请求额度。
+        if let assetName = AssetLogoCatalog.assetName(
+            quoteSymbol: quoteSymbol,
+            assetType: assetType,
+            name: name
+        ), let bundled = UIImage(named: assetName) {
+            entries[key] = .image(bundled)
+            return bundled
+        }
 
         let candidates = AssetLogoCandidates.candidates(
             quoteSymbol: quoteSymbol,
@@ -117,7 +135,7 @@ final class AssetLogoStore: ObservableObject {
             index: index
         )
         guard !candidates.isEmpty else {
-            entries[quoteSymbol] = .unavailable
+            entries[key] = .unavailable
             return nil
         }
 
@@ -134,10 +152,10 @@ final class AssetLogoStore: ObservableObject {
             return nil
         }
 
-        inFlight[quoteSymbol] = task
+        inFlight[key] = task
         let image = await task.value
-        inFlight[quoteSymbol] = nil
-        entries[quoteSymbol] = image.map(Cached.image) ?? .unavailable
+        inFlight[key] = nil
+        entries[key] = image.map(Cached.image) ?? .unavailable
         return image
     }
 }

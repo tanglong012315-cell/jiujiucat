@@ -13,3 +13,7 @@ xcuserdata/
 
 # wrangler 本地缓存
 .wrangler/
+
+# 测试跑出来的泄漏文件：某个用例往相对路径写了 Application Support，
+# 在仓库里造出一个假的 Library/。是本地账本数据，不该进版本库。
+Library/

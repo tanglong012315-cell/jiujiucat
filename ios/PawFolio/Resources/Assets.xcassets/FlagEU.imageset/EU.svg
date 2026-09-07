@@ -1,0 +1,37 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Flags">
+<g id="Europe">
+<g clip-path="url(#clip0_0_1)">
+<g id="Clip path group">
+<mask id="mask0_0_1" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+<g id="clip0_436_828">
+<path id="Vector" d="M64 0H0V64H64V0Z" fill="white"/>
+</g>
+</mask>
+<g mask="url(#mask0_0_1)">
+<g id="Group">
+<path id="Vector_2" d="M32 64C49.6731 64 64 49.6731 64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64Z" fill="#231D9A"/>
+<path id="Vector_3" d="M35.181 11.1825L31.9989 8.00049L28.8169 11.1825L31.9989 14.3645L35.181 11.1825Z" fill="#FFD400"/>
+<path id="Vector_4" d="M24.5686 13.5717L21.3866 10.3896L18.2046 13.5717L21.3866 16.7537L24.5686 13.5717Z" fill="#FFD400"/>
+<path id="Vector_5" d="M16.7522 21.3878L13.5702 18.2058L10.3882 21.3878L13.5702 24.5699L16.7522 21.3878Z" fill="#FFD400"/>
+<path id="Vector_6" d="M14.3655 32.0001L11.1835 28.8181L8.00146 32.0001L11.1835 35.1822L14.3655 32.0001Z" fill="#FFD400"/>
+<path id="Vector_7" d="M16.7757 42.6515L13.5937 39.4695L10.4116 42.6515L13.5937 45.8335L16.7757 42.6515Z" fill="#FFD400"/>
+<path id="Vector_8" d="M24.5345 50.4035L21.3524 47.2214L18.1704 50.4035L21.3524 53.5855L24.5345 50.4035Z" fill="#FFD400"/>
+<path id="Vector_9" d="M42.7553 53.5857L39.5732 50.4037L42.7553 47.2216L45.9373 50.4037L42.7553 53.5857Z" fill="#FFD400"/>
+<path id="Vector_10" d="M35.181 52.818L31.9989 49.636L28.8169 52.818L31.9989 56L35.181 52.818Z" fill="#FFD400"/>
+<path id="Vector_11" d="M53.6038 42.6139L50.4218 39.4319L47.2397 42.6139L50.4218 45.7959L53.6038 42.6139Z" fill="#FFD400"/>
+<path id="Vector_12" d="M55.9993 32.0001L52.8173 28.8181L49.6353 32.0001L52.8173 35.1822L55.9993 32.0001Z" fill="#FFD400"/>
+<path id="Vector_13" d="M53.5862 21.3546L50.4042 18.1726L47.2222 21.3546L50.4042 24.5367L53.5862 21.3546Z" fill="#FFD400"/>
+<path id="Vector_14" d="M45.8352 13.5941L42.6532 10.4121L39.4712 13.5941L42.6532 16.7762L45.8352 13.5941Z" fill="#FFD400"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_0_1">
+<rect width="64" height="64" rx="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>

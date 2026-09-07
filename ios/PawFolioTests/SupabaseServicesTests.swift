@@ -250,6 +250,34 @@ final class SupabaseServicesTests: XCTestCase {
         XCTAssertEqual(requests[1].value(forHTTPHeaderField: "Authorization"), "Bearer fresh-access")
     }
 
+    func testCloudRequestRetriesOnlyOnceAndSurfacesTheFinalErrorDetails() async throws {
+        let transport = SupabaseTransportSpy(responses: [
+            response(statusCode: 401, json: #"{"message":"expired"}"#),
+            response(statusCode: 401, json: #"{"details":"refresh rejected"}"#)
+        ])
+        let tokenProvider = TokenProviderSpy(tokens: ["expired-access", "fresh-access"])
+        let repository = SupabaseCloudHoldingRepository(
+            configuration: configuration,
+            tokenProvider: tokenProvider,
+            transport: transport
+        )
+
+        do {
+            _ = try await repository.fetchAll(for: "user-1")
+            XCTFail("Expected the second unauthorized response to be surfaced")
+        } catch let error as SupabaseServiceError {
+            XCTAssertEqual(
+                error,
+                .requestFailed(statusCode: 401, message: "refresh rejected")
+            )
+        }
+
+        let flags = await tokenProvider.recordedForceRefreshFlags()
+        XCTAssertEqual(flags, [false, true])
+        let requests = await transport.recordedRequests()
+        XCTAssertEqual(requests.count, 2)
+    }
+
     func testCloudProfileFetchDecodesSharedAvatarAndTimestamp() async throws {
         let transport = SupabaseTransportSpy(responses: [
             response(

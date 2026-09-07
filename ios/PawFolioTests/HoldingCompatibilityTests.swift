@@ -2,58 +2,6 @@ import XCTest
 @testable import PawFolio
 
 final class HoldingCompatibilityTests: XCTestCase {
-    func testDecodesLegacyWebDividendHoldingWithoutSchemaVersion() throws {
-        let json = #"""
-        {
-          "id": "h_1780000000000_demo",
-          "symbol": "AAPL",
-          "quoteSymbol": "AAPL",
-          "name": "Apple Inc.",
-          "assetType": "EQUITY",
-          "exchange": "NASDAQ",
-          "holdingKind": "dividend",
-          "quantity": 12.5,
-          "costPerShare": 180,
-          "priceOverride": null,
-          "principal": null,
-          "annualRate": null,
-          "interestMode": null,
-          "interestStartDate": null,
-          "dividendPerShare": 0.25,
-          "dividendFrequency": "quarterly",
-          "dividendExDate": "2026-08-20",
-          "dividendPayDate": "2026-08-28",
-          "positionAdjustments": [],
-          "principalAdjustments": [],
-          "dividendRecords": [
-            {
-              "id": "d_demo",
-              "perShare": 0.25,
-              "quantity": 12.5,
-              "amount": 3.125,
-              "frequency": "quarterly",
-              "exDate": "2026-08-20",
-              "payDate": "2026-08-28",
-              "createdAt": 1780000000000
-            }
-          ],
-          "dividendRecordId": "d_demo",
-          "createdAt": 1780000000000
-        }
-        """#
-
-        let holding = try JSONDecoder().decode(Holding.self, from: Data(json.utf8))
-
-        XCTAssertEqual(holding.schemaVersion, 1)
-        XCTAssertEqual(holding.holdingKind, .dividend)
-        XCTAssertEqual(holding.assetType, .equity)
-        XCTAssertEqual(holding.quantity, 12.5)
-        XCTAssertEqual(holding.dividendRecords.first?.amount, 3.125)
-        XCTAssertEqual(holding.interestSkips, [])
-        XCTAssertEqual(holding.currentCostBasis, 2_250)
-        XCTAssertFalse(holding.isDeleted)
-    }
-
     func testDecodesLegacyStableHoldingWithMissingArraysAndInterestMode() throws {
         let json = #"""
         {

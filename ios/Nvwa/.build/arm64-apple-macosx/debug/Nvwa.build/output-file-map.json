@@ -1,0 +1,110 @@
+{
+  "": {
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/primary.swiftdeps"
+  },
+  "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaButton.swift": {
+    "dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaButton.d",
+    "object": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaButton.swift.o",
+    "swiftmodule": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaButton~partial.swiftmodule",
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaButton.swiftdeps",
+    "diagnostics": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaButton.dia"
+  },
+  "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaCalendar.swift": {
+    "dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaCalendar.d",
+    "object": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaCalendar.swift.o",
+    "swiftmodule": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaCalendar~partial.swiftmodule",
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaCalendar.swiftdeps",
+    "diagnostics": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaCalendar.dia"
+  },
+  "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaComponentCatalog.swift": {
+    "dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaComponentCatalog.d",
+    "object": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaComponentCatalog.swift.o",
+    "swiftmodule": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaComponentCatalog~partial.swiftmodule",
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaComponentCatalog.swiftdeps",
+    "diagnostics": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaComponentCatalog.dia"
+  },
+  "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaControls.swift": {
+    "dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaControls.d",
+    "object": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaControls.swift.o",
+    "swiftmodule": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaControls~partial.swiftmodule",
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaControls.swiftdeps",
+    "diagnostics": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaControls.dia"
+  },
+  "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaInputs.swift": {
+    "dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaInputs.d",
+    "object": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaInputs.swift.o",
+    "swiftmodule": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaInputs~partial.swiftmodule",
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaInputs.swiftdeps",
+    "diagnostics": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaInputs.dia"
+  },
+  "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaKeyFeatureIcon.swift": {
+    "dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaKeyFeatureIcon.d",
+    "object": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaKeyFeatureIcon.swift.o",
+    "swiftmodule": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaKeyFeatureIcon~partial.swiftmodule",
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaKeyFeatureIcon.swiftdeps",
+    "diagnostics": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaKeyFeatureIcon.dia"
+  },
+  "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaModalHeader.swift": {
+    "dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaModalHeader.d",
+    "object": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaModalHeader.swift.o",
+    "swiftmodule": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaModalHeader~partial.swiftmodule",
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaModalHeader.swiftdeps",
+    "diagnostics": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaModalHeader.dia"
+  },
+  "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaNavigationBar.swift": {
+    "dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaNavigationBar.d",
+    "object": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaNavigationBar.swift.o",
+    "swiftmodule": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaNavigationBar~partial.swiftmodule",
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaNavigationBar.swiftdeps",
+    "diagnostics": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaNavigationBar.dia"
+  },
+  "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaScrollButton.swift": {
+    "dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaScrollButton.d",
+    "object": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaScrollButton.swift.o",
+    "swiftmodule": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaScrollButton~partial.swiftmodule",
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaScrollButton.swiftdeps",
+    "diagnostics": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaScrollButton.dia"
+  },
+  "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Components/NvwaTooltip.swift": {
+    "dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaTooltip.d",
+    "object": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaTooltip.swift.o",
+    "swiftmodule": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaTooltip~partial.swiftmodule",
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaTooltip.swiftdeps",
+    "diagnostics": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaTooltip.dia"
+  },
+  "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaAssets.swift": {
+    "dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaAssets.d",
+    "object": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaAssets.swift.o",
+    "swiftmodule": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaAssets~partial.swiftmodule",
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaAssets.swiftdeps",
+    "diagnostics": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaAssets.dia"
+  },
+  "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaColors.swift": {
+    "dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaColors.d",
+    "object": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaColors.swift.o",
+    "swiftmodule": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaColors~partial.swiftmodule",
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaColors.swiftdeps",
+    "diagnostics": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaColors.dia"
+  },
+  "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaMetrics.swift": {
+    "dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaMetrics.d",
+    "object": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaMetrics.swift.o",
+    "swiftmodule": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaMetrics~partial.swiftmodule",
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaMetrics.swiftdeps",
+    "diagnostics": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaMetrics.dia"
+  },
+  "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/Sources/Nvwa/Tokens/NvwaTypography.swift": {
+    "dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaTypography.d",
+    "object": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaTypography.swift.o",
+    "swiftmodule": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaTypography~partial.swiftmodule",
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaTypography.swiftdeps",
+    "diagnostics": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/NvwaTypography.dia"
+  },
+  "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/DerivedSources/resource_bundle_accessor.swift": {
+    "dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/resource_bundle_accessor.d",
+    "object": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/resource_bundle_accessor.swift.o",
+    "swiftmodule": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/resource_bundle_accessor~partial.swiftmodule",
+    "swift-dependencies": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/resource_bundle_accessor.swiftdeps",
+    "diagnostics": "/Users/user/Documents/Codex/2026-08-21/x20-365-12-ui/outputs/jiujiucat/ios/Nvwa/.build/arm64-apple-macosx/debug/Nvwa.build/resource_bundle_accessor.dia"
+  }
+}

@@ -1,3 +1,4 @@
+import Nvwa
 import SwiftUI
 import UIKit
 
@@ -110,6 +111,16 @@ enum PawChartCanvas {
 struct PawSparkline: View {
     let values: [Double]
     let tone: Color
+    /// 迷你预览（贴底导航上方那个 124x70.5 缩略图）需要留白，不然峰谷贴着边看
+    /// 起来很挤；但盈亏明细里配着精确 min/mid/max 坐标轴的这张大图，峰谷本就
+    /// 该顶到坐标轴标注的位置，留白反而是「没撑满」。所以两档留白比例都开出来，
+    /// 默认值维持迷你预览原来的观感，明细页那张单独传 0。
+    var padLow: Double = 0.26
+    var padHigh: Double = 0.10
+    /// The rendered plot height. Callers with an adjacent axis must pass the
+    /// same height as that axis so SwiftUI does not vertically centre a shorter
+    /// canvas inside a taller row.
+    var height: CGFloat = 72
 
     private let padding: CGFloat = 4
 
@@ -133,7 +144,7 @@ struct PawSparkline: View {
             }
 
             let scale = PawChartScale(
-                values: values, top: padding, bottom: bottom, padLow: 0.26, padHigh: 0.10
+                values: values, top: padding, bottom: bottom, padLow: padLow, padHigh: padHigh
             )
 
             PawChartCanvas.fillDotMatrix(
@@ -149,7 +160,7 @@ struct PawSparkline: View {
                 style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round)
             )
         }
-        .frame(height: 72)
+        .frame(height: height)
         .accessibilityHidden(true)
     }
 }
@@ -215,8 +226,9 @@ struct PawPortfolioChart: View {
             let peakX = left + CGFloat(Double(peakIndex) / Double(values.count - 1)) * (right - left)
             let text = context.resolve(
                 Text(peakLabel(values[peakIndex]))
-                    .font(PawFont.inter(11))
-                    .foregroundStyle(PawTheme.ink40)
+                    // 设计 `197:6792` 把这个标注定成 C-2 Regular（10/16）。
+                    .font(Nvwa.font(10))
+                    .foregroundStyle(Nvwa.textSecondary)
             )
             let textSize = text.measure(in: size)
             let half = textSize.width / 2 + 2
@@ -236,13 +248,13 @@ struct PawPortfolioChart: View {
                 cursor.addLine(to: CGPoint(x: cursorX, y: bottom))
                 context.stroke(
                     cursor,
-                    with: .color(PawTheme.ink40),
+                    with: .color(Nvwa.ink40),
                     style: StrokeStyle(lineWidth: 1, dash: [3, 3])
                 )
 
                 context.fill(
                     Path(ellipseIn: CGRect(x: cursorX - 4.5, y: cursorY - 4.5, width: 9, height: 9)),
-                    with: .color(PawTheme.bg1)
+                    with: .color(Nvwa.bg1)
                 )
                 context.stroke(
                     Path(ellipseIn: CGRect(x: cursorX - 4.5, y: cursorY - 4.5, width: 9, height: 9)),
@@ -257,7 +269,7 @@ struct PawPortfolioChart: View {
         .frame(height: height)
         .onAppear { haptics.prepare() }
         .onChange(of: values.count) { _, _ in scrubIndex = nil }
-        .accessibilityLabel("总资产走势图，长按后左右滑动可查看历史数值")
+        .accessibilityLabel("Total assets trend. Press and hold, then swipe to read past values.")
     }
 
     private func scrubGesture(width: CGFloat) -> some Gesture {

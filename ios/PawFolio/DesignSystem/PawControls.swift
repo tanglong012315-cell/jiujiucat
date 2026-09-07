@@ -1,4 +1,6 @@
+import Nvwa
 import SwiftUI
+import UIKit
 
 // Web 界面的 SwiftUI 复刻件。每个类型对应 `public/styles.css` 里的一个类，
 // 数值直接照搬，不要换成 iOS 系统控件——见 `AGENTS.md` 的 Design direction。
@@ -17,12 +19,258 @@ enum PawLayout {
     /// 区块内部元素的默认间距。
     static let blockSpacing: CGFloat = 16
     /// 贴底导航的内容高度（不含安全区，安全区由系统的 scroll safe area 提供）。
-    /// 各页滚动内容用它作为底部留白，否则最后一屏会被导航挡住。
+    /// **只给 iOS 17–25 的自绘导航条用** —— iOS 26 走原生 `TabView`，底部留白由
+    /// 系统自己下发。别直接用它，用 `View.pawTabBarBottomMargin()`。
     static let tabBarHeight: CGFloat = 64
 
     /// `.metric-grid` 在 `max-width: 389px` 时塌成一列。这里换算成卡片内容宽度：
     /// 389 减去两侧页面边距和卡片内边距。
     static let narrowContentWidth: CGFloat = 389 - pageHorizontal * 2 - blockPadding * 2
+}
+
+/// 滚动内容给贴底导航让出的下边距。
+///
+/// iOS 26 用原生 `TabView`，标签栏的安全区由系统下发给内部的 ScrollView，这里再加
+/// 一份就会变成双倍留白，所以什么都不做。iOS 17–25 是 `overlay` 上去的自绘导航条，
+/// 那份 inset 传不进各页的 ScrollView（表现是底部内容被挡住、拖出来一松手又弹回），
+/// 只能自己补。
+extension View {
+    @ViewBuilder
+    func pawTabBarBottomMargin() -> some View {
+        if #available(iOS 26.0, *) {
+            self
+        } else {
+            contentMargins(.bottom, PawLayout.tabBarHeight, for: .scrollContent)
+        }
+    }
+
+    /// 关闭所属 SwiftUI `ScrollView` 的边缘拉伸，但保留正常滚动。
+    /// SwiftUI iOS 17 没有 `.scrollBounceBehavior(.never)`，所以只在需要的页面内容里
+    /// 放一个原生探针，找到最近的 `UIScrollView` 后局部关闭 bounce。
+    func pawScrollBounceDisabled() -> some View {
+        background(PawScrollBounceDisabler())
+    }
+}
+
+private struct PawScrollBounceDisabler: UIViewRepresentable {
+    func makeUIView(context: Context) -> PawScrollBounceProbe {
+        PawScrollBounceProbe()
+    }
+
+    func updateUIView(_ uiView: PawScrollBounceProbe, context: Context) {
+        uiView.disableBounce()
+    }
+}
+
+private final class PawScrollBounceProbe: UIView {
+    override func didMoveToSuperview() {
+        super.didMoveToSuperview()
+        disableBounce()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        disableBounce()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        disableBounce()
+    }
+
+    func disableBounce() {
+        var ancestor = superview
+        while let view = ancestor {
+            if let scrollView = view as? UIScrollView {
+                scrollView.bounces = false
+                scrollView.alwaysBounceVertical = false
+                return
+            }
+            ancestor = view.superview
+        }
+    }
+}
+
+/// Portfolio pull-to-refresh interaction. The spinner remains UIKit's native
+/// `UIRefreshControl`; only the trigger distance and held inset are standardized.
+enum PawPullToRefreshMetrics {
+    static let triggerDistance: CGFloat = 80
+}
+
+private extension Notification.Name {
+    static let pawRefreshRequested = Notification.Name("pawfolio.refresh-requested")
+}
+
+private struct PawRefreshControlInstaller: UIViewRepresentable {
+    let action: @MainActor () async -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(action: action)
+    }
+
+    func makeUIView(context: Context) -> PawRefreshControlProbe {
+        let view = PawRefreshControlProbe()
+        view.coordinator = context.coordinator
+        return view
+    }
+
+    func updateUIView(_ uiView: PawRefreshControlProbe, context: Context) {
+        context.coordinator.action = action
+        uiView.installIfPossible()
+    }
+
+    static func dismantleUIView(_ uiView: PawRefreshControlProbe, coordinator: Coordinator) {
+        coordinator.uninstall()
+    }
+
+    @MainActor
+    final class Coordinator: NSObject {
+        var action: @MainActor () async -> Void
+
+        private weak var scrollView: UIScrollView?
+        private let refreshControl = UIRefreshControl()
+        private let feedbackGenerator = UIImpactFeedbackGenerator(style: .medium)
+        private var refreshTask: Task<Void, Never>?
+        private var restingInsetTop: CGFloat?
+        private var originalAlwaysBounceVertical = false
+
+        init(action: @escaping @MainActor () async -> Void) {
+            self.action = action
+            super.init()
+            refreshControl.tintColor = UIColor(Nvwa.ink)
+            refreshControl.addTarget(self, action: #selector(systemDidRequestRefresh), for: .valueChanged)
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(accessibilityDidRequestRefresh),
+                name: .pawRefreshRequested,
+                object: nil
+            )
+        }
+
+        deinit {
+            NotificationCenter.default.removeObserver(self)
+        }
+
+        func install(in candidate: UIScrollView?) {
+            guard let candidate, candidate !== scrollView else { return }
+            uninstall()
+
+            scrollView = candidate
+            originalAlwaysBounceVertical = candidate.alwaysBounceVertical
+            candidate.alwaysBounceVertical = true
+            candidate.refreshControl = refreshControl
+            candidate.panGestureRecognizer.addTarget(self, action: #selector(panDidChange))
+        }
+
+        func uninstall() {
+            refreshTask?.cancel()
+            refreshTask = nil
+
+            if let scrollView {
+                scrollView.panGestureRecognizer.removeTarget(self, action: #selector(panDidChange))
+                if let restingInsetTop {
+                    scrollView.contentInset.top = restingInsetTop
+                }
+                scrollView.alwaysBounceVertical = originalAlwaysBounceVertical
+                if scrollView.refreshControl === refreshControl {
+                    scrollView.refreshControl = nil
+                }
+            }
+
+            refreshControl.endRefreshing()
+            restingInsetTop = nil
+            scrollView = nil
+        }
+
+        @objc private func panDidChange() {
+            guard refreshTask == nil, let scrollView else { return }
+
+            if scrollView.panGestureRecognizer.state == .began {
+                feedbackGenerator.prepare()
+                return
+            }
+
+            guard scrollView.panGestureRecognizer.state == .changed else { return }
+
+            let pullDistance = -(scrollView.contentOffset.y + scrollView.adjustedContentInset.top)
+            guard pullDistance >= PawPullToRefreshMetrics.triggerDistance else { return }
+            beginRefresh(providesFeedback: true)
+        }
+
+        @objc private func systemDidRequestRefresh() {
+            beginRefresh(providesFeedback: true)
+        }
+
+        @objc private func accessibilityDidRequestRefresh() {
+            beginRefresh(providesFeedback: true)
+        }
+
+        private func beginRefresh(providesFeedback: Bool) {
+            guard refreshTask == nil, let scrollView else { return }
+
+            if providesFeedback {
+                feedbackGenerator.impactOccurred()
+            }
+
+            restingInsetTop = scrollView.contentInset.top
+            if !refreshControl.isRefreshing {
+                refreshControl.beginRefreshing()
+            }
+
+            // At the 80pt threshold the current offset already matches this new
+            // resting inset, so releasing the finger does not bounce content home.
+            scrollView.contentInset.top += PawPullToRefreshMetrics.triggerDistance
+
+            refreshTask = Task { @MainActor [weak self] in
+                guard let self else { return }
+                await action()
+                finishRefresh()
+            }
+        }
+
+        private func finishRefresh() {
+            guard let scrollView else {
+                refreshTask = nil
+                return
+            }
+
+            let targetInset = restingInsetTop ?? scrollView.contentInset.top
+            refreshControl.endRefreshing()
+            UIView.animate(
+                withDuration: 0.2,
+                animations: { scrollView.contentInset.top = targetInset },
+                completion: { [weak self] _ in
+                    self?.restingInsetTop = nil
+                    self?.refreshTask = nil
+                }
+            )
+        }
+    }
+}
+
+private final class PawRefreshControlProbe: UIView {
+    weak var coordinator: PawRefreshControlInstaller.Coordinator?
+
+    override func didMoveToSuperview() {
+        super.didMoveToSuperview()
+        installIfPossible()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        installIfPossible()
+    }
+
+    func installIfPossible() {
+        var ancestor = superview
+        while let view = ancestor {
+            if let scrollView = view as? UIScrollView {
+                coordinator?.install(in: scrollView)
+                return
+            }
+            ancestor = view.superview
+        }
+    }
 }
 
 /// Web 的媒体查询按**视口**宽度生效，不是容器宽度，所以断点判断统一读这个值。
@@ -35,6 +283,10 @@ private struct PawViewportHeightKey: EnvironmentKey {
     static let defaultValue: CGFloat = 852
 }
 
+private struct PawViewportBottomSafeAreaKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 34
+}
+
 extension EnvironmentValues {
     var pawViewportWidth: CGFloat {
         get { self[PawViewportWidthKey.self] }
@@ -45,11 +297,17 @@ extension EnvironmentValues {
         get { self[PawViewportHeightKey.self] }
         set { self[PawViewportHeightKey.self] = newValue }
     }
+
+    var pawViewportBottomSafeArea: CGFloat {
+        get { self[PawViewportBottomSafeAreaKey.self] }
+        set { self[PawViewportBottomSafeAreaKey.self] = newValue }
+    }
+
 }
 
 /// 全 App 唯一的分割线。厚度固定 0.5pt——用户定的统一口径，不随 `displayScale` 变。
 ///
-/// 不要再手写 `Rectangle().fill(PawTheme.ink10).frame(height: …)`：先前四个调用点写出了
+/// 不要再手写 `Rectangle().fill(Nvwa.ink10).frame(height: …)`：先前四个调用点写出了
 /// 两种厚度，标签栏是 0.5、其余是 1，深色下这点差别看得很清楚。
 struct PawDivider: View {
     /// 两端留白。列表行之间通常留出与行内容相同的横向内边距。
@@ -57,237 +315,12 @@ struct PawDivider: View {
 
     var body: some View {
         Rectangle()
-            .fill(PawTheme.ink10)
+            .fill(Nvwa.ink10)
             .frame(height: PawDivider.thickness)
             .padding(.horizontal, insets)
     }
 
     static let thickness: CGFloat = 0.5
-}
-
-/// Web `.card`：无边框无阴影，`--bg-2` 底加 `--radius-block` 圆角。
-struct PawBlock<Content: View>: View {
-    private let spacing: CGFloat
-    private let content: Content
-
-    init(spacing: CGFloat = PawLayout.blockSpacing, @ViewBuilder content: () -> Content) {
-        self.spacing = spacing
-        self.content = content()
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: spacing) {
-            content
-        }
-        .padding(PawLayout.blockPadding)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            PawTheme.bg2,
-            in: RoundedRectangle(cornerRadius: PawTheme.radiusBlock, style: .continuous)
-        )
-    }
-}
-
-/// Web `.field-label`：12/16，`--ink-40`。
-struct PawFieldLabel: View {
-    private let text: String
-
-    init(_ text: String) {
-        self.text = text
-    }
-
-    var body: some View {
-        Text(text)
-            .font(PawFont.inter(12))
-            .foregroundStyle(PawTheme.ink40)
-    }
-}
-
-/// Web `.input-shell`：`--ink-4` 底，`--radius-card` 圆角，默认 52 高。
-struct PawInputShell<Content: View>: View {
-    private let height: CGFloat
-    private let horizontalPadding: CGFloat
-    private let spacing: CGFloat
-    private let content: Content
-
-    init(
-        height: CGFloat = 52,
-        horizontalPadding: CGFloat = 16,
-        spacing: CGFloat = 8,
-        @ViewBuilder content: () -> Content
-    ) {
-        self.height = height
-        self.horizontalPadding = horizontalPadding
-        self.spacing = spacing
-        self.content = content()
-    }
-
-    var body: some View {
-        HStack(spacing: spacing) {
-            content
-        }
-        .padding(.horizontal, horizontalPadding)
-        .frame(height: height)
-        .background(
-            PawTheme.ink4,
-            in: RoundedRectangle(cornerRadius: PawTheme.radiusCard, style: .continuous)
-        )
-    }
-}
-
-/// Web `.quick-amounts`：五等分，36 高，选中时前景背景对调。
-struct PawQuickAmounts: View {
-    let amounts: [Double]
-    let selected: Double?
-    let title: (Double) -> String
-    let onSelect: (Double) -> Void
-
-    @Environment(\.pawViewportWidth) private var viewportWidth
-
-    var body: some View {
-        // `@media (max-width: 380px)` 把间距收到 4。
-        HStack(spacing: viewportWidth < 380 ? 4 : 8) {
-            ForEach(amounts, id: \.self) { amount in
-                let isSelected = selected == amount
-
-                Button {
-                    onSelect(amount)
-                } label: {
-                    Text(title(amount))
-                        .font(PawFont.inter(12))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 36)
-                        .foregroundStyle(isSelected ? PawTheme.bg1 : PawTheme.ink)
-                        .background(
-                            isSelected ? PawTheme.ink : PawTheme.ink4,
-                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        )
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
-            }
-        }
-    }
-}
-
-/// Web `input[type="range"]`：2pt 轨道，16pt 圆钮带 3pt 描边环。
-/// SwiftUI 的 `Slider` 无法做到这个外观，所以自绘。
-struct PawSlider: View {
-    @Binding var value: Double
-    let range: ClosedRange<Double>
-
-    private let trackHeight: CGFloat = 2
-    private let thumbDiameter: CGFloat = 16
-    private let thumbRing: CGFloat = 3
-
-    private var progress: Double {
-        let span = range.upperBound - range.lowerBound
-        guard span > 0 else { return 0 }
-        return ((value - range.lowerBound) / span).clamped(to: 0...1)
-    }
-
-    var body: some View {
-        GeometryReader { geometry in
-            let travel = max(geometry.size.width - thumbDiameter, 1)
-            let thumbX = thumbDiameter / 2 + travel * progress
-
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(PawTheme.ink10)
-                    .frame(height: trackHeight)
-
-                Capsule()
-                    .fill(PawTheme.ink)
-                    .frame(width: thumbX, height: trackHeight)
-
-                Circle()
-                    .fill(PawTheme.ink)
-                    .frame(width: thumbDiameter, height: thumbDiameter)
-                    .overlay(
-                        Circle()
-                            .strokeBorder(PawTheme.bg1, lineWidth: thumbRing)
-                    )
-                    .position(x: thumbX, y: geometry.size.height / 2)
-            }
-            .frame(height: geometry.size.height)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { gesture in
-                        let ratio = ((gesture.location.x - thumbDiameter / 2) / travel)
-                            .clamped(to: 0...1)
-                        value = range.lowerBound + ratio * (range.upperBound - range.lowerBound)
-                    }
-            )
-        }
-        .frame(height: thumbDiameter)
-    }
-}
-
-/// Web `.segmented`：`--ink-4` 槽，选中块用 `--segment-active`（即 `--ink-20`）。
-struct PawSegmented<Option: Hashable>: View {
-    let options: [Option]
-    let title: (Option) -> String
-    @Binding var selection: Option
-
-    /// 选中块在两个分段之间滑过去。`matchedGeometryEffect` 让它是同一个矩形在移动，
-    /// 而不是这边淡出、那边淡入——后者在只有两段时看着像闪了一下。
-    @Namespace private var thumb
-
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(options, id: \.self) { option in
-                let isSelected = selection == option
-
-                Button {
-                    withAnimation(PawMotion.selection) { selection = option }
-                } label: {
-                    Text(title(option))
-                        .font(PawFont.inter(14, weight: isSelected ? .semibold : .regular))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 36)
-                        .foregroundStyle(isSelected ? PawTheme.ink : PawTheme.ink40)
-                        .background {
-                            if isSelected {
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(PawTheme.ink20)
-                                    .matchedGeometryEffect(id: "thumb", in: thumb)
-                            }
-                        }
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
-            }
-        }
-        .padding(4)
-        .background(
-            PawTheme.ink4,
-            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-        )
-    }
-}
-
-/// Web `.calculate-btn`：满宽 40 高，`--ink` 底配 `--bg-1` 字。
-struct PawPrimaryButton: View {
-    let title: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(PawFont.inter(14, weight: .semibold))
-                .frame(maxWidth: .infinity)
-                .frame(height: 40)
-                .foregroundStyle(PawTheme.bg1)
-                .background(
-                    PawTheme.ink,
-                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                )
-        }
-        .buttonStyle(PawPressableButtonStyle())
-    }
 }
 
 /// Web 的 `:active { opacity: .7 }`。
@@ -304,144 +337,209 @@ struct PawPressableButtonStyle: ButtonStyle {
     }
 }
 
-/// Web `.metric`：`--ink-4` 底，标题 60% 不透明，副值 40%。
-///
-/// `@media (max-width: 767px)` 把内边距降到 `10px 12px`、主数字降到 20/28，
-/// 所有 iPhone 都在这个断点内，所以这里按紧凑值写死。389px 那条断点只管列数。
-struct PawMetricCard: View {
-    let title: String
-    let value: String
-    let secondary: String?
-
-    @Environment(\.pawViewportWidth) private var viewportWidth
-
-    /// 三档，按 CSS 里的层叠顺序：560 那条把字号压到 17，但 389 那条排在它后面，
-    /// 窄到塌成一列时又回到 20。
-    private var isSingleColumn: Bool { viewportWidth < 389 }
-    private var isCompact: Bool { viewportWidth < 560 }
-
-    private var valueFontSize: CGFloat {
-        if isSingleColumn { return 20 }
-        return isCompact ? 17 : 24
-    }
-
-    private var captionFontSize: CGFloat {
-        isCompact && !isSingleColumn ? 11 : 12
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(PawFont.inter(captionFontSize))
-                .foregroundStyle(PawTheme.ink.opacity(0.6))
-
-            Text(value)
-                .font(PawFont.inter(valueFontSize, weight: .semibold).monospacedDigit())
-                .foregroundStyle(PawTheme.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-
-            if let secondary {
-                Text(secondary)
-                    .font(PawFont.inter(captionFontSize).monospacedDigit())
-                    .foregroundStyle(PawTheme.ink.opacity(0.4))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 10)
-        .padding(.horizontal, isSingleColumn ? 12 : (isCompact ? 10 : 16))
-        .background(
-            PawTheme.ink4,
-            in: RoundedRectangle(cornerRadius: PawTheme.radiusCard, style: .continuous)
-        )
-        .accessibilityElement(children: .combine)
-    }
-}
-
-/// Web `.period-tabs`：区块标题右侧的小号周期切换。
-struct PawPeriodTabs<Option: Hashable>: View {
-    let options: [Option]
-    let title: (Option) -> String
-    @Binding var selection: Option
-
-    @Namespace private var thumb
-
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(options, id: \.self) { option in
-                let isSelected = selection == option
-
-                Button {
-                    withAnimation(PawMotion.selection) { selection = option }
-                } label: {
-                    Text(title(option))
-                        .font(PawFont.inter(12, weight: isSelected ? .semibold : .regular))
-                        .padding(.horizontal, 8)
-                        .frame(minWidth: 32)
-                        .frame(height: 28)
-                        .foregroundStyle(isSelected ? PawTheme.ink : PawTheme.ink40)
-                        .background {
-                            if isSelected {
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(PawTheme.ink20)
-                                    .matchedGeometryEffect(id: "thumb", in: thumb)
-                            }
-                        }
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
-            }
-        }
-        .padding(4)
-        .background(
-            PawTheme.ink4,
-            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-        )
-    }
-}
-
 extension Comparable {
     func clamped(to limits: ClosedRange<Self>) -> Self {
         min(max(self, limits.lowerBound), limits.upperBound)
     }
 }
 
+/// Shared adaptive sizing for every bottom dialog.
+///
+/// `PresentationDetent.height` excludes the bottom safe area, so the maximum
+/// content height subtracts it explicitly. The resulting sheet keeps at least
+/// 80 points clear above its top edge in the current window, including iPad
+/// multitasking and rotation, instead of reading the physical screen bounds.
+enum PawSheetSizing {
+    static let topClearance: CGFloat = 80
+    static let measurementTolerance: CGFloat = 1
+    static let initialHeight: CGFloat = 98
+    /// Gives the middle ScrollView a real first layout pass even when a sheet
+    /// has both the 66-point header and a fixed footer. This is only the
+    /// bootstrap detent; the first preference update resolves to the content's
+    /// actual natural height (and may shrink below it).
+    static let bootstrapHeight: CGFloat = 320
+
+    static func resolvedHeight(
+        idealHeight: CGFloat,
+        viewportHeight: CGFloat,
+        bottomSafeArea: CGFloat
+    ) -> CGFloat {
+        let maximum = max(
+            initialHeight,
+            viewportHeight - topClearance - bottomSafeArea
+        )
+        return min(max(idealHeight, initialHeight), maximum)
+    }
+}
+
+/// Each fixed section and the intrinsic content inside the middle ScrollView
+/// reports its own height. Summing those independent parts avoids the circular
+/// measurement that occurs when the already-constrained sheet root is measured.
+struct PawSheetHeightPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value += nextValue()
+    }
+}
+
+private struct PawSheetMeasuredPartModifier: ViewModifier {
+    let additionalHeight: CGFloat
+    @State private var measuredHeight: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            // A preference emitted from a GeometryReader living in a
+            // ScrollView background is pruned when that scroll view initially
+            // has no viewport. Persist the geometry value on the measured
+            // view itself, then emit the preference from that view's branch.
+            // `onGeometryChange` is back-deployed to iOS 16, so this remains
+            // valid for PawFolio's iOS 17 deployment target.
+            .onGeometryChange(for: CGFloat.self) { geometry in
+                geometry.size.height + additionalHeight
+            } action: { newHeight in
+                guard newHeight > 0,
+                      abs(newHeight - measuredHeight) > PawSheetSizing.measurementTolerance else {
+                    return
+                }
+                measuredHeight = newHeight
+            }
+            .preference(key: PawSheetHeightPreferenceKey.self, value: measuredHeight)
+    }
+}
+
+private struct PawSheetHeightContribution: View {
+    let height: CGFloat
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .preference(key: PawSheetHeightPreferenceKey.self, value: height)
+    }
+}
+
+private struct PawSheetPresentationModifier: ViewModifier {
+    @Environment(\.pawViewportHeight) private var viewportHeight
+    @Environment(\.pawViewportBottomSafeArea) private var bottomSafeArea
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var idealHeight = PawSheetSizing.bootstrapHeight
+
+    private var resolvedHeight: CGFloat {
+        PawSheetSizing.resolvedHeight(
+            idealHeight: idealHeight,
+            viewportHeight: viewportHeight,
+            bottomSafeArea: bottomSafeArea
+        )
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .onPreferenceChange(PawSheetHeightPreferenceKey.self) { measuredHeight in
+                guard measuredHeight > 0,
+                      abs(measuredHeight - idealHeight) > PawSheetSizing.measurementTolerance else {
+                    return
+                }
+                withAnimation(reduceMotion ? nil : .snappy) {
+                    idealHeight = measuredHeight
+                }
+            }
+            .presentationDetents([.height(resolvedHeight)])
+            .presentationContentInteraction(.scrolls)
+    }
+}
+
+extension View {
+    /// Marks a fixed section or an unconstrained ScrollView child as part of the
+    /// sheet's natural height. Padding must be applied before this modifier when
+    /// that padding should contribute to the measured height.
+    func pawSheetMeasuredPart(additionalHeight: CGFloat = 0) -> some View {
+        modifier(PawSheetMeasuredPartModifier(additionalHeight: additionalHeight))
+    }
+
+    /// Adds spacing owned by a container rather than any one measurable child.
+    func pawSheetHeightContribution(_ height: CGFloat) -> some View {
+        background(PawSheetHeightContribution(height: height))
+    }
+
+    /// Applies the one shared content-driven detent. The sheet grows with its
+    /// measured sections, caps at an 80-point top clearance and then leaves
+    /// overflow to its middle ScrollView.
+    func pawSheetPresentation() -> some View {
+        modifier(PawSheetPresentationModifier())
+    }
+}
+
+/// Figma `154:12605` 的成功反馈：当前操作 Sheet 原地切换成这张短 Sheet，
+/// 由用户沿用顶部抓手下拉关闭。勾选图形直接复用 Nvwa `2029:9063` 的 Tick，
+/// 不在业务层重画或替换成系统图标。
+struct PawSuccessSheet: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            Capsule()
+                .fill(Nvwa.backgroundVessel)
+                .frame(width: 40, height: 4)
+                .padding(.vertical, 6)
+                .pawSheetMeasuredPart()
+
+            VStack(spacing: 16) {
+                NvwaKeyFeatureIcon(.tick)
+                    .accessibilityHidden(true)
+
+                // 产品稿的源文案就是这个拼法；先严格跟稿，不在业务页各写一份。
+                Text("Succesful")
+                    .nvwaTextStyle(Nvwa.Typography.bodyMedium)
+                    .foregroundStyle(Nvwa.ink)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(16)
+            .pawSheetMeasuredPart()
+        }
+        .background(Nvwa.backgroundDialogue)
+        .pawSheetPresentation()
+        .presentationDragIndicator(.hidden)
+        .presentationCornerRadius(16)
+        .presentationBackground(Nvwa.backgroundDialogue)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Successful")
+    }
+}
+
 /// Web `.sheet-panel`：顶部抓手、居中标题、右上关闭，左上角放破坏性操作，底部可选操作区。
 ///
-/// 高度自适应内容：内容装得下就只占那么高，装不下才滚动。
+/// Height follows Header + intrinsic Content + Footer until the shared maximum;
+/// overflow then stays inside this scroll view.
 struct PawSheet<Content: View, Footer: View>: View {
-    private let title: String
+    private let title: LocalizedStringKey
     private let content: Content
     private let footer: Footer
+    private let showsCloseButton: Bool
     /// Web `.sheet-delete-btn`：左上角、`--loss` 色的破坏性操作。
     private let destructiveIcon: String?
     private let destructiveLabel: String?
     private let onDestructive: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.pawViewportHeight) private var viewportHeight
-    @State private var contentHeight: CGFloat = 0
-
-    /// 抓手 20 + 标题栏 48；有底部操作区时再加它的 73（1 发丝线 + 12 + 40 按钮 + 20）。
-    private var chromeHeight: CGFloat {
-        68 + (Footer.self == EmptyView.self ? 0 : 73)
-    }
-
-    /// 弹层只有一个高度：内容需要多少就多少，超过屏幕能给的就封顶、内容区自己滚。
-    ///
-    /// 上限直接用 `viewportHeight`，**不要**再减 92：那个 92 是 Web 相对 `100dvh`
-    /// 留的，而这里拿到的已经是安全区**以内**的高度（状态栏 + Home 指示器合计也差不多
-    /// 就是 92），再减一次会白丢近 100pt，表现就是弹层底部内容被压在按钮下面。
-    private var detentHeight: CGFloat {
-        let maximum = max(viewportHeight, 320)
-        guard contentHeight > 0 else { return maximum }
-        return min(contentHeight + chromeHeight, maximum)
+    init(
+        title: String,
+        showsCloseButton: Bool = true,
+        destructiveIcon: String? = nil,
+        destructiveLabel: String? = nil,
+        onDestructive: (() -> Void)? = nil,
+        @ViewBuilder content: () -> Content,
+        @ViewBuilder footer: () -> Footer
+    ) {
+        self.title = LocalizedStringKey(title)
+        self.showsCloseButton = showsCloseButton
+        self.destructiveIcon = destructiveIcon
+        self.destructiveLabel = destructiveLabel
+        self.onDestructive = onDestructive
+        self.content = content()
+        self.footer = footer()
     }
 
     init(
-        title: String,
+        localizedTitle title: LocalizedStringKey,
+        showsCloseButton: Bool = true,
         destructiveIcon: String? = nil,
         destructiveLabel: String? = nil,
         onDestructive: (() -> Void)? = nil,
@@ -449,6 +547,7 @@ struct PawSheet<Content: View, Footer: View>: View {
         @ViewBuilder footer: () -> Footer
     ) {
         self.title = title
+        self.showsCloseButton = showsCloseButton
         self.destructiveIcon = destructiveIcon
         self.destructiveLabel = destructiveLabel
         self.onDestructive = onDestructive
@@ -459,15 +558,15 @@ struct PawSheet<Content: View, Footer: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             Capsule()
-                .fill(PawTheme.ink10)
-                .frame(width: 36, height: 4)
-                .padding(.top, 10)
+                .fill(Nvwa.ink10)
+                .frame(width: 40, height: 4)
+                .padding(.top, 6)
                 .padding(.bottom, 6)
 
             ZStack {
                 Text(title)
-                    .font(PawFont.inter(17, weight: .semibold))
-                    .foregroundStyle(PawTheme.ink)
+                    .nvwaTextStyle(Nvwa.Typography.titleBody, linesFillLineHeight: false)
+                    .foregroundStyle(Nvwa.ink)
 
                 HStack {
                     if let destructiveIcon, let onDestructive {
@@ -477,63 +576,64 @@ struct PawSheet<Content: View, Footer: View>: View {
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: 20, height: 20)
-                                .foregroundStyle(PawTheme.loss)
+                                .foregroundStyle(Nvwa.destructive)
                                 .frame(width: 32, height: 32)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(PawPressableButtonStyle())
-                        .accessibilityLabel(destructiveLabel ?? "删除")
+                        .accessibilityLabel(destructiveLabel ?? "Delete")
                     }
 
                     Spacer()
 
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image("IconClose")
-                            .renderingMode(.template)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 20, height: 20)
-                            .foregroundStyle(PawTheme.ink)
-                            .frame(width: 32, height: 32)
-                            .contentShape(Rectangle())
+                    if showsCloseButton {
+                        Button {
+                            dismiss()
+                        } label: {
+                            Image("IconClose")
+                                .renderingMode(.template)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(Nvwa.ink)
+                                .frame(width: 32, height: 32)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(PawPressableButtonStyle())
+                        .accessibilityLabel(Text("Close") + Text(" ") + Text(title))
+                    } else if destructiveIcon != nil {
+                        Color.clear.frame(width: 32, height: 32)
                     }
-                    .buttonStyle(PawPressableButtonStyle())
-                    .accessibilityLabel("关闭\(title)")
                 }
             }
-            .frame(height: 48)
-            .padding(.horizontal, 20)
+            .frame(height: 50)
+            .padding(.horizontal, 15)
+            .pawSheetMeasuredPart(additionalHeight: 16)
 
             ScrollView {
                 content
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-                    .padding(.bottom, 20)
-                    .background {
-                        // 量一次内容高度，交给 presentationDetents 决定弹层多高。
-                        GeometryReader { geometry in
-                            Color.clear.preference(
-                                key: PawSheetContentHeightKey.self,
-                                value: geometry.size.height
-                            )
-                        }
-                    }
+                    .padding(16)
+                    // The initial detent can be completely consumed by the
+                    // header and footer. Without an intrinsic vertical size,
+                    // ScrollView then proposes zero height to a long form and
+                    // its preference never reports the hidden content. The
+                    // sheet remains permanently collapsed at header + footer.
+                    // Keep the measured copy width-constrained for wrapping,
+                    // but let it claim its full natural height vertically.
+                    .fixedSize(horizontal: false, vertical: true)
+                    .pawSheetMeasuredPart()
             }
-            // 内容不够高时不要留出滚动空间，弹层就贴着内容收住。
             .scrollBounceBehavior(.basedOnSize)
 
             footerArea
+                .pawSheetMeasuredPart()
         }
-        .background(PawTheme.bg1)
-        .onPreferenceChange(PawSheetContentHeightKey.self) { contentHeight = $0 }
-        // 只给一个 detent：不要「默认收起、上滑变全屏」那种两段式。
-        .presentationDetents([.height(detentHeight)])
+        .background(Nvwa.backgroundDialogue)
+        .pawSheetPresentation()
         .presentationDragIndicator(.hidden)
-        .presentationCornerRadius(26)
-        .presentationBackground(PawTheme.bg1)
+        .presentationCornerRadius(16)
+        .presentationBackground(Nvwa.backgroundDialogue)
         // 弹层盖在主界面之上，主界面那个 toast 出口被挡住了，这里要自己挂一个。
         .pawToast()
     }
@@ -542,27 +642,18 @@ struct PawSheet<Content: View, Footer: View>: View {
     private var footerArea: some View {
         if Footer.self != EmptyView.self {
             VStack(spacing: 0) {
-                PawDivider()
-
                 footer
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-                    .padding(.bottom, 20)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
             }
         }
-    }
-}
-
-private struct PawSheetContentHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
     }
 }
 
 extension PawSheet where Footer == EmptyView {
     init(
         title: String,
+        showsCloseButton: Bool = true,
         destructiveIcon: String? = nil,
         destructiveLabel: String? = nil,
         onDestructive: (() -> Void)? = nil,
@@ -570,6 +661,7 @@ extension PawSheet where Footer == EmptyView {
     ) {
         self.init(
             title: title,
+            showsCloseButton: showsCloseButton,
             destructiveIcon: destructiveIcon,
             destructiveLabel: destructiveLabel,
             onDestructive: onDestructive,
@@ -603,16 +695,17 @@ struct PawAssetLogo: View {
             } else {
                 Text(fallbackText)
                     .font(PawFont.inter(fallbackFontSize, weight: .bold))
-                    .foregroundStyle(PawTheme.ink)
+                    .foregroundStyle(Nvwa.ink)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(PawTheme.ink10)
+                    .background(Nvwa.ink10)
             }
         }
         .frame(width: diameter, height: diameter)
         .clipShape(Circle())
-        .task(id: quoteSymbol) {
-            image = store.cachedImage(for: quoteSymbol)
-            guard image == nil, !store.isUnavailable(quoteSymbol) else { return }
+        .task(id: "\(assetType.rawValue)|\(quoteSymbol)") {
+            image = store.cachedImage(for: quoteSymbol, assetType: assetType)
+            guard image == nil,
+                  !store.isUnavailable(quoteSymbol, assetType: assetType) else { return }
             image = await store.image(
                 quoteSymbol: quoteSymbol,
                 assetType: assetType,
@@ -625,135 +718,3 @@ struct PawAssetLogo: View {
 
 // 表单字段件。原本是 `HoldingEditorView` 的私有方法，分红记录弹层要用同一套，
 // 提到这里共用。对应 Web 的 `.field` / `.input-shell` / `.money-input`。
-
-/// Web `.field`：标签、控件、可选的一行说明。
-struct PawEditorField<Content: View>: View {
-    private let label: String
-    private let hint: String?
-    private let content: Content
-
-    init(_ label: String, hint: String? = nil, @ViewBuilder content: () -> Content) {
-        self.label = label
-        self.hint = hint
-        self.content = content()
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            PawFieldLabel(label)
-
-            // 说明贴着控件走，用嵌套的 4pt 间距而不是负 padding——
-            // 负 padding 会让外层少算高度。
-            VStack(alignment: .leading, spacing: 4) {
-                content
-                if let hint {
-                    Text(hint)
-                        .font(PawFont.inter(12))
-                        .foregroundStyle(PawTheme.ink40)
-                }
-            }
-        }
-    }
-}
-
-/// Web `.input-shell` 里放一个文本框。
-struct PawTextFieldShell: View {
-    let placeholder: String
-    @Binding var text: String
-    var keyboard: UIKeyboardType = .decimalPad
-    var isDisabled = false
-    var isCompact = false
-    /// `.money-input`：前面挂一个 `$`。
-    var showsCurrencyPrefix = false
-    /// 传了就在右侧挂一枚清除按钮。由调用方决定什么时候有值——空输入时传 nil，
-    /// 按钮就不出现。
-    var onClear: (() -> Void)?
-
-    var body: some View {
-        PawInputShell(horizontalPadding: isCompact ? 12 : 16) {
-            if showsCurrencyPrefix {
-                Text("$")
-                    .font(PawFont.inter(16, weight: .medium))
-                    .foregroundStyle(PawTheme.ink40)
-            }
-
-            TextField(placeholder, text: $text)
-                .keyboardType(keyboard)
-                .font(PawFont.inter(16, weight: .medium).monospacedDigit())
-                .foregroundStyle(isDisabled ? PawTheme.ink40 : PawTheme.ink)
-                .disabled(isDisabled)
-
-            if let onClear {
-                Button(action: onClear) {
-                    Image("IconClose")
-                        .renderingMode(.template)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 16, height: 16)
-                        .foregroundStyle(PawTheme.ink40)
-                        // 图标 16 太小点不准，撑出 44 的热区但不占版面。
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .padding(.trailing, -14)
-                .transition(.opacity)
-                .accessibilityLabel("清除")
-            }
-        }
-        .animation(PawMotion.selection, value: onClear == nil)
-    }
-}
-
-/// Web 的日期字段：同样的壳子里放一个紧凑日期选择器。
-struct PawDateFieldShell: View {
-    @Binding var selection: Date
-    var minimumDate: Date?
-
-    var body: some View {
-        PawInputShell(horizontalPadding: 12) {
-            Group {
-                if let minimumDate {
-                    DatePicker(
-                        "", selection: $selection,
-                        in: minimumDate...Date.distantFuture,
-                        displayedComponents: .date
-                    )
-                } else {
-                    DatePicker("", selection: $selection, displayedComponents: .date)
-                }
-            }
-            .labelsHidden()
-            .datePickerStyle(.compact)
-            .tint(PawTheme.ink)
-
-            Spacer(minLength: 0)
-        }
-    }
-}
-
-/// Web 的开关行：左边说明，右边一个原生开关（Web 那边是 checkbox，移动端原生开关更顺手）。
-struct PawToggleRow: View {
-    let title: String
-    @Binding var isOn: Bool
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Text(title)
-                .font(PawFont.inter(14))
-                .foregroundStyle(PawTheme.ink)
-
-            Spacer(minLength: 0)
-
-            Toggle("", isOn: $isOn)
-                .labelsHidden()
-                .tint(PawTheme.ink)
-        }
-        .padding(.horizontal, 16)
-        .frame(minHeight: 52)
-        .background(
-            PawTheme.ink4,
-            in: RoundedRectangle(cornerRadius: PawTheme.radiusCard, style: .continuous)
-        )
-    }
-}

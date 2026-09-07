@@ -3,6 +3,121 @@ import XCTest
 
 @MainActor
 final class AccountViewModelTests: XCTestCase {
+    func testLoginPresentationOnlyShowsWelcomeAfterIdentityExists() {
+        XCTAssertEqual(
+            LoginPresentationPhase(state: .signingIn(.google), isSignedIn: false),
+            .authenticating
+        )
+        XCTAssertEqual(
+            LoginPresentationPhase(state: .signingIn(.google), isSignedIn: true),
+            .loadingAccount
+        )
+        XCTAssertEqual(
+            LoginPresentationPhase(state: .syncing, isSignedIn: true),
+            .loadingAccount
+        )
+    }
+
+    func testLoginPresentationKeepsSessionRestoreTextFreeUntilIdentityExists() {
+        XCTAssertEqual(
+            LoginPresentationPhase(state: .restoringSession, isSignedIn: false),
+            .authenticating
+        )
+        XCTAssertEqual(
+            LoginPresentationPhase(state: .signedOut, isSignedIn: false),
+            .idle
+        )
+        XCTAssertEqual(
+            LoginPresentationPhase(
+                state: .failed(message: "Login failed."),
+                isSignedIn: false
+            ),
+            .idle
+        )
+    }
+
+    func testSignInBuildsIdentityAndSwitchesToAccountScope() async throws {
+        let userID = "account-1"
+        let signedInSession = session(
+            userID: userID,
+            displayName: "Cloud Cat",
+            provider: .google
+        )
+        let authentication = AccountAuthenticationFake(
+            session: nil,
+            signInBehavior: .succeed(signedInSession)
+        )
+        let model = makeModel(
+            authentication: authentication,
+            local: AccountMemoryHoldingRepository(),
+            sync: AccountSyncFake(outcomes: [
+                outcome(userID: userID, holdings: [holding(id: "account-holding")])
+            ]),
+            decisions: AccountMemoryDecisionStore()
+        )
+
+        await model.loadIfNeeded()
+        XCTAssertEqual(model.state, .signedOut)
+
+        await model.signIn(using: .google)
+
+        XCTAssertEqual(model.session, signedInSession)
+        XCTAssertEqual(model.activeScope, .account(userID: userID))
+        XCTAssertEqual(model.state, .synchronized(holdingCount: 1))
+        XCTAssertTrue(model.isSignedIn)
+        XCTAssertEqual(
+            model.identity,
+            AccountIdentityPresentation(
+                displayName: "Cloud Cat",
+                maskedAccount: "ca••••@example.com",
+                providerName: "Google",
+                avatar: .faceHappy
+            )
+        )
+    }
+
+    func testSignInFailureKeepsSignedOutPresentationAndGuestScope() async throws {
+        let authentication = AccountAuthenticationFake(
+            session: nil,
+            signInBehavior: .fail(.signInFailed)
+        )
+        let model = makeModel(
+            authentication: authentication,
+            local: AccountMemoryHoldingRepository(),
+            sync: AccountSyncFake(outcomes: []),
+            decisions: AccountMemoryDecisionStore()
+        )
+
+        await model.loadIfNeeded()
+        await model.signIn(using: .google)
+
+        XCTAssertEqual(model.state, .failed(message: "Login failed."))
+        XCTAssertNil(model.session)
+        XCTAssertNil(model.identity)
+        XCTAssertFalse(model.isSignedIn)
+        XCTAssertEqual(model.activeScope, .guest)
+    }
+
+    func testCancelledOAuthUsesTheAccountCancellationMessage() async throws {
+        let authentication = AccountAuthenticationFake(
+            session: nil,
+            signInBehavior: .oauthCancelled
+        )
+        let model = makeModel(
+            authentication: authentication,
+            local: AccountMemoryHoldingRepository(),
+            sync: AccountSyncFake(outcomes: []),
+            decisions: AccountMemoryDecisionStore()
+        )
+
+        await model.loadIfNeeded()
+        await model.signIn(using: .google)
+
+        XCTAssertEqual(model.state, .failed(message: "登录已取消。"))
+        XCTAssertNil(model.identity)
+        XCTAssertEqual(model.activeScope, .guest)
+    }
+
     func testRestoredSessionWithGuestHoldingsRequiresExplicitChoiceBeforeSync() async throws {
         let userID = "account-1"
         let authentication = AccountAuthenticationFake(session: session(userID: userID))
@@ -19,9 +134,53 @@ final class AccountViewModelTests: XCTestCase {
         await model.loadIfNeeded()
 
         XCTAssertEqual(model.state, .guestImportRequired(count: 1))
-        XCTAssertEqual(model.activeScope, .account(userID: userID))
+        XCTAssertEqual(model.activeScope, .guest)
         let policies = await sync.receivedPolicies()
         XCTAssertTrue(policies.isEmpty)
+    }
+
+    func testLedgerOnlyGuestDataRequiresExplicitChoiceBeforeSync() async throws {
+        let userID = "account-1"
+        let sync = AccountSyncFake(outcomes: [outcome(userID: userID)])
+        let ledgerImporter = AccountLedgerGuestImportFake(guestAssetCount: 2)
+        let model = makeModel(
+            authentication: AccountAuthenticationFake(session: session(userID: userID)),
+            local: AccountMemoryHoldingRepository(),
+            sync: sync,
+            decisions: AccountMemoryDecisionStore(),
+            ledgerImporter: ledgerImporter
+        )
+
+        await model.loadIfNeeded()
+
+        XCTAssertEqual(model.state, .guestImportRequired(count: 2))
+        XCTAssertEqual(model.activeScope, .guest)
+        let policies = await sync.receivedPolicies()
+        XCTAssertTrue(policies.isEmpty)
+    }
+
+    func testCopyDecisionImportsLedgerBeforeSwitchingScope() async throws {
+        let userID = "account-1"
+        let guest = holding(id: "guest")
+        let account = holding(id: "account")
+        let ledgerImporter = AccountLedgerGuestImportFake(guestAssetCount: 1)
+        let model = makeModel(
+            authentication: AccountAuthenticationFake(session: session(userID: userID)),
+            local: AccountMemoryHoldingRepository(records: [.guest: [guest]]),
+            sync: AccountSyncFake(outcomes: [outcome(userID: userID, holdings: [guest, account])]),
+            decisions: AccountMemoryDecisionStore(),
+            ledgerImporter: ledgerImporter
+        )
+
+        await model.loadIfNeeded()
+        await model.chooseGuestImport(.copyIntoAccount)
+
+        XCTAssertEqual(model.activeScope, .account(userID: userID))
+        let calls = await ledgerImporter.copyCalls()
+        XCTAssertEqual(calls.count, 1)
+        XCTAssertEqual(calls[0].userID, userID)
+        XCTAssertEqual(Set(calls[0].guestHoldings.map(\.id)), ["guest"])
+        XCTAssertEqual(Set(calls[0].accountHoldings.map(\.id)), ["guest", "account"])
     }
 
     func testCopyDecisionRunsOnceAndRetryDoesNotRecopyGuestData() async throws {
@@ -272,7 +431,8 @@ final class AccountViewModelTests: XCTestCase {
         sync: AccountSyncFake,
         decisions: AccountMemoryDecisionStore,
         profiles: AccountMemoryProfileStore = AccountMemoryProfileStore(),
-        profileSync: AccountProfileSyncFake? = nil
+        profileSync: AccountProfileSyncFake? = nil,
+        ledgerImporter: AccountLedgerGuestImportFake? = nil
     ) -> AccountViewModel {
         AccountViewModel(
             authentication: authentication,
@@ -281,16 +441,21 @@ final class AccountViewModelTests: XCTestCase {
             decisionStore: decisions,
             profileStore: profiles,
             profileSyncCoordinator: profileSync,
+            ledgerGuestImporter: ledgerImporter,
             nowMilliseconds: { 500 }
         )
     }
 
-    private func session(userID: String, displayName: String? = nil) -> AuthenticatedSession {
+    private func session(
+        userID: String,
+        displayName: String? = nil,
+        provider: AuthenticationProvider = .apple
+    ) -> AuthenticatedSession {
         AuthenticatedSession(
             userID: userID,
             email: "cat@example.com",
             displayName: displayName,
-            provider: .apple,
+            provider: provider,
             expiresAtMilliseconds: 1_000
         )
     }
@@ -321,12 +486,116 @@ final class AccountViewModelTests: XCTestCase {
     }
 }
 
+@MainActor
+final class LanguagePreferenceStoreTests: XCTestCase {
+    private var suiteName = ""
+    private var defaults: UserDefaults!
+
+    override func setUp() {
+        super.setUp()
+        suiteName = "pawfolio.tests.language.\(UUID().uuidString)"
+        defaults = UserDefaults(suiteName: suiteName)
+    }
+
+    override func tearDown() {
+        defaults.removePersistentDomain(forName: suiteName)
+        defaults = nil
+        super.tearDown()
+    }
+
+    func testDefaultsToEnglish() {
+        let store = LanguagePreferenceStore(defaults: defaults)
+
+        XCTAssertEqual(store.selected, .english)
+        XCTAssertEqual(store.selected.localeIdentifier, "en")
+    }
+
+    func testRestoresLegacyChinesePreference() {
+        defaults.set("zh", forKey: "pawfolio.language")
+
+        let store = LanguagePreferenceStore(defaults: defaults)
+
+        XCTAssertEqual(store.selected, .chinese)
+        XCTAssertEqual(store.selected.localeIdentifier, "zh-Hans")
+    }
+
+    func testSelectionPersistsImmediately() {
+        let store = LanguagePreferenceStore(defaults: defaults)
+
+        store.selected = .chinese
+
+        XCTAssertEqual(defaults.string(forKey: "pawfolio.language"), "zh")
+        XCTAssertEqual(LanguagePreferenceStore(defaults: defaults).selected, .chinese)
+    }
+}
+
+final class LocalizationResourceTests: XCTestCase {
+    func testProfessionalSimplifiedChineseStringsAreBundled() throws {
+        let path = try XCTUnwrap(Bundle.main.path(forResource: "zh-Hans", ofType: "lproj"))
+        let bundle = try XCTUnwrap(Bundle(path: path))
+
+        XCTAssertEqual(bundle.localizedString(forKey: "tab.currency", value: nil, table: nil), "汇率")
+        XCTAssertEqual(bundle.localizedString(forKey: "Subscribe", value: nil, table: nil), "申购")
+        XCTAssertEqual(bundle.localizedString(forKey: "Reverse transaction", value: nil, table: nil), "冲正交易")
+        XCTAssertEqual(bundle.localizedString(forKey: "PNL", value: nil, table: nil), "盈亏")
+
+        let buyFormat = bundle.localizedString(forKey: "Buy %@", value: nil, table: nil)
+        XCTAssertEqual(String(format: buyFormat, locale: Locale(identifier: "zh-Hans"), "BTC"), "买入 BTC")
+    }
+}
+
+private actor AccountLedgerGuestImportFake: LedgerGuestImporting {
+    struct CopyCall: Sendable {
+        let userID: String
+        let guestHoldings: [Holding]
+        let accountHoldings: [Holding]
+    }
+
+    private let count: Int
+    private var calls: [CopyCall] = []
+
+    init(guestAssetCount: Int) {
+        count = guestAssetCount
+    }
+
+    func guestAssetCount(guestHoldings: [Holding], openingAt: Date) async throws -> Int {
+        count
+    }
+
+    func copyGuestLedgerIntoAccount(
+        userID: String,
+        guestHoldings: [Holding],
+        accountHoldings: [Holding],
+        openingAt: Date
+    ) async throws {
+        calls.append(CopyCall(
+            userID: userID,
+            guestHoldings: guestHoldings,
+            accountHoldings: accountHoldings
+        ))
+    }
+
+    func copyCalls() -> [CopyCall] { calls }
+}
+
+private enum AccountAuthenticationSignInBehavior: Sendable {
+    case currentSession
+    case succeed(AuthenticatedSession)
+    case fail(AccountTestError)
+    case oauthCancelled
+}
+
 private actor AccountAuthenticationFake: AuthenticationSessionServing {
     private var session: AuthenticatedSession?
     private var currentSessionCalls = 0
+    private let signInBehavior: AccountAuthenticationSignInBehavior
 
-    init(session: AuthenticatedSession?) {
+    init(
+        session: AuthenticatedSession?,
+        signInBehavior: AccountAuthenticationSignInBehavior = .currentSession
+    ) {
         self.session = session
+        self.signInBehavior = signInBehavior
     }
 
     func currentSession() async throws -> AuthenticatedSession? {
@@ -339,8 +608,18 @@ private actor AccountAuthenticationFake: AuthenticationSessionServing {
     }
 
     func signIn(using provider: AuthenticationProvider) async throws -> AuthenticatedSession {
-        guard let session else { throw AccountTestError.missingSession }
-        return session
+        switch signInBehavior {
+        case .currentSession:
+            guard let session else { throw AccountTestError.missingSession }
+            return session
+        case .succeed(let signedInSession):
+            session = signedInSession
+            return signedInSession
+        case .fail(let error):
+            throw error
+        case .oauthCancelled:
+            throw SupabaseServiceError.oauthCancelled
+        }
     }
 
     func signOut() async throws {
@@ -445,15 +724,18 @@ private actor AccountProfileSyncFake: ProfileSyncCoordinating {
     }
 }
 
-private enum AccountTestError: LocalizedError {
+private enum AccountTestError: LocalizedError, Sendable {
     case missingSession
     case missingOutcome
     case profileOffline
+    case signInFailed
 
     var errorDescription: String? {
         switch self {
         case .profileOffline:
             "个人资料网络暂不可用。"
+        case .signInFailed:
+            "Login failed."
         case .missingSession, .missingOutcome:
             nil
         }

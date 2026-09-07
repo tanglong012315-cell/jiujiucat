@@ -1,4 +1,28 @@
 import Foundation
+import os
+
+/// 并发拉取的单个结果。
+///
+/// 这两个类型存在的唯一原因是**绕开一个编译器 bug**：`withTaskGroup(of:)` 的子任务
+/// 结果类型如果是元组（这里原本是 `(String, MarketQuote?)`），**开了优化的构建会在
+/// 任务组收结果时崩溃** —— `swift::AsyncTask::completeFuture` 里 `__cxa_pure_virtual`，
+/// SIGABRT，崩溃报告里一帧应用代码都没有。
+///
+/// 2026-09-02 在 Xcode 17F113 / iOS 26.5.2 上量到：同一份代码只改结果类型，
+/// 元组版模拟器上 10 次崩 8 次，换成下面这种具名结构体 10 次一次都不崩。
+/// `-Onone` 不会崩，`-O` 和 `-Osize` 都会，真机和模拟器都能复现。
+///
+/// **所以：这个仓库里的 `withTaskGroup` 一律不要用元组做结果类型。**
+struct MarketQuoteFetchResult: Sendable {
+    let symbol: String
+    let quote: MarketQuote?
+}
+
+/// 同上，一年日线的并发结果。见 `MarketQuoteFetchResult` 的说明。
+struct MarketHistoryFetchResult: Sendable {
+    let symbol: String
+    let history: MarketPriceHistory?
+}
 
 protocol MarketQuoteRepositoryServing: Sendable {
     func cachedQuotes(for symbols: Set<String>) async -> [String: MarketQuote]
@@ -21,6 +45,16 @@ actor CachedMarketQuoteRepository: MarketQuoteRepositoryServing {
         let version: Int
         let histories: [String: MarketPriceHistory]
     }
+
+    /// 缓存写盘失败的次数。**不为零就说明本地缓存已经形同虚设**：磁盘满、数据保护
+    /// 未解锁、或者路径被占，都会让写入一直失败，表现是每次启动都要重新联网、离线时
+    /// 一片空白。原来这里是 `try?`，出了这种事完全查不到。
+    private(set) var cacheWriteFailureCount = 0
+
+    private static let log = Logger(
+        subsystem: "com.jiujiucat.pawfolio",
+        category: "market-cache"
+    )
 
     private let client: any MarketDataServing
     private let fileURL: URL
@@ -55,22 +89,25 @@ actor CachedMarketQuoteRepository: MarketQuoteRepositoryServing {
         var fetched: [String: MarketQuote] = [:]
         var failed: Set<String> = []
 
-        await withTaskGroup(of: (String, MarketQuote?).self) { group in
+        await withTaskGroup(of: MarketQuoteFetchResult.self) { group in
             for symbol in normalizedSymbols {
                 group.addTask { [client] in
                     do {
-                        return (symbol, try await client.quote(symbol: symbol))
+                        return MarketQuoteFetchResult(
+                            symbol: symbol,
+                            quote: try await client.quote(symbol: symbol)
+                        )
                     } catch {
-                        return (symbol, nil)
+                        return MarketQuoteFetchResult(symbol: symbol, quote: nil)
                     }
                 }
             }
 
-            for await (symbol, quote) in group {
-                if let quote {
-                    fetched[symbol] = quote
+            for await result in group {
+                if let quote = result.quote {
+                    fetched[result.symbol] = quote
                 } else {
-                    failed.insert(symbol)
+                    failed.insert(result.symbol)
                 }
             }
         }
@@ -78,7 +115,8 @@ actor CachedMarketQuoteRepository: MarketQuoteRepositoryServing {
         if !fetched.isEmpty {
             var updatedCache = cached
             fetched.forEach { updatedCache[$0.key] = $0.value }
-            try? saveCache(updatedCache)
+            // 写不进去不影响本次结果——报价已经在手里了——但要留下痕迹。
+            record { try saveCache(updatedCache) }
         }
 
         // 拿不到新价时一律回退到本地缓存，**不再按 12 小时把旧价丢掉**。
@@ -128,22 +166,25 @@ actor CachedMarketQuoteRepository: MarketQuoteRepositoryServing {
         var fetched: [String: MarketPriceHistory] = [:]
         var failed: Set<String> = []
 
-        await withTaskGroup(of: (String, MarketPriceHistory?).self) { group in
+        await withTaskGroup(of: MarketHistoryFetchResult.self) { group in
             for symbol in targets {
                 group.addTask { [client] in
                     do {
-                        return (symbol, try await client.oneYearHistory(symbol: symbol))
+                        return MarketHistoryFetchResult(
+                            symbol: symbol,
+                            history: try await client.oneYearHistory(symbol: symbol)
+                        )
                     } catch {
-                        return (symbol, nil)
+                        return MarketHistoryFetchResult(symbol: symbol, history: nil)
                     }
                 }
             }
 
-            for await (symbol, history) in group {
-                if let history {
-                    fetched[symbol] = history
+            for await result in group {
+                if let history = result.history {
+                    fetched[result.symbol] = history
                 } else {
-                    failed.insert(symbol)
+                    failed.insert(result.symbol)
                 }
             }
         }
@@ -151,7 +192,7 @@ actor CachedMarketQuoteRepository: MarketQuoteRepositoryServing {
         if !fetched.isEmpty {
             var updatedCache = cache
             fetched.forEach { updatedCache[$0.key] = $0.value }
-            try? saveHistoryCache(updatedCache)
+            record { try saveHistoryCache(updatedCache) }
         }
 
         var resolved = freshCache
@@ -170,6 +211,19 @@ actor CachedMarketQuoteRepository: MarketQuoteRepositoryServing {
             return [:]
         }
         return envelope.quotes
+    }
+
+    /// 缓存写入是「尽力而为」：失败不往上抛，但要计数并落日志，别像 `try?` 那样
+    /// 悄无声息。
+    private func record(_ write: () throws -> Void) {
+        do {
+            try write()
+        } catch {
+            cacheWriteFailureCount += 1
+            Self.log.error(
+                "行情缓存写盘失败（第 \(self.cacheWriteFailureCount, privacy: .public) 次）：\(error.localizedDescription, privacy: .public)"
+            )
+        }
     }
 
     private func saveCache(_ quotes: [String: MarketQuote]) throws {

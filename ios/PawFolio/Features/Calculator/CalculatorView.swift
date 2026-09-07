@@ -1,369 +1,406 @@
 import Charts
+import Nvwa
 import SwiftUI
 
-/// Web `#panel-retirement` 的复刻。结构、间距与配色对照 `public/index.html`
-/// 和 `public/styles.css`，不要改回 iOS 原生排版——见 `AGENTS.md`。
+/// PawFolio V1.2.0 calculator screen（版式仍是 V1.1 的 `46:1483`，顶栏是新加的）。
 struct CalculatorView: View {
     @StateObject private var model = CalculatorViewModel()
     @FocusState private var focusedField: Field?
-    /// 长按扫描到的下标；和投资组合那张图同一套交互。
-    @State private var scrubIndex: Int?
+    /// APR 输入框的文本镜像，见 `aprInput`。
+    @State private var rateText = ""
+
+    /// 视觉 QA：`SIMCTL_CHILD_PAWFOLIO_SCROLL_BOTTOM=1` 让页面直接停在底部，
+    /// 否则「滚到底会不会被贴底导航挡住」这件事在模拟器上截不到。
+    /// 原来长在 `PortfolioView` 上，那一页删了之后搬到这里——只剩这一个使用者。
+    static var qaScrollsToBottom: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["PAWFOLIO_SCROLL_BOTTOM"] == "1"
+        #else
+        return false
+        #endif
+    }
+
+    let isSignedIn: Bool
+    let profileInitials: String
+    let profileAvatar: CatAvatar
+    let onOpenAccount: () -> Void
+    let onSignIn: () -> Void
+    /// 顶栏右上角跟持仓页一样是「+」，但编辑器归 PawFolio 页所有，这里只发请求。
+
+    init(
+        isSignedIn: Bool = true,
+        profileInitials: String = "",
+        profileAvatar: CatAvatar = .faceHappy,
+        onOpenAccount: @escaping () -> Void = {},
+        onSignIn: @escaping () -> Void = {}
+    ) {
+        self.isSignedIn = isSignedIn
+        self.profileInitials = profileInitials
+        self.profileAvatar = profileAvatar
+        self.onOpenAccount = onOpenAccount
+        self.onSignIn = onSignIn
+    }
 
     private enum Field {
         case principal
         case rate
     }
 
-    /// 卡片内容宽度，用来复刻 Web `.metric-grid` 的 389px 断点。
-    @State private var blockContentWidth: CGFloat = 0
-
     var body: some View {
-        GeometryReader { geometry in
-            ScrollView {
-                VStack(spacing: PawLayout.blockGap) {
-                    planBlock
-                    resultBlock
-                }
-                .padding(.horizontal, PawLayout.pageHorizontal)
-                .padding(.top, 16)
-                .padding(.bottom, PawLayout.pageHorizontal)
+        // 顶栏由 `pawGlassTopBar` 挂成 safe-area inset，内容从它底下滑过去。
+        // 状态栏那一截也归那层玻璃，所以不再叠 `pawStatusBarBackground()` 的实色
+        // ——留着会盖住滑上去的内容，正好把玻璃挡没。
+        scrollContent
+            .background(Nvwa.backgroundMain)
+            .pawGlassTopBar {
+                PawTopNavigation(
+                    isSignedIn: isSignedIn,
+                    profileInitials: profileInitials,
+                    profileAvatar: profileAvatar,
+                    onOpenAccount: onOpenAccount,
+                    onSignIn: onSignIn
+                )
             }
-            .onAppear {
-                blockContentWidth = geometry.size.width
-                    - PawLayout.pageHorizontal * 2
-                    - PawLayout.blockPadding * 2
-            }
-            .onChange(of: geometry.size.width) { _, width in
-                blockContentWidth = width
-                    - PawLayout.pageHorizontal * 2
-                    - PawLayout.blockPadding * 2
-            }
-        }
-        // 贴底导航是浮层，滚动内容要自己留出它的高度。
-        .contentMargins(.bottom, PawLayout.tabBarHeight, for: .scrollContent)
-        // 视觉 QA：和投资组合页同一个开关，让页面直接停在底部。
-        .defaultScrollAnchor(PortfolioView.qaScrollsToBottom ? .bottom : .top)
-        .background(PawTheme.bg1)
-        .scrollDismissesKeyboard(.interactively)
-        .task { await model.loadExchangeRate() }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("完成") {
-                    focusedField = nil
-                    model.calculate()
-                }
+                Button("Done") { focusedField = nil }
             }
         }
     }
 
-    // MARK: 投资计划
+    private var scrollContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 32) {
+                calculatorForm
+                results
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 16)
+            .pawScrollBounceDisabled()
+        }
+        // Calculator 仍可在内容超出屏幕时滚动，但不允许上下边缘的拉伸回弹。
+        .pawTabBarBottomMargin()
+        .defaultScrollAnchor(Self.qaScrollsToBottom ? .bottom : .top)
+        .scrollDismissesKeyboard(.interactively)
+    }
 
-    private var planBlock: some View {
-        PawBlock {
+    private var calculatorForm: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                fieldLabel("Interest Calculation")
+
+                // `47:774` 现在是 SI 在前且默认选中，`allCases` 是 compound 在前。
+                NvwaSegmentControl(
+                    options: [InterestMode.simple, .compound],
+                    selection: $model.selectedMode,
+                    size: .normal,
+                    expandsHorizontally: true,
+                    title: \.abbreviation
+                )
+            }
+
             VStack(alignment: .leading, spacing: 8) {
-                PawFieldLabel("总投资")
+                investmentInput
+                quickAmounts
+            }
 
-                PawInputShell {
-                    Text("$")
-                        .font(PawFont.inter(14))
-                        .foregroundStyle(PawTheme.ink40)
+            VStack(alignment: .leading, spacing: 4) {
+                aprInput
+                NvwaSlider(value: $model.annualRatePercent, in: 0...30)
+                    .accessibilityLabel("Annual percentage rate")
+            }
 
-                    TextField("", text: $model.principalText)
-                        .font(PawFont.inter(24, weight: .semibold).monospacedDigit())
-                        .foregroundStyle(PawTheme.ink)
-                        .keyboardType(.decimalPad)
-                        .focused($focusedField, equals: .principal)
-                        .accessibilityLabel("总投资，美元")
+            NvwaButton(
+                "Calculate",
+                kind: .primary,
+                size: .huge,
+                expandsHorizontally: true
+            ) {
+                focusedField = nil
+                model.calculate()
+            }
+        }
+    }
 
-                    Text("USD")
-                        .font(PawFont.inter(12))
-                        .foregroundStyle(PawTheme.ink40)
-                }
+    private var investmentInput: some View {
+        NvwaInputField(
+            label: "Total Investment",
+            placeholder: "0",
+            text: $model.principalText,
+            unit: "USD",
+            monospacedDigits: true
+        )
+        .keyboardType(.decimalPad)
+        .focused($focusedField, equals: .principal)
+        .accessibilityLabel("Total investment")
+    }
 
-                PawQuickAmounts(
-                    amounts: model.quickAmounts,
-                    selected: model.committedInput.principal,
-                    title: shortAmount
-                ) { amount in
+    private var quickAmounts: some View {
+        HStack(spacing: 4) {
+            ForEach(model.quickAmounts, id: \.self) { amount in
+                NvwaSection(
+                    quickAmountTitle(amount),
+                    isSelected: model.committedInput.principal == amount,
+                    expandsHorizontally: true
+                ) {
                     focusedField = nil
                     model.selectQuickAmount(amount)
                 }
             }
-
-            VStack(alignment: .leading, spacing: 8) {
-                PawFieldLabel("年化收益率")
-
-                HStack(spacing: 16) {
-                    PawSlider(value: $model.annualRatePercent, range: 0.01...30)
-                        .accessibilityLabel("年化收益率")
-                        .accessibilityValue(
-                            "\(model.annualRatePercent.formatted(.number.precision(.fractionLength(2)))) 百分比"
-                        )
-
-                    PawInputShell(height: 40, horizontalPadding: 12) {
-                        TextField(
-                            "",
-                            value: $model.annualRatePercent,
-                            format: .number.precision(.fractionLength(2))
-                        )
-                        .font(PawFont.inter(14, weight: .semibold).monospacedDigit())
-                        .foregroundStyle(PawTheme.ink)
-                        .keyboardType(.decimalPad)
-                        .focused($focusedField, equals: .rate)
-                        .accessibilityLabel("年化收益率百分比")
-
-                        Text("%")
-                            .font(PawFont.inter(12))
-                            .foregroundStyle(PawTheme.ink40)
-                    }
-                    .frame(width: 112)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                PawFieldLabel("计息方式")
-
-                PawSegmented(
-                    options: InterestMode.allCases,
-                    title: \.title,
-                    selection: $model.selectedMode
-                )
-            }
-
-            PawPrimaryButton(title: "计算收益") {
-                focusedField = nil
-                model.calculate()
-            }
-            .padding(.top, 8)
         }
     }
 
-    // MARK: 收益预估
+    /// APR 的真值是 `Double`（滑杆和计算都读它），而组件收的是文本，所以这里
+    /// 架一座桥：打字时文本推模型，滑杆动时模型推文本。**只在没聚焦时回推**——
+    /// 否则用户敲到一半的 `8.` 会被格式化成 `8`，光标当场跳走。
+    private var aprInput: some View {
+        NvwaInputField(
+            label: "APR",
+            placeholder: "0",
+            text: $rateText,
+            unit: "%",
+            monospacedDigits: true
+        )
+        .keyboardType(.decimalPad)
+        .focused($focusedField, equals: .rate)
+        .accessibilityLabel("Annual percentage rate")
+        .onAppear { rateText = Self.rateText(model.annualRatePercent) }
+        .onChange(of: rateText) { _, typed in
+            guard let value = Double(typed.replacingOccurrences(of: ",", with: "")) else { return }
+            model.annualRatePercent = min(max(value, 0), 30)
+        }
+        .onChange(of: model.annualRatePercent) { _, value in
+            guard focusedField != .rate else { return }
+            rateText = Self.rateText(value)
+        }
+    }
 
-    /// Web 在计算页和汇率页把 `.card` 的外观整体去掉了
-    /// （`#panel-retirement > .card { padding: 0; background: transparent }`），
-    /// 只有「投资计划」那块保留卡片。这里因此是裸区块，不要包 `PawBlock`。
-    private var resultBlock: some View {
-        VStack(alignment: .leading, spacing: PawLayout.blockSpacing) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text("收益预估")
-                    .font(PawFont.inter(14, weight: .bold))
-                    .foregroundStyle(PawTheme.ink)
+    private static func rateText(_ value: Double) -> String {
+        value.formatted(
+            .number
+                .locale(Locale(identifier: "en_US_POSIX"))
+                .grouping(.never)
+                .precision(.fractionLength(0...2))
+        )
+    }
 
-                Text(model.exchangeRateCaption)
-                    .font(PawFont.inter(12))
-                    .foregroundStyle(PawTheme.ink40)
+    private var results: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Results")
+                .font(Nvwa.bodyLarge)
+                .tracking(0.08)
+                .foregroundStyle(Nvwa.grayPrimary)
+                .frame(height: 24, alignment: .leading)
+
+            HStack(spacing: 10) {
+                resultMetric(title: "Daily", amount: model.summary.dailyProfit)
+                resultMetric(title: "Weekly", amount: model.summary.weeklyProfit)
+                resultMetric(title: "Monthly", amount: model.summary.monthlyProfit)
+            }
+
+            HStack(spacing: 10) {
+                resultMetric(title: "Yearly", amount: model.summary.yearlyProfit)
+                resultMetric(title: "5 Year", amount: model.summary.fiveYearProfit)
+                resultMetric(title: "10 Year", amount: model.summary.tenYearProfit)
+            }
+        }
+    }
+
+    private func resultMetric(title: String, amount: Double) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(LocalizedStringKey(title))
+                .font(Nvwa.bodySmall)
+                .tracking(0.12)
+                .foregroundStyle(Nvwa.textSecondary)
+
+            Text(money(amount, includesCents: true) + " USD")
+                .font(Nvwa.font(12, weight: .semibold).monospacedDigit())
+                .tracking(0.12)
+                .foregroundStyle(Nvwa.grayPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var forecastCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 12) {
+                    Text(money(model.totalAtForecastEnd, includesCents: false))
+                        .font(Nvwa.bodyLarge.monospacedDigit())
+                        .tracking(0.08)
+                        .foregroundStyle(Nvwa.grayPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+
+                    Spacer(minLength: 0)
+
+                    periodPicker
+                }
+
+                Text(forecastChange)
+                    .font(Nvwa.bodySmall.monospacedDigit())
+                    .tracking(0.12)
+                    .foregroundStyle(forecastTone)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
             }
+            .frame(height: 44, alignment: .top)
 
-            metricGrid
+            HStack(spacing: 24) {
+                Chart(model.forecast) { point in
+                    LineMark(
+                        x: .value("Period", point.index),
+                        y: .value("Amount", point.amount)
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                    .foregroundStyle(Nvwa.grayPrimary)
 
-            chartBlock
-        }
-    }
+                    if point.id == model.forecast.last?.id {
+                        PointMark(
+                            x: .value("Period", point.index),
+                            y: .value("Amount", point.amount)
+                        )
+                        .symbolSize(28)
+                        .foregroundStyle(Nvwa.grayPrimary)
+                    }
+                }
+                .chartXAxis(.hidden)
+                .chartYAxis(.hidden)
+                .chartYScale(domain: chartDomain)
+                .frame(maxWidth: .infinity, minHeight: 100, maxHeight: 100)
 
-    /// Web 的 `.metric-grid` 在 `max-width: 389px` 时塌成一列，宽屏下始终是三等分
-    /// 并让数字自己缩小，而不是换行。
-    private var isNarrow: Bool {
-        blockContentWidth > 0 && blockContentWidth < PawLayout.narrowContentWidth
-    }
+                VStack(alignment: .trailing) {
+                    ForEach(Array(yAxisLabels.enumerated()), id: \.offset) { index, label in
+                        if index > 0 { Spacer(minLength: 0) }
+                        Text(label)
+                            .font(Nvwa.caption2.monospacedDigit())
+                            .tracking(0.1)
+                            .foregroundStyle(Nvwa.textSecondary)
+                            .frame(width: 24, alignment: .trailing)
+                    }
+                }
+                .frame(width: 24, height: 100)
+            }
+            .frame(height: 100)
 
-    @ViewBuilder
-    private var metricGrid: some View {
-        if isNarrow {
             VStack(spacing: 12) {
-                ForEach(metrics, id: \.title) { metric in
-                    PawMetricCard(
-                        title: metric.title,
-                        value: metric.value,
-                        secondary: metric.secondary
-                    )
+                PawDivider()
+
+                HStack {
+                    Text("Now")
+                    Spacer()
+                    Text(endAxisLabel)
                 }
+                .font(Nvwa.caption2.monospacedDigit())
+                .tracking(0.1)
+                .foregroundStyle(Nvwa.textSecondary)
             }
-        } else {
-            HStack(spacing: 12) {
-                ForEach(metrics, id: \.title) { metric in
-                    PawMetricCard(
-                        title: metric.title,
-                        value: metric.value,
-                        secondary: metric.secondary
-                    )
+        }
+        .padding(12)
+        .frame(height: 228, alignment: .top)
+        .background(
+            Nvwa.backgroundInput,
+            in: RoundedRectangle(cornerRadius: 15, style: .continuous)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(model.selectedPeriod.caption)
+        .accessibilityValue(
+            "Projected total \(money(model.totalAtForecastEnd, includesCents: true)) USD"
+        )
+    }
+
+    private var periodPicker: some View {
+        HStack(spacing: 4) {
+            ForEach(ForecastPeriod.allCases) { period in
+                NvwaSection(
+                    period.title,
+                    isSelected: model.selectedPeriod == period
+                ) {
+                    model.selectedPeriod = period
                 }
+                .accessibilityLabel(period.caption)
             }
         }
     }
 
-    private struct Metric {
-        let title: String
-        let value: String
-        let secondary: String?
+    private func fieldLabel(_ title: String) -> some View {
+        Text(LocalizedStringKey(title))
+            .font(Nvwa.bodySmall)
+            .tracking(0.12)
+            .foregroundStyle(Nvwa.textSecondary)
+            .frame(height: 20, alignment: .leading)
     }
 
-    private var metrics: [Metric] {
-        let summary = model.summary
+    private var forecastTone: Color {
+        if model.forecastProfit > 0 { return Nvwa.marketBuy }
+        if model.forecastProfit < 0 { return Nvwa.marketSell }
+        return Nvwa.textSecondary
+    }
+
+    private var forecastChange: String {
+        let profit = model.forecastProfit
+        let principal = model.committedInput.principal
+        let percent = principal > 0 ? profit / principal * 100 : 0
+        let sign = profit > 0 ? "+" : profit < 0 ? "-" : ""
+        let percentSign = percent > 0 ? "+" : percent < 0 ? "-" : ""
+        return sign + money(abs(profit), includesCents: true) + " USD ("
+            + percentSign
+            + abs(percent).formatted(.number.precision(.fractionLength(2)))
+            + "%)"
+    }
+
+    private var chartDomain: ClosedRange<Double> {
+        let values = model.forecast.map(\.amount)
+        guard let minimum = values.min(), let maximum = values.max() else { return 0...1 }
+        let spread = max(maximum - minimum, max(abs(maximum) * 0.002, 1))
+        return (minimum - spread * 0.08)...(maximum + spread * 0.08)
+    }
+
+    private var yAxisLabels: [String] {
+        let domain = chartDomain
         return [
-            Metric(
-                title: "日收益",
-                value: currency(summary.dailyProfit),
-                secondary: model.cnyText(for: summary.dailyProfit)
-            ),
-            Metric(
-                title: "月收益",
-                value: currency(summary.monthlyProfit),
-                secondary: model.cnyText(for: summary.monthlyProfit)
-            ),
-            Metric(
-                title: "年收益",
-                value: currency(summary.yearlyProfit),
-                secondary: model.cnyText(for: summary.yearlyProfit)
-            )
+            compactAxisAmount(domain.upperBound),
+            compactAxisAmount((domain.lowerBound + domain.upperBound) / 2),
+            compactAxisAmount(domain.lowerBound)
         ]
     }
 
-    // MARK: 总资产变化
-
-    private var chartBlock: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 12) {
-                Text("总资产变化")
-                    .font(PawFont.inter(14, weight: .bold))
-                    .foregroundStyle(PawTheme.ink)
-
-                Spacer(minLength: 0)
-
-                PawPeriodTabs(
-                    options: ForecastPeriod.allCases,
-                    title: \.title,
-                    selection: $model.selectedPeriod
-                )
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(currency(scrubbedAmount ?? model.totalAtForecastEnd))
-                        .font(PawTheme.moneyLarge)
-                        .foregroundStyle(PawTheme.ink)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
-
-                    if let cny = model.cnyText(
-                        for: scrubbedAmount ?? model.totalAtForecastEnd,
-                        approximate: true
-                    ) {
-                        Text(cny)
-                            .font(PawFont.inter(12).monospacedDigit())
-                            .foregroundStyle(PawTheme.ink40)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.6)
-                    }
-                }
-
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(scrubCaption ?? signedCurrency(model.forecastProfit))
-                    if scrubIndex == nil {
-                        Text(signedPercent)
-                    }
-                }
-                .font(PawFont.inter(12, weight: .semibold).monospacedDigit())
-                // 预测图不谈盈亏方向，整张图只用黑白——涨跌色留给真实持仓。
-                .foregroundStyle(PawTheme.ink40)
-            }
-            .accessibilityElement(children: .combine)
-
-            forecastChart
-
-            // X 轴独立一行，和投资组合那张图一致。
-            HStack {
-                ForEach(Array(axisTitles.enumerated()), id: \.offset) { index, title in
-                    if index > 0 { Spacer(minLength: 4) }
-                    Text(title)
-                        .font(PawFont.inter(11).monospacedDigit())
-                        .foregroundStyle(PawTheme.ink20)
-                }
-            }
+    private var endAxisLabel: String {
+        switch model.selectedPeriod {
+        case .day: "365D"
+        case .month: "36M"
+        case .year: "12Y"
         }
     }
 
-    /// 扫描时顶部大数字换成那一点的金额。
-    private var scrubbedAmount: Double? {
-        guard let scrubIndex, model.forecast.indices.contains(scrubIndex) else { return nil }
-        return model.forecast[scrubIndex].amount
+    private func money(_ amount: Double, includesCents: Bool) -> String {
+        MoneyFormat.decimal(amount, fractionDigits: includesCents ? 2 : 0)
     }
 
-    /// 扫描时下面那行换成「第 N 年」这类位置说明。
-    private var scrubCaption: String? {
-        guard let scrubIndex, model.forecast.indices.contains(scrubIndex) else { return nil }
-        return model.selectedPeriod.scrubLabel(at: scrubIndex)
-    }
-
-    private var axisTitles: [String] {
-        axisValues(for: model.selectedPeriod).compactMap {
-            model.selectedPeriod.axisLabel(at: $0)
+    private func quickAmountTitle(_ amount: Double) -> String {
+        if abs(amount) >= 1_000_000 {
+            return (amount / 1_000).formatted(
+                .number.grouping(.automatic).precision(.fractionLength(0))
+            ) + "K"
         }
-    }
-
-    /// 和投资组合展开后那张图同一套画法：点阵填充、峰值标注、长按扫描。
-    /// 差别只有两处——只用黑白（预测没有涨跌可言），以及矮一些。
-    private var forecastChart: some View {
-        PawPortfolioChart(
-            values: model.forecast.map(\.amount),
-            tone: PawTheme.ink,
-            peakLabel: currency,
-            scrubIndex: $scrubIndex,
-            height: 150
-        )
-        .accessibilityLabel("\(model.selectedPeriod.caption)总资产预测")
-        .accessibilityValue("期末预计 \(currency(model.totalAtForecastEnd))")
-    }
-
-    // MARK: 格式化
-
-    private var changeColor: Color {
-        let profit = model.forecastProfit
-        if profit > 0 { return PawTheme.gain }
-        if profit < 0 { return PawTheme.loss }
-        return PawTheme.flat
-    }
-
-    private var signedPercent: String {
-        let principal = model.committedInput.principal
-        guard principal > 0 else { return "+0.00%" }
-
-        let percent = model.forecastProfit / principal * 100
-        let sign = percent > 0 ? "+" : ""
-        return sign + percent.formatted(.number.precision(.fractionLength(2))) + "%"
-    }
-
-    private func currency(_ amount: Double) -> String {
-        "$" + amount.formatted(.number.grouping(.automatic).precision(.fractionLength(2)))
-    }
-
-    private func signedCurrency(_ amount: Double) -> String {
-        (amount > 0 ? "+" : amount < 0 ? "-" : "") + currency(abs(amount))
-    }
-
-    /// Web 图表 Y 轴用的紧凑写法，例如 `27K`。
-    private func compactAmount(_ amount: Double) -> String {
-        guard abs(amount) >= 1_000 else {
-            return amount.formatted(.number.precision(.fractionLength(0)))
+        if abs(amount) >= 1_000 {
+            return (amount / 1_000).formatted(
+                .number.precision(.fractionLength(0...1))
+            ) + "K"
         }
-
-        let thousands = amount / 1_000
-        let digits = abs(thousands) >= 100 ? 0 : (thousands == thousands.rounded() ? 0 : 1)
-        return thousands.formatted(.number.precision(.fractionLength(digits))) + "K"
+        return amount.formatted(.number.precision(.fractionLength(0)))
     }
 
-    private func axisValues(for period: ForecastPeriod) -> [Int] {
-        switch period {
-        case .day: [0, 365]
-        case .month: [0, 12, 24, 36]
-        case .year: [0, 3, 6, 9, 12]
+    private func compactAxisAmount(_ amount: Double) -> String {
+        if abs(amount) >= 1_000 {
+            return (amount / 1_000).formatted(
+                .number.precision(.fractionLength(0...1))
+            ) + "K"
         }
-    }
-
-    private func shortAmount(_ amount: Double) -> String {
-        "\(Int(amount / 10_000))万"
+        return amount.formatted(.number.precision(.fractionLength(0)))
     }
 }

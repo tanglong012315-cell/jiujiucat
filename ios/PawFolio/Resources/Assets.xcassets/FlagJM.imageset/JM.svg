@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+<g id="Flags">
+<g id="Jamaica">
+<g clip-path="url(#clip0_0_1)">
+<g id="Clip path group">
+<mask id="mask0_0_1" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+<g id="clip0_199_10272">
+<path id="Vector" d="M64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64C49.6731 64 64 49.6731 64 32Z" fill="white" />
+</g>
+</mask>
+<g mask="url(#mask0_0_1)">
+<g id="Group">
+<path id="Vector_2" d="M64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64C49.6731 64 64 49.6731 64 32Z" fill="#F0F0F0" />
+<g id="Mask group">
+<g id="Group_3">
+<path id="Vector_4" d="M-21.334 0H85.3327V64H-21.334V0Z" fill="#005B13" />
+<g id="Mask group_2">
+<mask id="mask2_0_1" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="-22" y="5" width="108" height="54">
+<g id="Group_4">
+<path id="Vector_5" d="M-21.334 5.3335H85.3327V58.6668H-21.334V5.3335Z" fill="white" />
+</g>
+</mask>
+<g mask="url(#mask2_0_1)">
+<g id="Group_5">
+<path id="Vector_6" d="M-39.1113 -3.55566V67.5555L103.111 -3.55566V67.5555L-39.1113 -3.55566Z" fill="black" stroke="#FFD400" stroke-width="10.6667" />
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_0_1">
+<rect width="64" height="64" rx="32" fill="white" />
+</clipPath>
+</defs>
+</svg>
