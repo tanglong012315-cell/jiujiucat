@@ -74,11 +74,7 @@ function normalizeCoinName(value) {
 }
 
 async function handleCryptoLogos() {
-  const data = await fetchUpstream(
-    'https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing' +
-    '?start=1&limit=1000&sortBy=market_cap&sortType=desc&cryptoType=all&tagType=all',
-    21600
-  );
+  const data = await coinMarketCapListing();
   const list = data?.data?.cryptoCurrencyList;
   if (!Array.isArray(list)) {
     return Response.json({ error: 'unexpected upstream shape' }, { status: 502 });
@@ -132,8 +128,67 @@ async function handleProbe() {
   });
 }
 
+
+// CMC 缓存的原始列表。图标映射和长尾币报价共用同一次上游请求。
+async function coinMarketCapListing() {
+  return fetchUpstream(
+    'https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing' +
+    '?start=1&limit=1000&sortBy=market_cap&sortType=desc&cryptoType=all&tagType=all',
+    300
+  );
+}
+
+/**
+ * 长尾币报价 —— Binance 没有、而客户端又直连不到别家时走这里。
+ *
+ * 为什么要经过 Worker（其余行情都是直连的）：
+ *   Binance 不上架任何竞争对手的平台币（OKB / BGB / KCS / GT / MX / CRO / LEO
+ *   都没有，只有自家 BNB）。原本用 OKX 补，但 2026-09-07 在用户真机上实测：
+ *   `www.okx.com` 在他的网络上**DNS 解析不出来**（NSURLError -1003，
+ *   Resolved 0 endpoints，而网络本身是通的），OKX 走的是 Cloudflare CDN 域名。
+ *   CMC 不拦 Worker（/api/probe 实测 200），而且覆盖比 OKX 还全，所以改走这里。
+ *
+ * ⚠️ CMC 只给 24 小时涨跌，给不了「北京时间今日」基准，也没有 K 线序列。
+ * 所以这条路返回的 basis 必须标成「24 小时」—— 不能挂着北京口径的牌子。
+ */
+async function handleCryptoQuote(url) {
+  const wanted = (url.searchParams.get('symbols') || '')
+    .toUpperCase().split(',').map(code => code.trim())
+    .filter(code => /^[A-Z0-9]{1,20}$/.test(code))
+    .slice(0, 40);
+  if (!wanted.length) return Response.json({ error: 'no symbols' }, { status: 400 });
+
+  const data = await coinMarketCapListing();
+  const list = data?.data?.cryptoCurrencyList;
+  if (!Array.isArray(list)) {
+    return Response.json({ error: 'unexpected upstream shape' }, { status: 502 });
+  }
+
+  const index = new Map();
+  for (const coin of list) {
+    const symbol = String(coin?.symbol || '').toUpperCase();
+    // 同一个代码会被多个币占用（山寨币蹭代码）。列表按市值降序，先出现的
+    // 那个才是用户想看到的，所以只认第一次出现。
+    if (symbol && !index.has(symbol)) index.set(symbol, coin);
+  }
+
+  const quotes = {};
+  for (const code of wanted) {
+    const quote = index.get(code)?.quotes?.[0];
+    const price = Number(quote?.price);
+    if (price > 0) {
+      quotes[code] = { price, change24h: Number(quote.percentChange24h) || 0 };
+    }
+  }
+
+  return Response.json({ quotes }, {
+    headers: { 'Cache-Control': 'public, max-age=300' }
+  });
+}
+
 const ROUTES = {
   '/api/crypto-logos': handleCryptoLogos,
+  '/api/crypto-quote': handleCryptoQuote,
   '/api/probe': handleProbe
 };
 

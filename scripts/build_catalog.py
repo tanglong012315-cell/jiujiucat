@@ -39,11 +39,13 @@ def fetch(url):
 
 
 def build_crypto():
-    """加密：Binance 为主，OKX 补它没有的。
+    """加密：Binance 为主，CMC 补它没有的。
 
-    Binance 不上架任何竞争对手的平台币 —— OKB / CRO / LEO 都没有，只有自家 BNB。
-    单一交易所必然有这类洞，所以留一个 OKX 兜底。两家都没有的（BGB / HT / KCS
-    这些）就是不支持，取价时诚实显示「暂不支持」，不编一个价格出来。
+    Binance 不上架任何竞争对手的平台币 —— OKB / BGB / KCS / GT / MX / CRO / LEO
+    都没有，只有自家 BNB。单一交易所必然有这类洞。
+
+    ⚠️ CMC 只给 24 小时涨跌，没有「北京时间今日」基准，也没有 K 线序列。
+    走这条路的标的必须把 basis 标成「24 小时」。
     """
     info = fetch("https://api.binance.com/api/v3/exchangeInfo")
     assets = fetch("https://www.binance.com/bapi/asset/v2/public/asset/asset/get-all-asset")
@@ -69,17 +71,25 @@ def build_crypto():
             continue
         catalog[base] = [pair, name or base, quote, "binance"]
 
-    okx = fetch("https://www.okx.com/api/v5/public/instruments?instType=SPOT")
+    # Binance 没有的走 CMC（经 Worker）。
+    #
+    # 原本用 OKX 补，但 2026-09-07 在真机上实测 www.okx.com 在用户网络下
+    # DNS 解析不出来（OKX 走 Cloudflare CDN 域名）。CMC 不拦 Worker，
+    # 覆盖也比 OKX 全（BGB / KCS / GT / MX 这些 OKX 也没有）。
+    cmc = fetch(
+        "https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing"
+        "?start=1&limit=1000&sortBy=market_cap&sortType=desc&cryptoType=all&tagType=all"
+    )
     added = 0
-    for item in okx.get("data", []):
-        inst = item.get("instId", "")
-        base, _, quote = inst.partition("-")
-        if quote not in ("USDT", "USD") or not base or base in catalog:
+    for coin in cmc.get("data", {}).get("cryptoCurrencyList", []):
+        code = str(coin.get("symbol") or "").upper()
+        if not code or code in catalog:
             continue
-        catalog[base] = [inst, base, quote, "okx"]
+        # 交易对留空：CMC 是按代号查的，没有交易对的概念。
+        catalog[code] = ["", coin.get("name") or code, "USD", "cmc"]
         added += 1
 
-    print(f"  加密 {len(catalog)} 个（其中 OKX 补了 {added} 个）")
+    print(f"  加密 {len(catalog)} 个（其中 CMC 补了 {added} 个）")
     return catalog
 
 

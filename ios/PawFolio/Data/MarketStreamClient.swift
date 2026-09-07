@@ -89,12 +89,12 @@ actor MarketStreamClient {
         for symbol in symbols {
             // 必须同时排除美股和 OKX：
             //   美股（Binance Stocks）没有公开行情流。
-            //   OKX 是另一套 WebSocket 协议，它的交易对（OKB-USDT）拿去订
-            //   Binance 的流是订不到的 —— 那个流根本不存在，于是永远收不到
-            //   推送，价格就永远停在首次取到的那个值。
+            //   CMC 只有 REST 报价，没有行情流。把它的代号拿去订 Binance 的流
+            //   是订不到的 —— 那个流根本不存在，于是永远收不到推送，价格就
+            //   永远停在首次取到的那个值（2026-09-07 真机上就是这么暴露的）。
             guard let instrument = catalog.resolve(symbol: symbol),
                   !instrument.isEquity,
-                  instrument.venue != "okx",
+                  instrument.venue != "cmc",
                   let pair = instrument.pair else { continue }
             quoteCurrencies[instrument.symbol] = instrument.quoteCurrency
             guard subscribed[pair] == nil else { continue }

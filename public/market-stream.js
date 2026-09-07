@@ -36,7 +36,6 @@
   const WS_URL = 'wss://stream.binance.com:9443/ws';
   const BINANCE_BASE = 'https://api.binance.com';
   const EQUITY_BASE = 'https://www.binance.com/bapi/equity/v1/public/equity';
-  const OKX_BASE = 'https://www.okx.com';
   const SERIES_CAP = 240;
   // 连接静默超过这个时长就当它已经死了。Binance 服务端会定期发 ping frame
   // （浏览器自动回 pong，不用管），30 秒收不到任何东西必然有问题 —— 手机切
@@ -201,6 +200,11 @@
     if (!Number.isFinite(entry.raw)) { entry.price = null; entry.change = null; return; }
     entry.price = toUsd(entry, entry.raw);
     entry.fxApplied = entry.equity || entry.quote !== 'USDT' || Number(state.get('USDT')?.price) > 0;
+    if (entry.venue === 'cmc') {
+      // CMC 直接给涨跌幅，没有基准价可算。
+      entry.change = Number.isFinite(entry.presetChange) ? entry.presetChange : null;
+      return;
+    }
     const base = Number.isFinite(entry.dayOpen) && entry.dayOpen > 0 ? entry.dayOpen : entry.open24h;
     entry.change = Number.isFinite(base) && base > 0 ? ((entry.raw - base) / base) * 100 : null;
   }
@@ -251,27 +255,28 @@
       emit(symbol);
       return;
     }
-    if (entry.venue === 'okx') {
+    if (entry.venue === 'cmc') {
+      // Binance 没有的长尾币走 Worker → CMC。
+      //
+      // 这是**唯一**还经过 Worker 的行情路径，理由是别的路都不通：Binance 不上架
+      // 竞争对手的平台币；原本用 OKX 补，但 2026-09-07 在真机上实测
+      // www.okx.com 在用户网络下 DNS 解析不出来（OKX 走 Cloudflare CDN 域名）。
+      // CMC 不拦 Worker，覆盖也更全。
+      //
+      // ⚠️ CMC 只给 24 小时涨跌，没有北京日基准，也没有 K 线。所以 basis 必须
+      // 标成「24 小时」——不能挂着北京口径的牌子显示 24 小时的数。
       try {
-        const data = await fetchJSON(
-          `${OKX_BASE}/api/v5/market/candles?instId=${encodeURIComponent(entry.pair)}&bar=1H&limit=200`
-        );
-        // OKX 返回倒序的 [时间, 开, 高, 低, 收, ...]，字符串。
-        const rows = (Array.isArray(data?.data) ? data.data : [])
-          .map(r => [Number(r[0]), Number(r[4])])
-          .filter(r => r[0] > 0 && r[1] > 0)
-          .sort((a, b) => a[0] - b[0]);
-        if (!rows.length) throw new Error('no candles');
-        entry.raw = rows.at(-1)[1];
+        const data = await fetchJSON(`/api/crypto-quote?symbols=${encodeURIComponent(entry.symbol)}`);
+        const row = data?.quotes?.[entry.symbol];
+        const price = Number(row?.price);
+        if (!(price > 0)) throw new Error('no price');
+        entry.raw = price;
         entry.at = Date.now();
-        const dayStart = beijingDayStartUnix() * 1000;
-        const prior = rows.filter(r => r[0] <= dayStart);
-        entry.dayOpen = prior.length ? prior.at(-1)[1] : rows[0][1];
-        entry.basis = '北京时间今日';
-        if (wantHistory) entry.series = rows;
-      } catch {
         entry.dayOpen = null;
+        entry.presetChange = Number(row.change24h);
         entry.basis = '24 小时';
+      } catch {
+        entry.presetChange = null;
       }
       recompute(entry);
       emit(symbol);
@@ -332,7 +337,7 @@
   /// 0.9MB 在移动网络上不可接受，单标的一次约 30KB，持仓再多也比它省。
   async function pollSlowSymbols() {
     const targets = [...state.values()].filter(entry =>
-      !entry.unsupported && (entry.equity || entry.venue === 'okx')
+      !entry.unsupported && (entry.equity || entry.venue === 'cmc')
     );
     if (!targets.length) return;
     // 并发但有上限：持仓几十只时一次性全发出去会被限流。
@@ -610,7 +615,7 @@
         watched.add(info.pair);
         await primeSymbol(key, wantHistory);
         if (!running) return true;
-        if (info.venue === 'okx') return true;   // OKX 不订阅，靠轮询
+        if (info.venue === 'cmc') return true;   // CMC 不订阅，靠轮询
         if (socket?.readyState === WebSocket.OPEN) socket.send(subscribeMessage([info.pair]));
         else connect();
         return true;
@@ -647,13 +652,10 @@
         series = (data?.data?.bars || [])
           .filter(bar => Number(bar?.t) > 0 && Number(bar?.c) > 0)
           .map(bar => [Number(bar.t), Number(bar.c)]);
-      } else if (info.venue === 'okx') {
-        const data = await fetchJSON(
-          `${OKX_BASE}/api/v5/market/candles?instId=${encodeURIComponent(info.pair)}&bar=1D&limit=300`
-        );
-        series = (data?.data || [])
-          .map(r => [Number(r[0]), Number(r[4])])
-          .filter(r => r[0] > 0 && r[1] > 0);
+      } else if (info.venue === 'cmc') {
+        // CMC 没有 K 线，长尾币画不了长期走势图。诚实地告诉调用方，
+        // 而不是拿一个点画出一条假的平线。
+        throw new Error('CMC 不提供历史序列');
       } else {
         const rows = await fetchJSON(
           `${BINANCE_BASE}/api/v3/klines?symbol=${info.pair}&interval=1d&limit=365`

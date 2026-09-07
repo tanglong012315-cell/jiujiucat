@@ -20,6 +20,32 @@ Last updated: 2026-09-07
 - New native holdings use `schemaVersion = 2`; deletion uses `deletedAt` tombstones.
 - Keep updating this file at the end of every meaningful agent turn.
 
+## V2.1.2 首批设计优化（2026-09-07）
+
+产品稿页面 `225:5813` 已按子节点逐项读取并实现：Earn `225:5814`、Daily 弹层
+`225:5833`、Buy Assets `225:5950`（并下钻 `225:5956`、`225:5957`、`225:5958`、
+`225:5966`）。本轮只收敛设计差异，没有改动已稳定的拖动、排序、点击或侧滑交互。
+
+- Earn Holding 汇总右侧由 `Total (USD)` 改为 `Received (USD)`，继续展示实际已到账利息；
+  中文对应“每日（USD）”与“已发放（USD）”。
+- Daily 弹层标题保持 `Daily`，副文案按稿件改为 `Next Payout 16:00 06 Sep 2026`
+  的顺序；继续复用共享自适应 `PawSheet`，不写死高度或 detent。
+- 资产首页的常驻收益标签由 `PNL` 改为 `Total PNL`；扫描走势图时仍显示对应区间文案。
+- `MARKETING_VERSION` 已更新为 `2.1.2`。设计里的 close、eye、quill-pen、leaf 与资产图标
+  全部复用现有本地资源和 Nvwa 组件，没有引入远程 Figma 资源。
+
+验证：
+
+- `xcrun swift test --disable-sandbox --package-path ios --scratch-path /tmp/pawfolio-spm`
+  —— 235 tests，0 failures。
+- `xcodebuild ... -destination 'generic/platform=iOS Simulator' ... build-for-testing`
+  —— `TEST BUILD SUCCEEDED`。
+- iPhone 17 Pro（iOS 26.5）`test-without-building` —— 300 tests，0 failures。
+- 使用内置账本 QA 数据在模拟器实拍核对资产首页、Earn Holding、Daily 弹层；布局、token、
+  文案和自适应弹层均与上述 Figma 节点一致。
+
+下一步：继续读取 V2.1.2 页面后续新增/修改节点；若当前三帧即为完整范围，则进行真机验收。
+
 ## V2.1.0 资金账本重构（2026-09-04 起，基础账本已实现）
 
 用户 2026-09-04 提出核心问题：**总资产总是和现实对不上账**，因为持仓可以凭空创建、

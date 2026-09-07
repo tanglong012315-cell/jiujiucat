@@ -89,13 +89,13 @@ final class MarketDataPayloadDecoderTests: XCTestCase {
         let json = """
         {"eq":{"VOO":["Vanguard S&P 500 ETF","ETF"]},
          "cx":{"BTC":["BTCUSDT","Bitcoin","USDT","binance"],
-               "OKB":["OKB-USDT","OKB","USDT","okx"]}}
+               "OKB":["","OKB","USD","cmc"]}}
         """.data(using: .utf8)!
         let catalog = try MarketDataPayloadDecoder.catalog(from: json)
         XCTAssertEqual(catalog.equities["VOO"]?.assetType, .etf)
         XCTAssertEqual(catalog.cryptos["BTC"]?.venue, "binance")
-        // Binance 不上架竞争对手的平台币，OKB 只能走 OKX。
-        XCTAssertEqual(catalog.cryptos["OKB"]?.venue, "okx")
+        // Binance 不上架竞争对手的平台币，OKB 只能走 CMC。
+        XCTAssertEqual(catalog.cryptos["OKB"]?.venue, "cmc")
     }
 
     /// 旧目录没有第 4 个字段，要默认成 binance，不能整条丢掉。
@@ -113,14 +113,16 @@ final class MarketDataPayloadDecoderTests: XCTestCase {
         XCTAssertEqual(bars.last?.close, 1.9)
     }
 
-    /// OKX 的 K 线是**倒序**返回的，解码后必须转成正序，否则 series 会画反、
-    /// 「最后一根」会取到最老的那根。
-    func testOKXBarsAreSortedAscending() throws {
-        let json = #"{"data":[["2000","5","6","4","5.5"],["1000","3","4","2","3.5"]]}"#
-            .data(using: .utf8)!
-        let bars = try MarketDataPayloadDecoder.okxBars(from: json)
-        XCTAssertEqual(bars.map(\.time), [1000, 2000])
-        XCTAssertEqual(bars.last?.close, 5.5)
+    func testCMCQuoteDecodes() throws {
+        let json = #"{"quotes":{"OKB":{"price":114.55,"change24h":0.49}}}"#.data(using: .utf8)!
+        let result = try MarketDataPayloadDecoder.cmcQuote(from: json, symbol: "OKB")
+        XCTAssertEqual(result.price, 114.55)
+        XCTAssertEqual(result.change, 0.49)
+    }
+
+    func testCMCQuoteRejectsMissingSymbol() {
+        let json = #"{"quotes":{}}"#.data(using: .utf8)!
+        XCTAssertThrowsError(try MarketDataPayloadDecoder.cmcQuote(from: json, symbol: "OKB"))
     }
 
     func testEquityBarsDecodeNestedShape() throws {

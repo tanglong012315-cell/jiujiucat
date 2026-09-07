@@ -9,7 +9,6 @@ import Foundation
 enum MarketEndpoints {
     static let binance = "https://api.binance.com"
     static let equity = "https://www.binance.com/bapi/equity/v1/public/equity"
-    static let okx = "https://www.okx.com"
 }
 
 struct APIConfiguration: Equatable, Sendable {
@@ -136,7 +135,81 @@ struct LiveMarketDataClient: MarketDataServing {
 
     func quote(symbol: String) async throws -> MarketQuote {
         let normalized = try normalizedSymbol(symbol)
-        let instrument = try await resolve(normalized)
+        #if DEBUG
+        // 临时诊断（PAWFOLIO_QUOTE_TRACE=1 时才输出）。这台机器点不了模拟器，
+        // 真机问题只能靠 devicectl --console 把日志捞回来。
+        let trace = ProcessInfo.processInfo.environment["PAWFOLIO_QUOTE_TRACE"] == "1"
+        #endif
+        let instrument: MarketInstrument
+        do {
+            instrument = try await resolve(normalized)
+        } catch {
+            #if DEBUG
+            if trace { print("[QUOTE] \(normalized) resolve 失败: \(error)") }
+            #endif
+            throw error
+        }
+        #if DEBUG
+        if trace {
+            print("[QUOTE] \(normalized) → pair=\(instrument.pair ?? "-") venue=\(instrument.venue) equity=\(instrument.isEquity)")
+        }
+        #endif
+        return try await quoteBody(normalized, instrument)
+    }
+
+    private func quoteBody(_ normalized: String, _ instrument: MarketInstrument) async throws -> MarketQuote {
+        #if DEBUG
+        let trace = ProcessInfo.processInfo.environment["PAWFOLIO_QUOTE_TRACE"] == "1"
+        do {
+            if instrument.venue == "cmc" {
+                let quote = try await cmcQuote(normalized, instrument)
+                if trace { print("[QUOTE] \(normalized) CMC price=\(quote.price)") }
+                return quote
+            }
+            let bars = try await fetchBars(for: instrument, daily: false)
+            if trace { print("[QUOTE] \(normalized) bars=\(bars.count)") }
+            return try MarketDataPayloadDecoder.quote(
+                bars: bars, requestedSymbol: normalized,
+                conversionRate: try await conversionRate(for: instrument),
+                fetchedAtMilliseconds: Date().timeIntervalSince1970 * 1_000
+            )
+        } catch {
+            if trace { print("[QUOTE] \(normalized) 取价失败: \(error)") }
+            throw error
+        }
+        #else
+        return try await quoteUncached(normalized, instrument)
+        #endif
+    }
+
+    /// Binance 没有的长尾币走 Worker → CMC。
+    ///
+    /// 这是**唯一**还经过 Worker 的行情路径，因为别的路都不通：Binance 不上架
+    /// 竞争对手的平台币；原本用 OKX 补，但 2026-09-07 在真机上实测
+    /// `www.okx.com` 在用户网络下 **DNS 解析不出来**（NSURLError -1003，
+    /// Resolved 0 endpoints，而网络本身是通的）—— OKX 走的是 Cloudflare CDN
+    /// 域名。CMC 不拦 Worker，覆盖也比 OKX 全。
+    ///
+    /// ⚠️ CMC 只给 24 小时涨跌，没有北京日基准，也没有 K 线序列。
+    private func cmcQuote(_ normalized: String, _ instrument: MarketInstrument) async throws -> MarketQuote {
+        let url = try endpoint(path: "api/crypto-quote", queryItems: [
+            URLQueryItem(name: "symbols", value: instrument.symbol)
+        ])
+        let data = try await responseData(from: url)
+        let (price, change) = try MarketDataPayloadDecoder.cmcQuote(from: data, symbol: instrument.symbol)
+        return MarketQuote(
+            symbol: normalized,
+            currency: "USD",
+            price: price,
+            changePercent: change,
+            series: [],
+            marketTimeMilliseconds: nil,
+            fetchedAtMilliseconds: Date().timeIntervalSince1970 * 1_000
+        )
+    }
+
+    private func quoteUncached(_ normalized: String, _ instrument: MarketInstrument) async throws -> MarketQuote {
+        if instrument.venue == "cmc" { return try await cmcQuote(normalized, instrument) }
         let bars = try await fetchBars(for: instrument, daily: false)
         return try MarketDataPayloadDecoder.quote(
             bars: bars,
@@ -184,13 +257,8 @@ struct LiveMarketDataClient: MarketDataServing {
             return try MarketDataPayloadDecoder.equityBars(from: try await responseData(from: url!))
         }
         let pair = instrument.pair ?? instrument.symbol
-        if instrument.venue == "okx" {
-            let bar = daily ? "1D" : "1H"
-            let url = URL(string:
-                "\(MarketEndpoints.okx)/api/v5/market/candles?instId=\(pair)&bar=\(bar)&limit=\(daily ? 300 : 200)"
-            )
-            return try MarketDataPayloadDecoder.okxBars(from: try await responseData(from: url!))
-        }
+        // CMC 没有 K 线，走的是另一条路（cmcQuote），不该进到这里。
+        if instrument.venue == "cmc" { throw MarketDataClientError.unavailable }
         // Binance 的 K 线支持时区偏移，日线直接按北京时间切 —— 北京日基准
         // 就是当日那根的开盘价，不用自己去盘中找。
         let interval = daily ? "1d" : "1h"
@@ -314,6 +382,13 @@ struct LiveMarketDataClient: MarketDataServing {
             let (data, response) = try await session.data(for: request)
             guard let response = response as? HTTPURLResponse,
                   200..<300 ~= response.statusCode else {
+                #if DEBUG
+                if ProcessInfo.processInfo.environment["PAWFOLIO_QUOTE_TRACE"] == "1" {
+                    let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+                    let body = String(data: data.prefix(160), encoding: .utf8) ?? ""
+                    print("[HTTP] \(code) \(url.host ?? "") \(url.path) \(body)")
+                }
+                #endif
                 throw MarketDataClientError.unavailable
             }
             return data
@@ -322,6 +397,11 @@ struct LiveMarketDataClient: MarketDataServing {
         } catch let error as MarketDataClientError {
             throw error
         } catch {
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["PAWFOLIO_QUOTE_TRACE"] == "1" {
+                print("[HTTP] 传输失败 \(url.host ?? "") \(url.path): \(error)")
+            }
+            #endif
             throw MarketDataClientError.unavailable
         }
     }
@@ -415,21 +495,16 @@ enum MarketDataPayloadDecoder {
         }
     }
 
-    /// OKX：`{data:[[时间, 开, 高, 低, 收, ...]]}`，全是字符串，且**按时间倒序**。
-    static func okxBars(from data: Data) throws -> [Bar] {
+    /// Worker 的 CMC 报价：`{quotes:{OKB:{price,change24h}}}`。
+    static func cmcQuote(from data: Data, symbol: String) throws -> (price: Double, change: Double) {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let rows = root["data"] as? [[Any]] else {
+              let quotes = root["quotes"] as? [String: Any],
+              let row = quotes[symbol] as? [String: Any],
+              let price = (row["price"] as? NSNumber)?.doubleValue,
+              price > 0 else {
             throw MarketDataClientError.invalidResponse
         }
-        return rows.compactMap { row in
-            guard row.count >= 5,
-                  let time = Double("\(row[0])"),
-                  let open = Double("\(row[1])"),
-                  let close = Double("\(row[4])"),
-                  time > 0, open > 0, close > 0 else { return nil }
-            return Bar(time: time, open: open, close: close)
-        }
-        .sorted { $0.time < $1.time }
+        return (price, (row["change24h"] as? NSNumber)?.doubleValue ?? 0)
     }
 
     /// 由小时线合成一条报价。
