@@ -9,6 +9,8 @@ import Foundation
 enum MarketEndpoints {
     static let binance = "https://api.binance.com"
     static let equity = "https://www.binance.com/bapi/equity/v1/public/equity"
+    static let gate = "https://api.gateio.ws/api/v4"
+    static let gateWebSocket = "wss://api.gateio.ws/ws/v4/"
 }
 
 struct APIConfiguration: Equatable, Sendable {
@@ -47,6 +49,16 @@ protocol MarketDataServing: Sendable {
 /// 目录约 400KB，不该每次冷启动都重新解析，更不该并发拉好几份。Worker 在
 /// `/api/catalog` 上带了 `Cache-Control: max-age=21600`，磁盘那一层由 URLSession
 /// 的协议缓存负责；这个 actor 只管进程内的那份解析结果和「同一时刻只拉一次」。
+/// 只让主机探测跑一次。
+actor HostProbeGate {
+    private var used = false
+    func claim() -> Bool {
+        if used { return false }
+        used = true
+        return true
+    }
+}
+
 actor MarketCatalogCache {
     static let shared = MarketCatalogCache()
 
@@ -241,6 +253,15 @@ struct LiveMarketDataClient: MarketDataServing {
         let pair = instrument.pair ?? instrument.symbol
         // CMC 没有 K 线，走的是另一条路（cmcQuote），不该进到这里。
         if instrument.venue == "cmc" { throw MarketDataClientError.unavailable }
+        if instrument.venue == "gate" {
+            let interval = daily ? "1d" : "1h"
+            let limit = daily ? 365 : 200
+            let url = URL(string:
+                "\(MarketEndpoints.gate)/spot/candlesticks?currency_pair=\(pair)" +
+                "&interval=\(interval)&limit=\(limit)"
+            )!
+            return try MarketDataPayloadDecoder.gateBars(from: try await responseData(from: url))
+        }
         // Binance 的 K 线支持时区偏移，日线直接按北京时间切 —— 北京日基准
         // 就是当日那根的开盘价，不用自己去盘中找。
         let interval = daily ? "1d" : "1h"
@@ -249,11 +270,48 @@ struct LiveMarketDataClient: MarketDataServing {
         return try MarketDataPayloadDecoder.binanceBars(from: try await responseData(from: url!))
     }
 
+    /// 临时：从**设备**探测各交易所主机是否可达。
+    ///
+    /// 必须在设备上跑 —— 开发机和手机的 DNS 可能完全不同，OKX 那次就是
+    /// Mac 能解析、手机不能，害我按 Mac 的结果判断错了方向。
+    /// PAWFOLIO_HOST_PROBE=1 时才执行。
+    private static let hostProbeOnce = HostProbeGate()
+    private func probeHostsIfRequested() async {
+        guard ProcessInfo.processInfo.environment["PAWFOLIO_HOST_PROBE"] == "1",
+              await Self.hostProbeOnce.claim() else { return }
+        let targets = [
+            ("gate", "https://api.gateio.ws/api/v4/spot/tickers?currency_pair=OKB_USDT"),
+            ("mexc", "https://api.mexc.com/api/v3/ticker/price?symbol=OKBUSDT"),
+            ("okx", "https://www.okx.com/api/v5/market/ticker?instId=OKB-USDT"),
+            ("binance", "https://api.binance.com/api/v3/ping"),
+            ("gate-ws-host", "https://api.gateio.ws/api/v4/spot/currencies/BTC"),
+            ("mexc-ws-host", "https://api.mexc.com/api/v3/time")
+        ]
+        for (name, urlString) in targets {
+            guard let url = URL(string: urlString) else { continue }
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 6
+            do {
+                let (data, response) = try await session.data(for: request)
+                let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+                print("[HOSTPROBE] \(name) HTTP \(code) \(String(data: data.prefix(70), encoding: .utf8) ?? "")")
+            } catch {
+                print("[HOSTPROBE] \(name) 失败: \((error as NSError).code) \((error as NSError).localizedDescription)")
+            }
+        }
+    }
+
     private func loadCatalog() async -> MarketCatalog {
-        await catalogCache.catalog { [configuration, session] in
+        await probeHostsIfRequested()
+        return await catalogCache.catalog { [configuration, session] in
             // 静态资源，不经过 Worker。见 MarketCatalog 的说明。
             let url = configuration.baseURL.appendingPathComponent("catalog.json")
-            let (data, response) = try await session.data(from: url)
+            // 目录的结构变过（加了 venue、场所从 OKX 换成 Gate/CMC）。URL 没变，
+            // 所以协议缓存可能还揣着旧结构那份。这里强制回源，代价是每 6 小时
+            // 多一次 ~120KB 的请求，换的是不会拿着旧目录一直取不到价。
+            var request = URLRequest(url: url)
+            request.cachePolicy = .reloadRevalidatingCacheData
+            let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 throw MarketDataClientError.unavailable
             }
@@ -466,6 +524,25 @@ enum MarketDataPayloadDecoder {
                   time > 0, open > 0, close > 0 else { return nil }
             return Bar(time: time, open: open, close: close)
         }
+    }
+
+    /// Gate.io：`[[秒级时间, 计价量, 收, 高, 低, 开, 基础量, 是否收盘], ...]`，全是字符串。
+    ///
+    /// ⚠️ **收在前、开在后**（index 2 是收盘，index 5 是开盘），和多数交易所相反。
+    /// 取错不会报错，只会得到一条形状差不多但系统性偏移的曲线，很难一眼看出来。
+    static func gateBars(from data: Data) throws -> [Bar] {
+        guard let rows = try? JSONSerialization.jsonObject(with: data) as? [[Any]] else {
+            throw MarketDataClientError.invalidResponse
+        }
+        return rows.compactMap { row in
+            guard row.count >= 6,
+                  let seconds = Double("\(row[0])"),
+                  let close = Double("\(row[2])"),
+                  let open = Double("\(row[5])"),
+                  seconds > 0, close > 0, open > 0 else { return nil }
+            return Bar(time: seconds * 1_000, open: open, close: close)
+        }
+        .sorted { $0.time < $1.time }
     }
 
     /// Worker 的 CMC 报价：`{quotes:{OKB:{price,change24h}}}`。

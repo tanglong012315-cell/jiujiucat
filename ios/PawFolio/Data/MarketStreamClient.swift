@@ -40,6 +40,12 @@ actor MarketStreamClient {
     private let catalogLoader: @Sendable () async -> MarketCatalog
 
     private var task: URLSessionWebSocketTask?
+    // Gate.io 单独一套连接：订阅消息和推送结构都和 Binance 不同，
+    // 塞进同一套 if/else 只会让两边都难读。
+    private var gateTask: URLSessionWebSocketTask?
+    private var gatePairs: [String: String] = [:]   // 交易对 → App 代号
+    private var gateReceive: Task<Void, Never>?
+    private var gateRetry = 0
     private var subscribed: [String: String] = [:]   // 交易对 → App 代号
     private var quoteCurrencies: [String: String] = [:] // App 代号 → 计价货币
     private var usdtPerUSD: Double = 1
@@ -86,16 +92,26 @@ actor MarketStreamClient {
     func subscribe(symbols: Set<String>) async {
         let catalog = await catalogLoader()
         var newPairs: [String] = []
+        var newGatePairs: [String] = []
         for symbol in symbols {
-            // 必须同时排除美股和 OKX：
+            // 每个场所有自己的订阅集，放错的后果不是报错而是**安静地收不到推送**
             //   美股（Binance Stocks）没有公开行情流。
-            //   CMC 只有 REST 报价，没有行情流。把它的代号拿去订 Binance 的流
-            //   是订不到的 —— 那个流根本不存在，于是永远收不到推送，价格就
-            //   永远停在首次取到的那个值（2026-09-07 真机上就是这么暴露的）。
+            //   CMC 只有 REST 报价，也没有流。
+            //   Gate 有流，但协议不同，要走 gatePairs 那条路。
+            // 2026-09-07 真机上就是这么暴露的：长尾币的对进了 Binance 的集合，
+            // 订了一个不存在的流，价格永远停在首次取到的值。
             guard let instrument = catalog.resolve(symbol: symbol),
                   !instrument.isEquity,
                   instrument.venue != "cmc",
                   let pair = instrument.pair else { continue }
+            if instrument.venue == "gate" {
+                quoteCurrencies[instrument.symbol] = instrument.quoteCurrency
+                if gatePairs[pair] == nil {
+                    gatePairs[pair] = instrument.symbol
+                    newGatePairs.append(pair)
+                }
+                continue
+            }
             quoteCurrencies[instrument.symbol] = instrument.quoteCurrency
             guard subscribed[pair] == nil else { continue }
             subscribed[pair] = instrument.symbol
@@ -114,6 +130,10 @@ actor MarketStreamClient {
         guard !newPairs.isEmpty else { return }
 
         isRunning = true
+        if !newGatePairs.isEmpty {
+            if gateTask == nil { connectGate() } else { sendGate(subscribe: newGatePairs) }
+        }
+        guard !newPairs.isEmpty else { return }
         if task == nil {
             connect()
         } else {
@@ -121,8 +141,96 @@ actor MarketStreamClient {
         }
     }
 
+    // MARK: - Gate.io
+
+    /// 为什么值得单独接一套：OKB 这类币 Binance 根本不上架（不上架任何竞争对手的
+    /// 平台币），而 OKX 在部分网络下 DNS 解析不出来。Gate 实测可达、有 K 线，
+    /// 而且 WebSocket 是干净的 JSON。
+    private func connectGate() {
+        guard isRunning, !gatePairs.isEmpty else { return }
+        gateReceive?.cancel()
+        gateTask?.cancel(with: .goingAway, reason: nil)
+        guard let url = URL(string: MarketEndpoints.gateWebSocket) else { return }
+        let socket = session.webSocketTask(with: url)
+        gateTask = socket
+        socket.resume()
+        sendGate(subscribe: Array(gatePairs.keys))
+        gateReceive = Task { [weak self] in await self?.gateLoop(on: socket) }
+    }
+
+    private func sendGate(subscribe pairs: [String]) {
+        guard !pairs.isEmpty else { return }
+        let payload = pairs.map { "\"\($0)\"" }.joined(separator: ",")
+        let message = "{\"time\":\(Int(Date().timeIntervalSince1970))," +
+            "\"channel\":\"spot.tickers\",\"event\":\"subscribe\",\"payload\":[\(payload)]}"
+        gateTask?.send(.string(message)) { error in
+            if let error {
+                Self.log.debug("gate subscribe failed: \(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+
+    private func gateLoop(on socket: URLSessionWebSocketTask) async {
+        while !Task.isCancelled {
+            do {
+                let message = try await socket.receive()
+                gateRetry = 0
+                handleGate(message)
+            } catch {
+                guard !Task.isCancelled else { return }
+                gateTask = nil
+                guard isRunning else { return }
+                // 指数退避 + 抖动，和 Binance 那条一致。
+                let backoff = min(pow(2, Double(gateRetry)), Self.maxBackoff) + Double.random(in: 0...1)
+                gateRetry += 1
+                Task { [weak self] in
+                    try? await Task.sleep(nanoseconds: UInt64(backoff * 1_000_000_000))
+                    await self?.connectGate()
+                }
+                return
+            }
+        }
+    }
+
+    private struct GateTicker: Decodable {
+        struct Result: Decodable {
+            let currency_pair: String?
+            let last: String?
+        }
+        let channel: String?
+        let event: String?
+        let result: Result?
+    }
+
+    private func handleGate(_ message: URLSessionWebSocketTask.Message) {
+        let data: Data?
+        switch message {
+        case .string(let text): data = text.data(using: .utf8)
+        case .data(let raw): data = raw
+        @unknown default: data = nil
+        }
+        guard let data,
+              let payload = try? JSONDecoder().decode(GateTicker.self, from: data),
+              payload.channel == "spot.tickers", payload.event == "update",
+              let pair = payload.result?.currency_pair,
+              let symbol = gatePairs[pair],
+              let price = payload.result?.last.flatMap(Double.init),
+              price > 0 else { return }
+        // Gate 的对都是 USDT 计价，换算成美元和 Binance 那条一致。
+        let rate = quoteCurrencies[symbol] == "USDT" ? usdtPerUSD : 1
+        continuation?.yield(MarketStreamTick(
+            symbol: symbol,
+            priceUSD: price * rate,
+            receivedAtMilliseconds: Date().timeIntervalSince1970 * 1_000
+        ))
+    }
+
     func stop() {
         isRunning = false
+        gateReceive?.cancel()
+        gateReceive = nil
+        gateTask?.cancel(with: .goingAway, reason: nil)
+        gateTask = nil
         teardownConnection()
         continuation?.finish()
         continuation = nil

@@ -757,6 +757,36 @@ private final class LedgerPortfolioPreferencesStub: PortfolioPreferencesStoring,
 
 /// 交易表单三个数的联动（用户 2026-09-06 定的规则）。
 final class LedgerTradeLinkageTests: XCTestCase {
+    func testSearchQuoteCanBeUsedAsImmediatePricePrefill() {
+        let quote = MarketQuote(
+            symbol: "BTC-USD",
+            currency: "USD",
+            price: 79_322.281234,
+            changePercent: 1.2,
+            series: [],
+            marketTimeMilliseconds: nil,
+            fetchedAtMilliseconds: 1
+        )
+
+        XCTAssertEqual(LedgerTradeLinkage.pricePrefill(from: quote), "79322.281234")
+        XCTAssertNil(LedgerTradeLinkage.pricePrefill(from: nil))
+    }
+
+    func testLateQuoteOnlyAppliesToTheStillSelectedAsset() {
+        XCTAssertTrue(
+            LedgerTradeLinkage.canApplyPrice(
+                requestedSymbol: "btc-usd",
+                selectedSymbol: "BTC-USD"
+            )
+        )
+        XCTAssertFalse(
+            LedgerTradeLinkage.canApplyPrice(
+                requestedSymbol: "BTC-USD",
+                selectedSymbol: "ETH-USD"
+            )
+        )
+    }
+
     func testGrossValueIsPriceTimesQuantity() {
         XCTAssertEqual(
             LedgerTradeLinkage.grossValue(quantity: "1.2", price: "123213", current: ""),

@@ -113,13 +113,16 @@ struct AssetSearchView: View {
     @FocusState private var isQueryFocused: Bool
     @Environment(\.dismiss) private var dismiss
 
-    let onSelect: (AssetSearchResult) -> Void
+    /// 把搜索结果行已经拿到的报价一起交给调用方。否则交易表单会在弹层关闭后
+    /// 再发一次完全相同的请求；第二次请求偶发失败时，就会出现列表明明有价格、
+    /// 选中后价格框却为空的割裂状态。
+    let onSelect: (AssetSearchResult, MarketQuote?) -> Void
     private let title: LocalizedStringKey
 
     init(
         initialQuery: String,
         title: LocalizedStringKey = "Add Position",
-        onSelect: @escaping (AssetSearchResult) -> Void
+        onSelect: @escaping (AssetSearchResult, MarketQuote?) -> Void
     ) {
         _model = StateObject(wrappedValue: AssetSearchViewModel(initialQuery: initialQuery))
         self.title = title
@@ -280,7 +283,7 @@ struct AssetSearchView: View {
     /// 选中即关闭。弹层自己关，而不是让每个调用方在回调里各写一遍——漏写的
     /// 表现是「点了没反应」：草稿其实已经填好了，只是搜索层还盖在上面。
     private func select(_ asset: AssetSearchResult) {
-        onSelect(asset)
+        onSelect(asset, model.quotes[asset.quoteSymbol])
         dismiss()
     }
 

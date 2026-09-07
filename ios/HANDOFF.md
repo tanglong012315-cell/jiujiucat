@@ -33,6 +33,10 @@ Last updated: 2026-09-07
 - 资产首页的常驻收益标签由 `PNL` 改为 `Total PNL`；扫描走势图时仍显示对应区间文案。
 - `MARKETING_VERSION` 已更新为 `2.1.2`。设计里的 close、eye、quill-pen、leaf 与资产图标
   全部复用现有本地资源和 Nvwa 组件，没有引入远程 Figma 资源。
+- 修复 Trading 搜索选中后价格偶发不回填：搜索结果把已经展示的 `MarketQuote` 直接交给
+  表单，不再重复联网；未拿到报价时才走缓存/网络兜底。默认价请求现在单例化并在换标的、
+  离开页面时取消，返回前再次核对当前 symbol，避免旧请求覆盖新资产；新资产没有报价时会
+  先清掉旧价格，杜绝把上一只资产的成交价带过来。
 
 验证：
 
@@ -41,6 +45,10 @@ Last updated: 2026-09-07
 - `xcodebuild ... -destination 'generic/platform=iOS Simulator' ... build-for-testing`
   —— `TEST BUILD SUCCEEDED`。
 - iPhone 17 Pro（iOS 26.5）`test-without-building` —— 300 tests，0 failures。
+- `LedgerTradeLinkageTests` 定向模拟器测试 —— 9 tests，0 failures；覆盖搜索报价直接回填与
+  延迟报价的资产身份校验。
+- iPhone 17 Pro（iOS 26.5）实机链路复核：Trading → Asset Name → 搜索 BTC，等待结果行
+  显示行情后点击；Buy Price 立即回填同一笔报价，未出现空值或上一资产串价。
 - 使用内置账本 QA 数据在模拟器实拍核对资产首页、Earn Holding、Daily 弹层；布局、token、
   文案和自适应弹层均与上述 Figma 节点一致。
 

@@ -71,11 +71,25 @@ def build_crypto():
             continue
         catalog[base] = [pair, name or base, quote, "binance"]
 
-    # Binance 没有的走 CMC（经 Worker）。
+    # 第二梯队：Gate.io。
     #
-    # 原本用 OKX 补，但 2026-09-07 在真机上实测 www.okx.com 在用户网络下
-    # DNS 解析不出来（OKX 走 Cloudflare CDN 域名）。CMC 不拦 Worker，
-    # 覆盖也比 OKX 全（BGB / KCS / GT / MX 这些 OKX 也没有）。
+    # 为什么不是 OKX：2026-09-07 在用户真机上实测，www.okx.com 在他的网络下
+    # DNS 解析不出来（OKX 走 Cloudflare CDN 域名）。Gate.io 和 MEXC 都实测可达，
+    # 选 Gate 是因为它的 WebSocket 是干净的 JSON（MEXC 新版走 protobuf），
+    # 而且**有 K 线** —— 有 K 线才能给出北京日基准和走势图。
+    gate = fetch("https://api.gateio.ws/api/v4/spot/currency_pairs")
+    gate_added = 0
+    for item in gate:
+        if item.get("quote") != "USDT" or item.get("trade_status") != "tradable":
+            continue
+        base = str(item.get("base") or "").upper()
+        if not base or base in catalog:
+            continue
+        catalog[base] = [item["id"], base, "USDT", "gate"]
+        gate_added += 1
+
+    # 最后兜底：CMC（经 Worker）。它没有 K 线，走势图画不了、涨跌只能给
+    # 24 小时口径 —— 所以只用来补 Gate 也没有的那些（BGB / KCS / MX 这类）。
     cmc = fetch(
         "https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing"
         "?start=1&limit=1000&sortBy=market_cap&sortType=desc&cryptoType=all&tagType=all"
@@ -85,11 +99,10 @@ def build_crypto():
         code = str(coin.get("symbol") or "").upper()
         if not code or code in catalog:
             continue
-        # 交易对留空：CMC 是按代号查的，没有交易对的概念。
         catalog[code] = ["", coin.get("name") or code, "USD", "cmc"]
         added += 1
 
-    print(f"  加密 {len(catalog)} 个（其中 CMC 补了 {added} 个）")
+    print(f"  加密 {len(catalog)} 个（Gate 补 {gate_added}，CMC 补 {added}）")
     return catalog
 
 

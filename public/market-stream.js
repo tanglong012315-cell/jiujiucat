@@ -35,6 +35,8 @@
 
   const WS_URL = 'wss://stream.binance.com:9443/ws';
   const BINANCE_BASE = 'https://api.binance.com';
+  const GATE_BASE = 'https://api.gateio.ws/api/v4';
+  const GATE_WS = 'wss://api.gateio.ws/ws/v4/';
   const EQUITY_BASE = 'https://www.binance.com/bapi/equity/v1/public/equity';
   const SERIES_CAP = 240;
   // 连接静默超过这个时长就当它已经死了。Binance 服务端会定期发 ping frame
@@ -59,6 +61,12 @@
   let watchdog = null;
   let lastAt = 0;
   let hiddenTimer = null;
+  // Gate.io 的连接单独一套：它是另一套协议（订阅消息、推送结构都不一样），
+  // 塞进 Binance 那套 if/else 只会让两边都难读。
+  let gateSocket = null;
+  let gateRetry = 0;
+  let gateTimer = null;
+  const gateWatched = new Set();
   let equityTimer = null;
   // 正在建条目的 watch() 调用。见 watch() 里的注释。
   const admitting = new Map();
@@ -90,7 +98,11 @@
     }
   };
 
-  const CATALOG_KEY = 'jiujiucat-binance-catalog';
+  // 键里带版本号：目录的结构变过（加了 venue 字段、场所从 OKX 换成 Gate/CMC），
+  // 而它在 localStorage 里缓存一天。不换键的话老用户会拿着旧结构的目录继续用
+  // 一整天 —— 表现是长尾币拿着新交易对去问旧场所，一直取不到价。
+  // **以后只要目录的结构或场所划分变了，就必须递增这个数字。**
+  const CATALOG_KEY = 'jiujiucat-catalog-v2';
   const CATALOG_TTL = 24 * 60 * 60 * 1000;
 
   function emit(symbol) {
@@ -255,6 +267,36 @@
       emit(symbol);
       return;
     }
+    if (entry.venue === 'gate') {
+      // Gate.io：有 K 线，所以北京日基准和走势图都能给 —— 这正是不用 CMC 的理由。
+      // 返回的每根是 [秒级时间, 计价量, 收, 高, 低, 开, 基础量, 是否收盘]，
+      // 注意**收在前、开在后**，和多数交易所相反，取错会得到一条形状差不多但
+      // 系统性偏移的曲线，很难一眼看出来。
+      try {
+        const rows = await fetchJSON(
+          `${GATE_BASE}/spot/candlesticks?currency_pair=${encodeURIComponent(entry.pair)}&interval=1h&limit=200`
+        );
+        const series = (Array.isArray(rows) ? rows : [])
+          .map(r => [Number(r[0]) * 1000, Number(r[2]), Number(r[5])])
+          .filter(r => r[0] > 0 && r[1] > 0)
+          .sort((a, b) => a[0] - b[0]);
+        if (!series.length) throw new Error('no candles');
+        entry.raw = series.at(-1)[1];
+        entry.at = Date.now();
+        const dayStart = beijingDayStartUnix() * 1000;
+        const boundary = series.find(r => r[0] === dayStart);
+        const prior = series.filter(r => r[0] <= dayStart);
+        entry.dayOpen = boundary ? boundary[2] : (prior.length ? prior.at(-1)[1] : series[0][2]);
+        entry.basis = '北京时间今日';
+        if (wantHistory) entry.series = series.map(r => [r[0], r[1]]);
+      } catch {
+        entry.dayOpen = null;
+        entry.basis = '24 小时';
+      }
+      recompute(entry);
+      emit(symbol);
+      return;
+    }
     if (entry.venue === 'cmc') {
       // Binance 没有的长尾币走 Worker → CMC。
       //
@@ -411,6 +453,65 @@
     }
   }
 
+  // ── Gate.io 推送 ─────────────────────────────────────────
+  // 为什么值得单独接一套：OKB 这类币 Binance 根本不上架（不上架任何竞争对手的
+  // 平台币），而 OKX 在部分网络下 DNS 解析不出来。Gate 实测可达、有 K 线、
+  // 而且 WebSocket 是干净的 JSON，代价最小。
+  function gateSubscribe(pairs) {
+    if (!pairs.length || gateSocket?.readyState !== WebSocket.OPEN) return;
+    gateSocket.send(JSON.stringify({
+      time: Math.floor(Date.now() / 1000),
+      channel: 'spot.tickers',
+      event: 'subscribe',
+      payload: pairs
+    }));
+  }
+
+  function connectGate() {
+    if (!running || !gateWatched.size) return;
+    if (gateSocket && (gateSocket.readyState === WebSocket.OPEN || gateSocket.readyState === WebSocket.CONNECTING)) return;
+    let ws;
+    try { ws = new WebSocket(GATE_WS); } catch { return; }
+    gateSocket = ws;
+
+    ws.onopen = () => { gateRetry = 0; gateSubscribe([...gateWatched]); };
+    ws.onmessage = event => {
+      let raw;
+      try { raw = JSON.parse(event.data); } catch { return; }
+      if (raw?.channel !== 'spot.tickers' || raw?.event !== 'update') return;
+      const pair = raw.result?.currency_pair;
+      const price = Number(raw.result?.last);
+      const symbol = pairIndex.get(pair);
+      if (!symbol || !(price > 0)) return;
+      const entry = state.get(symbol);
+      if (!entry) return;
+      entry.raw = price;
+      entry.live = true;
+      entry.at = Date.now();
+      recompute(entry);
+      if (Array.isArray(entry.series) && entry.series.length && Number.isFinite(entry.price)) {
+        const hour = Math.floor(entry.at / 3600000) * 3600000;
+        if (entry.series.at(-1)[0] === hour) entry.series.at(-1)[1] = entry.price;
+        else {
+          entry.series.push([hour, entry.price]);
+          if (entry.series.length > SERIES_CAP) entry.series = entry.series.slice(-SERIES_CAP);
+        }
+      }
+      emit(symbol);
+    };
+    ws.onclose = () => {
+      for (const entry of state.values()) if (entry.venue === 'gate') entry.live = false;
+      gateSocket = null;
+      if (!running) return;
+      // 和 Binance 那条一样：指数退避 + 抖动。
+      const delay = Math.min(1000 * 2 ** gateRetry, MAX_BACKOFF_MS) + Math.random() * 1000;
+      gateRetry += 1;
+      clearTimeout(gateTimer);
+      gateTimer = setTimeout(() => { if (running) connectGate(); }, delay);
+    };
+    ws.onerror = () => { try { ws.close(); } catch { /* onclose 接手 */ } };
+  }
+
   function subscribeMessage(pairs) {
     return JSON.stringify({
       method: 'SUBSCRIBE',
@@ -470,6 +571,9 @@
   }
 
   function disconnect() {
+    clearTimeout(gateTimer);
+    if (gateSocket) { gateSocket.onclose = null; try { gateSocket.close(); } catch { /* 已关 */ } }
+    gateSocket = null;
     clearTimeout(reconnectTimer);
     clearInterval(watchdog);
     const ws = socket;
@@ -501,6 +605,7 @@
     clearTimeout(hiddenTimer);
     hiddenTimer = null;
     pollSlowSymbols();   // 回前台立刻补一轮，别让用户盯着一个旧价等 60 秒
+    connectGate();
     if (socket?.readyState === WebSocket.OPEN) return;  // 没断过，数据是连续的
     // 断过就一律当它已死：补基准价（可能已经跨天了），再重连。
     retry = 0;
@@ -598,10 +703,10 @@
         }
         state.set(key, {
           symbol: key, equity: info.equity, pair: info.pair, quote: info.quote,
-          // venue 必须存进来：primeSymbol 靠它决定去 Binance 还是 OKX 取价。
-          // 漏了这个字段，OKX 的币会拿着 OKX 的对（OKB-USDT）去问 Binance，
-          // 而 Binance 对不认识的 symbol 连 CORS 头都不发，报的是 CORS 错误，
-          // 看起来像跨域问题，其实是路由错了。
+          // venue 必须存进来：primeSymbol 和订阅都靠它分流到 Binance / Gate / CMC。
+          // 漏了这个字段，长尾币会拿着 Gate 的对（OKB_USDT）去问 Binance，
+          // 而 Binance 对不认识的 symbol 连 CORS 头都不发，报出来是 CORS 错误，
+          // 看着像跨域问题，其实是路由错了。
           venue: info.venue || 'binance',
           assetType: info.assetType, name: info.name, price: null, raw: NaN
         });
@@ -612,10 +717,19 @@
           return true;
         }
         pairIndex.set(info.pair, key);
-        watched.add(info.pair);
+        // 每个场所有自己的订阅集。放错集合的后果不是报错，而是安静地收不到
+        // 推送 —— Gate 的对进了 Binance 的集合，connectGate 会因为自己的集合
+        // 是空的直接 return，价格就永远停在首次取到的值。
+        if (info.venue === 'gate') gateWatched.add(info.pair);
+        else if (info.venue !== 'cmc') watched.add(info.pair);
         await primeSymbol(key, wantHistory);
         if (!running) return true;
-        if (info.venue === 'cmc') return true;   // CMC 不订阅，靠轮询
+        if (info.venue === 'cmc') return true;   // CMC 没有推送，靠轮询
+        if (info.venue === 'gate') {
+          if (gateSocket?.readyState === WebSocket.OPEN) gateSubscribe([info.pair]);
+          else connectGate();
+          return true;
+        }
         if (socket?.readyState === WebSocket.OPEN) socket.send(subscribeMessage([info.pair]));
         else connect();
         return true;
@@ -652,6 +766,13 @@
         series = (data?.data?.bars || [])
           .filter(bar => Number(bar?.t) > 0 && Number(bar?.c) > 0)
           .map(bar => [Number(bar.t), Number(bar.c)]);
+      } else if (info.venue === 'gate') {
+        const rows = await fetchJSON(
+          `${GATE_BASE}/spot/candlesticks?currency_pair=${encodeURIComponent(info.pair)}&interval=1d&limit=365`
+        );
+        series = (Array.isArray(rows) ? rows : [])
+          .map(r => [Number(r[0]) * 1000, Number(r[2])])
+          .filter(r => r[0] > 0 && r[1] > 0);
       } else if (info.venue === 'cmc') {
         // CMC 没有 K 线，长尾币画不了长期走势图。诚实地告诉调用方，
         // 而不是拿一个点画出一条假的平线。
@@ -676,7 +797,7 @@
       running = true;
       // 页面可能一开始就在后台（新标签页里打开、或从后台恢复的会话）。
       // 不判断这个就会白开连接，一直挂到用户第一次切过来为止。
-      if (!document.hidden) connect();
+      if (!document.hidden) { connect(); connectGate(); }
       watchDayRollover();
       // 美股 60 秒一轮。页面在后台时跳过 —— 没人看的时候没必要打请求。
       pollSlowSymbols();

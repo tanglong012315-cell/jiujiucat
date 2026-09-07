@@ -2339,6 +2339,17 @@ private enum LedgerTradeField: Hashable {
 /// 不能反过来动数量。「只走一跳」就是为此：从前那套锚点是双向的，改价格会连带
 /// 改数量，于是填完数量再去点金额，数量就被改掉了（用户 2026-09-06 报的）。
 enum LedgerTradeLinkage {
+    /// 搜索结果已经展示了有效报价时，交易表单直接复用同一个值，不再二次联网。
+    static func pricePrefill(from quote: MarketQuote?) -> String? {
+        guard let price = quote?.price, price.isFinite, price > 0 else { return nil }
+        return editable(price)
+    }
+
+    /// 异步报价回来时必须仍是当前标的；否则快速切换会让旧请求覆盖新价格。
+    static func canApplyPrice(requestedSymbol: String, selectedSymbol: String?) -> Bool {
+        requestedSymbol.caseInsensitiveCompare(selectedSymbol ?? "") == .orderedSame
+    }
+
     /// 数量或价格变了之后的金额。
     static func grossValue(quantity: String, price: String, current: String) -> String {
         // 价格不成立，等式就不成立：金额一个字都不动。
@@ -2405,6 +2416,9 @@ private struct LedgerTradeForm: View {
     @State private var note = ""
     @State private var isSaving = false
     @State private var pendingOrder: LedgerTradeOrder?
+    /// 同一时间只允许一个默认价请求。用户连续换标的时先取消旧请求，避免较慢的
+    /// 旧报价最后返回，把新标的的价格覆盖掉。
+    @State private var priceLoadTask: Task<Void, Never>?
     @FocusState private var focusedField: LedgerTradeField?
 
     var body: some View {
@@ -2531,14 +2545,11 @@ private struct LedgerTradeForm: View {
             .padding(.vertical, 12)
         }
         .background(Nvwa.backgroundMain)
-        // 换标的等于换价格：旧标的的价对新标的没有意义，直接填新的最新价。
-        .task { await fillLatestPrice(for: selectedMarket) }
-        .onChange(of: selectedMarket) { _, market in
-            Task { await fillLatestPrice(for: market) }
-        }
+        .onAppear { startLatestPriceLoad(for: selectedMarket) }
+        .onDisappear { priceLoadTask?.cancel() }
         .sheet(isPresented: $showsAssetSearch) {
-            AssetSearchView(initialQuery: selectedMarket?.symbol ?? "", title: "Select asset") { result in
-                selectedMarket = result
+            AssetSearchView(initialQuery: selectedMarket?.symbol ?? "", title: "Select asset") { result, quote in
+                selectMarket(result, quote: quote)
                 showsAssetSearch = false
             }
         }
@@ -2723,13 +2734,38 @@ private struct LedgerTradeForm: View {
         grossValue = ""
         fraction = 0
         focusedField = nil
-        Task { await fillLatestPrice(for: selectedMarket) }
+        startLatestPriceLoad(for: selectedMarket)
+    }
+
+    /// 搜索列表已经展示出的报价是这一笔选择最可靠、最快的来源，直接复用；只有
+    /// 用户在报价到达前就点了结果，或手动输入标的时，才回退到缓存和联网请求。
+    private func selectMarket(_ market: AssetSearchResult, quote: MarketQuote?) {
+        priceLoadTask?.cancel()
+        selectedMarket = market
+
+        if let prefill = LedgerTradeLinkage.pricePrefill(from: quote) {
+            priceInput.wrappedValue = prefill
+        } else {
+            // 不能让上一只资产的价格留在新资产表单里。
+            priceInput.wrappedValue = ""
+            startLatestPriceLoad(for: market)
+        }
+    }
+
+    private func startLatestPriceLoad(for market: AssetSearchResult?) {
+        priceLoadTask?.cancel()
+        priceLoadTask = Task { await fillLatestPrice(for: market) }
     }
 
     /// 选中标的后把最新价填进价格框（设计 `159:19567`「默认填入最新价」）。
     /// 这是价格唯一的自动来源——填完之后它只认用户手输。
     private func fillLatestPrice(for market: AssetSearchResult?) async {
         guard let market, let latest = await model.latestPrice(for: market.quoteSymbol) else { return }
+        guard !Task.isCancelled,
+              LedgerTradeLinkage.canApplyPrice(
+                requestedSymbol: market.quoteSymbol,
+                selectedSymbol: selectedMarket?.quoteSymbol
+              ) else { return }
         priceInput.wrappedValue = LedgerTradeLinkage.editable(latest)
     }
 
