@@ -135,50 +135,43 @@ struct LiveMarketDataClient: MarketDataServing {
 
     func quote(symbol: String) async throws -> MarketQuote {
         let normalized = try normalizedSymbol(symbol)
-        #if DEBUG
-        // 临时诊断（PAWFOLIO_QUOTE_TRACE=1 时才输出）。这台机器点不了模拟器，
-        // 真机问题只能靠 devicectl --console 把日志捞回来。
-        let trace = ProcessInfo.processInfo.environment["PAWFOLIO_QUOTE_TRACE"] == "1"
-        #endif
-        let instrument: MarketInstrument
         do {
-            instrument = try await resolve(normalized)
-        } catch {
-            #if DEBUG
-            if trace { print("[QUOTE] \(normalized) resolve 失败: \(error)") }
-            #endif
-            throw error
-        }
-        #if DEBUG
-        if trace {
-            print("[QUOTE] \(normalized) → pair=\(instrument.pair ?? "-") venue=\(instrument.venue) equity=\(instrument.isEquity)")
-        }
-        #endif
-        return try await quoteBody(normalized, instrument)
-    }
-
-    private func quoteBody(_ normalized: String, _ instrument: MarketInstrument) async throws -> MarketQuote {
-        #if DEBUG
-        let trace = ProcessInfo.processInfo.environment["PAWFOLIO_QUOTE_TRACE"] == "1"
-        do {
+            let instrument = try await resolve(normalized)
+            Self.trace("\(normalized) → pair=\(instrument.pair ?? "-") venue=\(instrument.venue) equity=\(instrument.isEquity)")
             if instrument.venue == "cmc" {
                 let quote = try await cmcQuote(normalized, instrument)
-                if trace { print("[QUOTE] \(normalized) CMC price=\(quote.price)") }
+                Self.trace("\(normalized) CMC price=\(quote.price)")
                 return quote
             }
             let bars = try await fetchBars(for: instrument, daily: false)
-            if trace { print("[QUOTE] \(normalized) bars=\(bars.count)") }
+            Self.trace("\(normalized) bars=\(bars.count)")
             return try MarketDataPayloadDecoder.quote(
-                bars: bars, requestedSymbol: normalized,
+                bars: bars,
+                requestedSymbol: normalized,
                 conversionRate: try await conversionRate(for: instrument),
                 fetchedAtMilliseconds: Date().timeIntervalSince1970 * 1_000
             )
         } catch {
-            if trace { print("[QUOTE] \(normalized) 取价失败: \(error)") }
+            Self.trace("\(normalized) 取价失败: \(error)")
             throw error
         }
-        #else
-        return try await quoteUncached(normalized, instrument)
+    }
+
+    /// 真机诊断钩子。
+    ///
+    /// 这台开发机点不了模拟器，真机的问题只能靠
+    /// `devicectl process launch --console` 把日志捞回来。DEBUG + 环境变量
+    /// 双重门禁，release 构建里整个消失。
+    ///
+    /// **不要再写成 `#if DEBUG` 分叉两条取价路径** —— 那样 debug 和 release
+    /// 会各跑各的逻辑，迟早漂移。日志是旁路，主流程只有一条。
+    ///
+    /// 它已经证明过价值：2026-09-07「OKB 价格停着不动」靠它一次定位到是
+    /// DNS 解析失败（NSURLError -1003），而不是代码逻辑问题。
+    static func trace(_ message: @autoclosure () -> String) {
+        #if DEBUG
+        guard ProcessInfo.processInfo.environment["PAWFOLIO_QUOTE_TRACE"] == "1" else { return }
+        print("[QUOTE] \(message())")
         #endif
     }
 
@@ -204,17 +197,6 @@ struct LiveMarketDataClient: MarketDataServing {
             changePercent: change,
             series: [],
             marketTimeMilliseconds: nil,
-            fetchedAtMilliseconds: Date().timeIntervalSince1970 * 1_000
-        )
-    }
-
-    private func quoteUncached(_ normalized: String, _ instrument: MarketInstrument) async throws -> MarketQuote {
-        if instrument.venue == "cmc" { return try await cmcQuote(normalized, instrument) }
-        let bars = try await fetchBars(for: instrument, daily: false)
-        return try MarketDataPayloadDecoder.quote(
-            bars: bars,
-            requestedSymbol: normalized,
-            conversionRate: try await conversionRate(for: instrument),
             fetchedAtMilliseconds: Date().timeIntervalSince1970 * 1_000
         )
     }
@@ -382,13 +364,8 @@ struct LiveMarketDataClient: MarketDataServing {
             let (data, response) = try await session.data(for: request)
             guard let response = response as? HTTPURLResponse,
                   200..<300 ~= response.statusCode else {
-                #if DEBUG
-                if ProcessInfo.processInfo.environment["PAWFOLIO_QUOTE_TRACE"] == "1" {
-                    let code = (response as? HTTPURLResponse)?.statusCode ?? -1
-                    let body = String(data: data.prefix(160), encoding: .utf8) ?? ""
-                    print("[HTTP] \(code) \(url.host ?? "") \(url.path) \(body)")
-                }
-                #endif
+                let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+                Self.trace("HTTP \(code) \(url.host ?? "")\(url.path)")
                 throw MarketDataClientError.unavailable
             }
             return data
@@ -397,11 +374,7 @@ struct LiveMarketDataClient: MarketDataServing {
         } catch let error as MarketDataClientError {
             throw error
         } catch {
-            #if DEBUG
-            if ProcessInfo.processInfo.environment["PAWFOLIO_QUOTE_TRACE"] == "1" {
-                print("[HTTP] 传输失败 \(url.host ?? "") \(url.path): \(error)")
-            }
-            #endif
+            Self.trace("传输失败 \(url.host ?? "")\(url.path): \(error)")
             throw MarketDataClientError.unavailable
         }
     }
