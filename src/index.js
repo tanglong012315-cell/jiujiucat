@@ -336,11 +336,43 @@ async function handleCryptoLogos() {
   });
 }
 
+
+/**
+ * 上游连通性探针。
+ *
+ * 存在的理由：2026-09-07 上线时 Binance 对 Worker 全线 403，而同一时刻浏览器
+ * 直连全部 200 —— 当时完全分不清是「Binance 专门拦数据中心 IP」还是「Cloudflare
+ * 出口被普遍拦」。这两种结论对架构的含义完全相反，靠猜会改错方向。
+ * 只回状态码，不回响应内容。
+ */
+async function handleProbe() {
+  const targets = {
+    'binance-api': 'https://api.binance.com/api/v3/ping',
+    'binance-bapi': 'https://www.binance.com/bapi/equity/v1/public/equity/symbol/get-symbols-static',
+    'okx': 'https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT',
+    'coinbase': 'https://api.exchange.coinbase.com/products/BTC-USD/stats',
+    'coinmarketcap': 'https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing?start=1&limit=1'
+  };
+  const results = {};
+  await Promise.all(Object.entries(targets).map(async ([name, url]) => {
+    try {
+      const response = await fetch(url, { headers: BROWSER_HEADERS });
+      results[name] = response.status;
+    } catch (error) {
+      results[name] = String(error?.message || error).slice(0, 80);
+    }
+  }));
+  return Response.json({ colo: 'edge', results }, {
+    headers: { 'Cache-Control': 'no-store' }
+  });
+}
+
 const ROUTES = {
   '/api/catalog': handleCatalog,
   '/api/quote': handleQuote,
   '/api/prices': handlePrices,
-  '/api/crypto-logos': handleCryptoLogos
+  '/api/crypto-logos': handleCryptoLogos,
+  '/api/probe': handleProbe
 };
 
 export default {
