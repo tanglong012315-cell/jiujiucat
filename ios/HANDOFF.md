@@ -92,9 +92,17 @@ Last updated: 2026-09-07
 
 1. **部署 Worker 后立刻验这三个端点**，iOS 的所有行情都依赖它们：
    `/api/catalog`、`/api/quote?eq=VOO`、`/api/prices?eq=VOO,AAPL`。
-2. iOS 目前是**轮询**，没有 Web 那套 WebSocket 推送。要做实时跳动的话，
-   用 `URLSessionWebSocketTask` 连 `wss://stream.binance.com:9443/ws`，
-   逻辑与 `public/market-stream.js` 同构（美股无行情流，只能轮询）。
+2. ~~iOS 目前是轮询~~ **已完成**：`Data/MarketStreamClient.swift`（actor +
+   `URLSessionWebSocketTask`）。只有加密走推送 —— Binance Stocks 没有公开行情流，
+   美股仍由 `refreshValuation` 轮询（一次请求覆盖所有标的）。
+   - `ticks()` **只能调一次**：每次调用都会结束上一条流，正在 `for await` 的
+     循环会随之退出，表现是「价格突然不动了」。加订阅走 `subscribe(symbols:)`，
+     那条路不碰流，而且是幂等的，每轮估值刷新都调也没有额外代价。
+   - 涨跌幅不重新联网算：上一次完整报价里的 price 和 changePercent 已经隐含了
+     北京日基准（base = price / (1 + change/100)），用它算出来的新涨跌和 Worker
+     完全一致，既省一次请求也不会两端各算一个数。
+   - 静默 30 秒强制重连：切后台回来时 `task.state` 常常还是 running，实际早就
+     不通了，光等回调等不到。重连退避带抖动。
 3. 稳定币真实估值改变了总资产的显示值，UI 上是否要给一处说明（Web 那边把
    「总利息」改成了「总盈亏」），iOS 侧还没做对应的文案区分。
 

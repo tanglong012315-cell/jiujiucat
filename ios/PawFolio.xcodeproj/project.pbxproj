@@ -73,6 +73,7 @@
 		A00000000000000000000216 /* HoldingValuationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000118 /* HoldingValuationTests.swift */; };
 		A00000000000000000000217 /* MarketData.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000119 /* MarketData.swift */; };
 		A00000000000000000000218 /* MarketDataClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000011A /* MarketDataClient.swift */; };
+		B2100000000000000000019E /* MarketStreamClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2100000000000000000029E /* MarketStreamClient.swift */; };
 		A00000000000000000000219 /* MarketQuoteRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000011B /* MarketQuoteRepository.swift */; };
 		A00000000000000000000277 /* AssetLogoStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000177 /* AssetLogoStore.swift */; };
 		A0000000000000000000021A /* AssetSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000011C /* AssetSearchView.swift */; };
@@ -178,6 +179,7 @@
 		A00000000000000000000118 /* HoldingValuationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingValuationTests.swift; sourceTree = "<group>"; };
 		A00000000000000000000119 /* MarketData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketData.swift; sourceTree = "<group>"; };
 		A0000000000000000000011A /* MarketDataClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketDataClient.swift; sourceTree = "<group>"; };
+		B2100000000000000000029E /* MarketStreamClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketStreamClient.swift; sourceTree = "<group>"; };
 		A0000000000000000000011B /* MarketQuoteRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketQuoteRepository.swift; sourceTree = "<group>"; };
 		A00000000000000000000177 /* AssetLogoStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetLogoStore.swift; sourceTree = "<group>"; };
 		A0000000000000000000011C /* AssetSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetSearchView.swift; sourceTree = "<group>"; };
@@ -326,6 +328,7 @@
 				A00000000000000000000918 /* PreferencesStore.swift */,
 				A00000000000000000000113 /* HoldingRepository.swift */,
 				A0000000000000000000011A /* MarketDataClient.swift */,
+				B2100000000000000000029E /* MarketStreamClient.swift */,
 				A0000000000000000000011B /* MarketQuoteRepository.swift */,
 				A00000000000000000000177 /* AssetLogoStore.swift */,
 				A00000000000000000000127 /* CloudSyncContracts.swift */,
@@ -579,6 +582,7 @@
 				A00000000000000000000215 /* HoldingValuation.swift in Sources */,
 				A00000000000000000000217 /* MarketData.swift in Sources */,
 				A00000000000000000000218 /* MarketDataClient.swift in Sources */,
+				B2100000000000000000019E /* MarketStreamClient.swift in Sources */,
 				A00000000000000000000219 /* MarketQuoteRepository.swift in Sources */,
 				A00000000000000000000277 /* AssetLogoStore.swift in Sources */,
 				B21000000000000000000901 /* LedgerPortfolioView.swift in Sources */,

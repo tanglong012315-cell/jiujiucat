@@ -34,6 +34,7 @@ struct RootTabView: View {
     private let scopedRepository: ScopedLocalHoldingRepository
     private let scopedLedgerRepository: ScopedLocalLedgerRepository
     private let marketQuoteRepository: CachedMarketQuoteRepository
+    private let marketStreamClient = MarketStreamClient()
     private let exchangeRateClient: LiveExchangeRateClient
     private let preferencesStore: UserDefaultsPreferencesStore
 
@@ -397,6 +398,7 @@ struct RootTabView: View {
             ),
             scope: accountModel.activeScope,
             quoteRepository: marketQuoteRepository,
+            streamClient: marketStreamClient,
             exchangeRateClient: exchangeRateClient,
             preferences: preferencesStore,
             portfolioPreferences: preferencesStore

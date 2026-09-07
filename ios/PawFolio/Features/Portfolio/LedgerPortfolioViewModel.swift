@@ -37,6 +37,8 @@ final class LedgerPortfolioViewModel: ObservableObject {
     private let holdingRepository: any HoldingRepository
     private let scope: HoldingStorageScope
     private let quoteRepository: (any MarketQuoteRepositoryServing)?
+    private let streamClient: MarketStreamClient?
+    private var streamTask: Task<Void, Never>?
     private let exchangeRateClient: (any ExchangeRateServing)?
     private let preferences: (any ExchangeRatePreferencesStoring)?
     private let portfolioPreferences: (any PortfolioPreferencesStoring)?
@@ -47,6 +49,7 @@ final class LedgerPortfolioViewModel: ObservableObject {
         holdingRepository: any HoldingRepository,
         scope: HoldingStorageScope,
         quoteRepository: (any MarketQuoteRepositoryServing)? = nil,
+        streamClient: MarketStreamClient? = nil,
         exchangeRateClient: (any ExchangeRateServing)? = nil,
         preferences: (any ExchangeRatePreferencesStoring)? = nil,
         portfolioPreferences: (any PortfolioPreferencesStoring)? = nil
@@ -55,6 +58,7 @@ final class LedgerPortfolioViewModel: ObservableObject {
         self.holdingRepository = holdingRepository
         self.scope = scope
         self.quoteRepository = quoteRepository
+        self.streamClient = streamClient
         self.exchangeRateClient = exchangeRateClient
         self.preferences = preferences
         self.portfolioPreferences = portfolioPreferences
@@ -721,6 +725,9 @@ final class LedgerPortfolioViewModel: ObservableObject {
             } else {
                 valuationStatusMessage = nil
             }
+            // 持仓变了订阅集合就得跟着变。start 对已订过的标的是幂等的，
+            // 所以这里每轮都调没有额外代价。
+            await startStreamingIfNeeded(symbols: symbols)
         }
         if let exchangeRateClient {
             do {
@@ -734,6 +741,62 @@ final class LedgerPortfolioViewModel: ObservableObject {
             }
         }
         recalculateSummary()
+    }
+
+    /// 把加密的实时推送接上。
+    ///
+    /// 美股不走这条路 —— Binance Stocks 没有公开行情流，它们由 `refreshValuation`
+    /// 按轮询更新（一次请求覆盖所有标的）。`MarketStreamClient` 自己会忽略非加密
+    /// 的代号，所以这里直接把整个集合交过去。
+    private func startStreamingIfNeeded(symbols: Set<String>) async {
+        guard let streamClient, !symbols.isEmpty else { return }
+        // 订阅是幂等的，每轮估值刷新都调一次，持仓增删就自动跟上。
+        await streamClient.subscribe(symbols: symbols)
+        // 接收循环只开一次。再开一次会把上一条流结束掉，表现是价格突然不动了。
+        guard streamTask == nil else { return }
+        let stream = await streamClient.ticks()
+        streamTask = Task { [weak self] in
+            for await tick in stream {
+                await self?.apply(tick)
+            }
+        }
+    }
+
+    /// 把一条 tick 合并进已有报价。
+    ///
+    /// 涨跌幅要重算，但**不能**用推送去猜基准：上一次完整报价里的
+    /// `price` 和 `changePercent` 已经隐含了「北京时间今日」的基准价
+    /// （base = price / (1 + change/100)），用它算出来的新涨跌和 Worker
+    /// 那边完全一致 —— 既不用多打一次请求，也不会两边算出两个数。
+    private func apply(_ tick: MarketStreamTick) {
+        guard let existing = quotes[tick.symbol] ?? quotes["\(tick.symbol)-USD"] else { return }
+        let key = quotes[tick.symbol] != nil ? tick.symbol : "\(tick.symbol)-USD"
+        let ratio = 1 + existing.changePercent / 100
+        let base = ratio > 0 ? existing.price / ratio : 0
+        let change = base > 0 ? (tick.priceUSD - base) / base * 100 : existing.changePercent
+
+        quotes[key] = MarketQuote(
+            symbol: existing.symbol,
+            currency: existing.currency,
+            price: tick.priceUSD,
+            changePercent: change,
+            series: existing.series,
+            marketTimeMilliseconds: existing.marketTimeMilliseconds,
+            fetchedAtMilliseconds: tick.receivedAtMilliseconds
+        )
+        recalculateSummary()
+    }
+
+    /// 页面消失 / App 进后台时调用。后台留着连接既费电，回来时它多半也已经死了。
+    func stopStreaming() {
+        streamTask?.cancel()
+        streamTask = nil
+        let client = streamClient
+        Task { await client?.stop() }
+    }
+
+    deinit {
+        streamTask?.cancel()
     }
 
     func selectHistoryRange(_ range: PortfolioHistoryRange) {
