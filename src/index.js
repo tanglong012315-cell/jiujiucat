@@ -61,12 +61,29 @@ const ETF_TICKERS = new Set(['SPY']);
 // 定价，等于用一个本身会脱锚的东西当尺子，脱锚幅度直接被抹平成 0。
 const USD_PREFERRED = new Set(['USDT', 'USDC', 'FDUSD', 'TUSD', 'DAI', 'PYUSD', 'USDG', 'USD1']);
 
+// 上游失败时把状态码和一小段响应体带出来。
+//
+// 原来这里只抛一个笼统的错，Worker 再统一返回 502 —— 结果线上出问题时，
+// 「是被限流、被地区封锁、还是结构变了」完全分不出来，只能靠猜。
+class UpstreamError extends Error {
+  constructor(url, status, body) {
+    super(`upstream ${status}`);
+    this.status = status;
+    this.body = body;
+    this.host = new URL(url).host;
+  }
+}
+
 async function fetchUpstream(url, cacheTtl) {
   const response = await fetch(url, {
     headers: BROWSER_HEADERS,
     cf: { cacheTtl, cacheEverything: true }
   });
-  if (!response.ok) throw new Error(`upstream ${response.status}`);
+  if (!response.ok) {
+    // 只取前 200 字符：够看清是什么错，又不会把大段 HTML 错误页灌进日志。
+    const body = await response.text().catch(() => '');
+    throw new UpstreamError(url, response.status, body.slice(0, 200));
+  }
   return response.json();
 }
 
@@ -334,8 +351,16 @@ export default {
     if (request.method !== 'GET') return new Response('Method Not Allowed', { status: 405 });
     try {
       return await handler(url);
-    } catch {
-      return Response.json({ error: 'upstream failed' }, { status: 502 });
+    } catch (error) {
+      if (error instanceof UpstreamError) {
+        return Response.json({
+          error: 'upstream failed',
+          host: error.host,
+          status: error.status,
+          detail: error.body
+        }, { status: 502 });
+      }
+      return Response.json({ error: String(error?.message || error) }, { status: 502 });
     }
   }
 };
