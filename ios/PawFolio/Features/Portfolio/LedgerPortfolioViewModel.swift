@@ -372,6 +372,18 @@ final class LedgerPortfolioViewModel: ObservableObject {
         valueUSD(of: product.asset, quantity: accruedInterest(for: product))
     }
 
+    func paidInterest(for product: EarnProduct, asOf date: Date = Date()) -> Double {
+        EarnInterestCalculator.paidInterest(
+            product: product,
+            entries: snapshot.entries,
+            asOf: date
+        )
+    }
+
+    func paidInterestUSD(for product: EarnProduct, asOf date: Date = Date()) -> Double? {
+        valueUSD(of: product.asset, quantity: paidInterest(for: product, asOf: date))
+    }
+
     func dailyInterestUSD(for product: EarnProduct) -> Double? {
         let now = Date()
         let daily = EarnInterestCalculator.dailyInterest(
@@ -393,8 +405,11 @@ final class LedgerPortfolioViewModel: ObservableObject {
         return values.compactMap { $0 }.reduce(0, +)
     }
 
-    var totalEarnInterestUSD: Double? {
-        let values = earnBalances.map { accruedInterestUSD(for: $0.product) }
+    /// Earn summary total: interest that has reached Spot or Earn through an
+    /// actual payout entry. It intentionally excludes the live accrual shown on
+    /// individual holding rows before the next payout time.
+    var totalEarnPaidInterestUSD: Double? {
+        let values = earnBalances.map { paidInterestUSD(for: $0.product) }
         guard values.allSatisfy({ $0 != nil }) else { return nil }
         return values.compactMap { $0 }.reduce(0, +)
     }

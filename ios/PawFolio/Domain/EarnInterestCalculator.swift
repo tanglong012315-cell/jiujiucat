@@ -58,6 +58,26 @@ enum EarnInterestCalculator {
         return max(0, accrued)
     }
 
+    /// Interest that has actually been paid into a user-controlled account.
+    /// Accrued-but-unpaid interest is deliberately excluded; reversed payouts
+    /// and entries after `date` are excluded by the same active-entry rules used
+    /// by the rest of the Earn calculation.
+    static func paidInterest(
+        product: EarnProduct,
+        entries: [LedgerEntry],
+        asOf date: Date
+    ) -> Double {
+        activeEntries(in: entries, asOf: date)
+            .filter { $0.kind == .interest && $0.earnProductID == product.id }
+            .flatMap(\.postings)
+            .filter {
+                $0.account.isUserControlled
+                    && $0.asset == product.asset
+                    && $0.quantity > 0
+            }
+            .reduce(0) { $0 + $1.quantity }
+    }
+
     /// 某一时点已正式起息的本金。Earn 账户余额可能更高，因为它还包含已锁定但
     /// 仍处于「等待建仓」的申购。到期后不再有当日预估收益，因此返回 0。
     static func interestBearingPrincipal(

@@ -668,7 +668,7 @@ struct LedgerPortfolioView: View {
             if !model.earnBalances.isEmpty {
                 portfolioSection(
                     title: "Earn",
-                    summary: model.totalEarnInterestUSD.map(MoneyFormat.signedDecimal),
+                    summary: model.totalEarnPaidInterestUSD.map(MoneyFormat.signedDecimal),
                     summarySuffix: " USD"
                 ) {
                     VStack(spacing: 0) {
@@ -3090,7 +3090,7 @@ private struct LedgerEarnView: View {
             }
             .buttonStyle(.plain)
             .accessibilityHint("Shows the daily profit breakdown")
-            earnSummaryBlock("Total (USD)", value: model.totalEarnInterestUSD)
+            earnSummaryBlock("Total (USD)", value: model.totalEarnPaidInterestUSD)
         }
         .padding(10)
         .background(Nvwa.backgroundCard, in: RoundedRectangle(cornerRadius: 12))

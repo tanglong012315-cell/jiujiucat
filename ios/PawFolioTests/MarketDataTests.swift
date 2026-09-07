@@ -6,84 +6,13 @@ final class MarketDataTests: XCTestCase {
     /// 客户端测试用的最小目录。真目录走 /api/catalog，那条路由由
     /// MarketCatalogTests 单独覆盖。
     static let testCatalog = MarketCatalog(
-        equities: ["AAPL": .init(name: "Apple Inc.", assetType: .equity)],
-        cryptos: [:]
+        equities: [:],
+        cryptos: ["AAPL": .init(pair: "AAPLUSDT", name: "Stub", quoteCurrency: "USD", venue: "binance")]
     )
 
-    // 2026-09-07：Worker 改为返回自己整理过的 {price, change, series}，不再透传
-    // Yahoo 的 chart.result[0]。搜索端点整个下线，改由本地目录过滤（见
-    // MarketCatalogTests）。这里只覆盖新的解码路径。
-
-    func testQuotePayloadDecodesWorkerShape() throws {
-        let data = Data(#"""
-        {"price": 110, "change": 10, "series": [[1756308600000, 100], [1756312200000, 105]]}
-        """#.utf8)
-
-        let quote = try MarketDataPayloadDecoder.quote(
-            from: data,
-            requestedSymbol: "AAPL",
-            conversionRate: 1,
-            fetchedAtMilliseconds: milliseconds("2026-08-28T05:00:00Z")
-        )
-
-        XCTAssertEqual(quote.price, 110)
-        // 涨跌幅由 Worker 按「北京时间今日」算好下发，客户端不再自己找基准 ——
-        // 两端各算一次就必然会出现两个数。
-        XCTAssertEqual(quote.changePercent, 10, accuracy: 0.000_001)
-        XCTAssertEqual(quote.series.count, 2)
-        XCTAssertEqual(quote.series.last?.price, 105)
-    }
-
-    /// USDT 计价的盘口要乘 USDT/USD 才是美元价，但涨跌幅**不**乘 —— 分子分母
-    /// 同乘一个数比值不变，乘了只会把汇率抖动混成标的自己的涨跌。
-    func testConversionRateAppliesToPriceButNotChange() throws {
-        let data = Data(#"{"price": 200, "change": -3, "series": [[1, 100], [2, 200]]}"#.utf8)
-
-        let quote = try MarketDataPayloadDecoder.quote(
-            from: data,
-            requestedSymbol: "BTC-USD",
-            conversionRate: 0.9998,
-            fetchedAtMilliseconds: 0
-        )
-
-        XCTAssertEqual(quote.price, 199.96, accuracy: 1e-9)
-        XCTAssertEqual(quote.changePercent, -3, accuracy: 1e-9)
-        XCTAssertEqual(quote.series.first?.price ?? 0, 99.98, accuracy: 1e-9)
-    }
-
-    func testQuotePayloadRejectsMissingPrice() {
-        let data = Data(#"{"price": null, "change": 1, "series": []}"#.utf8)
-
-        XCTAssertThrowsError(try MarketDataPayloadDecoder.quote(
-            from: data,
-            requestedSymbol: "VOO",
-            conversionRate: 1,
-            fetchedAtMilliseconds: 0
-        ))
-    }
-
-    func testOneYearHistoryDecoderRetainsMoreThanShortQuoteLimit() throws {
-        // 分开写而不是一行 map：一行的字面量数组会让类型检查器爆掉
-        // （"unable to type-check this expression in reasonable time"）。
-        var series: [[Double]] = []
-        for index in 0..<260 {
-            let timestamp: Double = 1_700_000_000_000 + Double(index) * 86_400_000
-            let price: Double = Double(index + 1)
-            series.append([timestamp, price])
-        }
-        let data = try JSONSerialization.data(withJSONObject: ["price": 260, "change": 1, "series": series])
-
-        let history = try MarketDataPayloadDecoder.history(
-            from: data,
-            requestedSymbol: "VOO",
-            conversionRate: 1,
-            fetchedAtMilliseconds: 2_000_000_000_000
-        )
-
-        XCTAssertEqual(history.series.count, 260)
-        XCTAssertEqual(history.series.first?.price, 1)
-        XCTAssertEqual(history.series.last?.price, 260)
-    }
+    // 2026-09-07：报价改为客户端直连交易所，Worker 不再参与行情（Binance 对
+    // Cloudflare 出口返回 403）。三个场所的 K 线解码和「北京时间今日」基准的
+    // 取法都在 MarketCatalogTests 里覆盖，这里只留仓储和客户端的行为测试。
 
     func testOfflineSearchRanksExactSymbolFirst() {
         let results = AssetSearchResult.offlineMatches(for: "btc")
@@ -156,7 +85,7 @@ final class MarketDataTests: XCTestCase {
 
     // 回归：移动网络的瞬时失败要被重试吃掉，而不是让这一轮的报价整个作废。
     func testLiveClientRetriesTransientFailures() async throws {
-        let body = Data(#"{"price": 110, "change": 0, "series": [[1756312200000, 110]]}"#.utf8)
+        let body = Data(#"[[1756312200000,"110","110","110","110",0]]"#.utf8)
         FlakyURLProtocol.reset(failuresBeforeSuccess: 2, successBody: body)
 
         let configuration = URLSessionConfiguration.ephemeral

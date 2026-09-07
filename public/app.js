@@ -452,35 +452,17 @@ function getBeijingDayStartUnix() {
 //
 // 美股走的是 Binance Stocks（真实股价，7928 个标的），不是现货那套代币化股票。
 // 两者是完全不同的产品，别搞混 —— 详见 src/index.js 顶部。
-async function fetchBinanceQuote(symbol, assetType, range = '5d') {
-  const info = window.MarketStream?.resolve(symbol, assetType);
-  // 覆盖不到就直接失败，不去猜一个标的。美股 7928 个 + 加密 400 多个已经覆盖
-  // 绝大多数情况，真漏了的宁可不显示价格，也不要显示一个来路不明的数。
-  if (!info) throw new Error(`${symbol} 不在 Binance 覆盖范围内`);
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  try {
-    const response = await fetch(
-      `/api/quote?pair=${encodeURIComponent(info.pair)}&range=${range}`,
-      { signal: controller.signal, cache: 'no-store' }
-    );
-    if (!response.ok) throw new Error(`${symbol} quote request failed`);
-    const data = await response.json();
-    const raw = Number(data?.price);
-    if (!Number.isFinite(raw) || raw <= 0) throw new Error(`Invalid ${symbol} price`);
-    // USDT 计价的盘口要乘 USDT/USD 才是美元价，和推送那条路用同一个换算。
-    // 涨跌幅不换算：分子分母同乘一个数比值不变，换算只会把汇率抖动混进去。
-    const rate = info.quote === 'USDT' ? (Number(window.MarketStream?.get('USDT')?.price) || 1) : 1;
-    const series = (Array.isArray(data?.series) ? data.series : [])
-      .filter(point => Array.isArray(point) && Number(point[0]) > 0 && Number(point[1]) > 0)
-      .map(point => [Number(point[0]), Number(point[1]) * rate])
-      .slice(-SERIES_MAX_POINTS);
-    const change = Number(data?.change);
-    return { symbol, price: raw * rate, change: Number.isFinite(change) ? change : NaN, series };
-  } finally {
-    clearTimeout(timeout);
-  }
+async function fetchBinanceQuote(symbol, assetType) {
+  if (!window.MarketStream?.supported) throw new Error('行情不可用');
+  // 直连交易所，不经 Worker —— Binance 对 Cloudflare 出口返回 403，
+  // OKX 返回 429。详见 market-stream.js 顶部。
+  const entry = await MarketStream.fetchQuote(symbol, assetType, true);
+  return {
+    symbol,
+    price: entry.price,
+    change: Number.isFinite(entry.change) ? entry.change : NaN,
+    series: normalizeSeries(entry.series).slice(-SERIES_MAX_POINTS)
+  };
 }
 
 // BTC 的缓存键是历史遗留的（早于其余两个标的），不能顺手统一 —— 改了等于把
@@ -1259,7 +1241,7 @@ const DIVIDEND_FREQUENCY_CONTROL_LABELS = {
   semiannual: '每半年一次', annual: '每年一次', irregular: '不固定'
 };
 // 目录端点要 Worker，本地 http.server 拿不到。这里放一小组常见标的作为开发
-// 预览后备；线上以 /api/catalog 的全量目录为准（7928 只美股 + 400 多个币）。
+// 预览后备；线上以 /catalog.json 的全量目录为准（7928 只美股 + 600 多个币）。
 // 加密代号不带 -USD 后缀 —— Binance 用的是裸代号，和 Yahoo 不同。
 const FALLBACK_ASSETS = [
   ['AAPL', 'Apple Inc. Common Stock', 'EQUITY', '美股'],
@@ -1969,22 +1951,8 @@ function readCachedLongHistory(quoteSymbol) {
 
 async function fetchLongHistory(holding) {
   const quoteSymbol = holding.quoteSymbol || holding.symbol;
-  // 统一走自己的 Worker 代理（src/index.js）。美股和加密的日线在那边是两个不同
-  // 的上游（bapi/equity 与现货 K 线），但返回的形状一样，这里不用分情况。
-  const info = window.MarketStream?.resolve(holding.symbol, holding.assetType);
-  if (!info) throw new Error('long history unsupported');
-  const query = info.equity
-    ? `eq=${encodeURIComponent(info.symbol)}`
-    : `pair=${encodeURIComponent(info.pair)}`;
-  const response = await fetch(`/api/quote?${query}&range=1y`, { cache: 'no-store' });
-  if (!response.ok) throw new Error('long history request failed');
-  const data = await response.json();
-  // USDT 计价的日线要换算成美元，和实时价用同一个汇率，否则长短两段序列会
-  // 差着一个 0.0x% 的台阶接不上。
-  const rate = info.quote === 'USDT' ? (Number(window.MarketStream?.get('USDT')?.price) || 1) : 1;
-  const series = (Array.isArray(data?.series) ? data.series : [])
-    .filter(point => Array.isArray(point) && Number(point[0]) > 0 && Number(point[1]) > 0)
-    .map(point => [Number(point[0]), Number(point[1]) * rate]);
+  if (!window.MarketStream?.supported) throw new Error('long history unavailable');
+  const series = await MarketStream.fetchYearHistory(holding.symbol, holding.assetType);
   if (series.length < 2) return null;
   const record = { series, savedAt: Date.now() };
   longPriceHistory.set(quoteSymbol, record);

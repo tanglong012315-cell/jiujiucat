@@ -407,6 +407,49 @@ final class LedgerPortfolioViewModelTests: XCTestCase {
         XCTAssertEqual(fixture.model.projection.balance(in: .fiat("exchange"), asset: usd), 305, accuracy: 1e-9)
     }
 
+    func testEarnTotalIncludesPaidInterestButNotCurrentAccrual() async throws {
+        let fixture = makeFixture()
+        let product = try makeProduct(id: "paid-total", asset: usd, mode: .simple)
+        let opening = try LedgerEntry.openingBalance(
+            asset: usd,
+            quantity: 100,
+            account: .earn(productID: product.id),
+            occurredAt: Date(timeIntervalSince1970: 1),
+            legacyHoldingID: "paid-total-opening",
+            id: "paid-total-opening"
+        )
+        try await fixture.ledger.save(
+            LedgerStoreSnapshot(entries: [opening], earnProducts: [product]),
+            for: .guest
+        )
+        await fixture.model.reload()
+
+        XCTAssertGreaterThan(fixture.model.accruedInterest(for: product), 0)
+        XCTAssertEqual(
+            try XCTUnwrap(fixture.model.totalEarnPaidInterestUSD),
+            0,
+            accuracy: 1e-9
+        )
+
+        let payout = try LedgerEntry.interestPayout(
+            product: product,
+            quantity: 3.5,
+            occurredAt: Date(timeIntervalSince1970: 86_400),
+            id: "paid-total-payout"
+        )
+        try await fixture.ledger.save(
+            LedgerStoreSnapshot(entries: [opening, payout], earnProducts: [product]),
+            for: .guest
+        )
+        await fixture.model.reload()
+
+        XCTAssertEqual(
+            try XCTUnwrap(fixture.model.totalEarnPaidInterestUSD),
+            3.5,
+            accuracy: 1e-9
+        )
+    }
+
     func testInterestPayoutRequiresAnExistingHolding() async throws {
         let fixture = makeFixture()
         await fixture.model.reload()

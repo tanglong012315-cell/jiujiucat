@@ -15,6 +15,18 @@
  * （bStocks，代号 AAPLB）。后者是第三方发行的代币，和真实股价有 0.2~0.7% 偏差，
  * 拿来给持仓估值会把那个偏差直接变成盈亏里的误差。详见 src/index.js 顶部。
  *
+ * ⛔ **所有行情都必须客户端直连交易所，不能经过 Worker。**
+ * Binance 对 Cloudflare 出口 IP 返回 403（api 和 bapi 两个域名都拦），OKX 返回
+ * 429。同一时刻浏览器直连全部 200 —— 它们拦的是数据中心 IP，不是地区。
+ * 2026-09-07 上线时把这几个端点做成 Worker 代理，结果全线 502。
+ * 目录也因此改成静态文件（见 scripts/build_catalog.py），静态资源由 Cloudflare
+ * 直接分发，根本不经过 Worker。
+ *
+ * 加密多场所：Binance 为主，OKX 补它没有的 —— Binance 不上架任何竞争对手的
+ * 平台币（OKB / CRO / LEO 都没有，只有自家 BNB）。两家都没有的就是不支持，
+ * 诚实显示「暂不支持」，不编价格。OKX 的标的只轮询不推送：它们是长尾，
+ * 为此再接一套 OKX 的 WebSocket 协议不值得。
+ *
  * 边界：本模块只负责「取到价格」，不碰估值和渲染。失败时安静降级并让调用方
  * 看得出来（entry.live / entry.unsupported），绝不捏造价格。
  */
@@ -22,6 +34,9 @@
   'use strict';
 
   const WS_URL = 'wss://stream.binance.com:9443/ws';
+  const BINANCE_BASE = 'https://api.binance.com';
+  const EQUITY_BASE = 'https://www.binance.com/bapi/equity/v1/public/equity';
+  const OKX_BASE = 'https://www.okx.com';
   const SERIES_CAP = 240;
   // 连接静默超过这个时长就当它已经死了。Binance 服务端会定期发 ping frame
   // （浏览器自动回 pong，不用管），30 秒收不到任何东西必然有问题 —— 手机切
@@ -59,7 +74,7 @@
 
   // 目录拿不到时的最小内置表。
   //
-  // 不是为了本地开发方便才有的：/api/catalog 一旦 502，整站会失去**所有**价格
+  // 不是为了本地开发方便才有的：catalog.json 一旦取不到，整站会失去**所有**价格
   // —— 行情条、持仓、快捷添加全部空白。有这张表兜底，至少行情条那三个标的和
   // 稳定币折算还是活的，退化范围收敛到「搜不到新标的」。
   // 只放最核心的几个，多了就成了要人手维护的第二份真相。
@@ -115,7 +130,9 @@
     if (catalogPromise) return catalogPromise;
     const cached = loadCachedCatalog();
     if (cached) { catalog = cached; return Promise.resolve(catalog); }
-    catalogPromise = fetch('/api/catalog', { cache: 'no-store' })
+    // 静态资源，不经过 Worker —— Binance 对 Cloudflare 出口返回 403，
+    // 目录端点放在 Worker 里必然挂。见 scripts/build_catalog.py。
+    catalogPromise = fetch('/catalog.json', { cache: 'default' })
       .then(response => { if (!response.ok) throw new Error('catalog failed'); return response.json(); })
       .then(data => {
         if (!data?.eq || !data?.cx) throw new Error('bad catalog shape');
@@ -154,13 +171,13 @@
       return { symbol: key, equity: true, name: eqRow[0], assetType: eqRow[1] || 'EQUITY' };
     }
     if (wantCrypto && Array.isArray(cxRow)) {
-      return { symbol: key, equity: false, pair: cxRow[0], name: cxRow[1], quote: cxRow[2], assetType: 'CRYPTOCURRENCY' };
+      return { symbol: key, equity: false, pair: cxRow[0], name: cxRow[1], quote: cxRow[2], venue: cxRow[3] || 'binance', assetType: 'CRYPTOCURRENCY' };
     }
     if (Array.isArray(eqRow)) {
       return { symbol: key, equity: true, name: eqRow[0], assetType: eqRow[1] || 'EQUITY' };
     }
     if (Array.isArray(cxRow)) {
-      return { symbol: key, equity: false, pair: cxRow[0], name: cxRow[1], quote: cxRow[2], assetType: 'CRYPTOCURRENCY' };
+      return { symbol: key, equity: false, pair: cxRow[0], name: cxRow[1], quote: cxRow[2], venue: cxRow[3] || 'binance', assetType: 'CRYPTOCURRENCY' };
     }
     return null;
   }
@@ -184,11 +201,6 @@
     if (!Number.isFinite(entry.raw)) { entry.price = null; entry.change = null; return; }
     entry.price = toUsd(entry, entry.raw);
     entry.fxApplied = entry.equity || entry.quote !== 'USDT' || Number(state.get('USDT')?.price) > 0;
-    if (entry.equity) {
-      // 美股的基准在 Worker 那边算（最细只有小时线，规则复杂些），这里直接用。
-      entry.change = Number.isFinite(entry.presetChange) ? entry.presetChange : null;
-      return;
-    }
     const base = Number.isFinite(entry.dayOpen) && entry.dayOpen > 0 ? entry.dayOpen : entry.open24h;
     entry.change = Number.isFinite(base) && base > 0 ? ((entry.raw - base) / base) * 100 : null;
   }
@@ -222,18 +234,44 @@
     if (entry.unsupported) return;
     if (entry.equity) {
       try {
-        const data = await fetchJSON(`/api/quote?eq=${encodeURIComponent(symbol)}`);
-        const price = Number(data?.price);
-        if (price > 0) { entry.raw = price; entry.at = Date.now(); }
-        const change = Number(data?.change);
-        // Worker 已经按「北京时间今日」算好了。它算不出来时会返回 null ——
-        // 那种情况下宁可不显示涨跌，也不拿别的口径冒充。
-        entry.presetChange = Number.isFinite(change) ? change : null;
+        // 一次 1H K 线同时给出：最新价、北京日基准、迷你走势序列。
+        // 美股接口最细就是 1H（1m / 30m 返回空，5m 报 488004）。
+        const data = await fetchJSON(
+          `${EQUITY_BASE}/kline/chart?symbol=${encodeURIComponent(entry.symbol)}` +
+          `&timeframe=1H&limit=200&adjustmentMode=ADJUSTED`
+        );
+        const bars = Array.isArray(data?.data?.bars) ? data.data.bars : [];
+        if (!bars.length) throw new Error('no bars');
+        applyEquityBars(entry, bars, wantHistory);
         entry.basis = '北京时间今日';
-        if (wantHistory && Array.isArray(data?.series)) entry.series = data.series;
       } catch {
         entry.basis = '北京时间今日';
-        entry.presetChange = null;
+      }
+      recompute(entry);
+      emit(symbol);
+      return;
+    }
+    if (entry.venue === 'okx') {
+      try {
+        const data = await fetchJSON(
+          `${OKX_BASE}/api/v5/market/candles?instId=${encodeURIComponent(entry.pair)}&bar=1H&limit=200`
+        );
+        // OKX 返回倒序的 [时间, 开, 高, 低, 收, ...]，字符串。
+        const rows = (Array.isArray(data?.data) ? data.data : [])
+          .map(r => [Number(r[0]), Number(r[4])])
+          .filter(r => r[0] > 0 && r[1] > 0)
+          .sort((a, b) => a[0] - b[0]);
+        if (!rows.length) throw new Error('no candles');
+        entry.raw = rows.at(-1)[1];
+        entry.at = Date.now();
+        const dayStart = beijingDayStartUnix() * 1000;
+        const prior = rows.filter(r => r[0] <= dayStart);
+        entry.dayOpen = prior.length ? prior.at(-1)[1] : rows[0][1];
+        entry.basis = '北京时间今日';
+        if (wantHistory) entry.series = rows;
+      } catch {
+        entry.dayOpen = null;
+        entry.basis = '24 小时';
       }
       recompute(entry);
       emit(symbol);
@@ -241,13 +279,24 @@
     }
     try {
       const rows = await fetchJSON(
-        `https://api.binance.com/api/v3/klines?symbol=${entry.pair}&interval=1d&timeZone=8&limit=1`
+        `${BINANCE_BASE}/api/v3/klines?symbol=${entry.pair}&interval=1d&timeZone=8&limit=1`
       );
       const open = Number(rows?.[0]?.[1]);
       if (!(open > 0)) throw new Error('no kline');
       entry.dayOpen = open;
       entry.dayStart = beijingDayStartUnix();
       entry.basis = '北京时间今日';
+      // 顺手把当日这根的**收盘价**当作初始价。
+      //
+      // 不做这一步的话，加密的价格完全依赖 WebSocket 推送，而清淡的盘口
+      // （USDTUSD、USDCUSD 这种）可能很久没有成交，@ticker 就一直不推 ——
+      // 表现是稳定币永远显示不出价格，而它恰恰是估值要用的那个数。
+      // 这根 K 线本来就取回来了，收盘价白拿，不用多发一次请求。
+      const close = Number(rows?.[0]?.[4]);
+      if (close > 0 && !Number.isFinite(entry.raw)) {
+        entry.raw = close;
+        entry.at = Date.now();
+      }
     } catch {
       // 拿不到基准价不是致命错误：价格照常实时更新，只是涨跌幅要退成 24 小时
       // 口径。绝不拿 24 小时的数挂着「北京时间今日」的牌子。
@@ -257,7 +306,7 @@
     if (wantHistory) {
       try {
         const rows = await fetchJSON(
-          `https://api.binance.com/api/v3/klines?symbol=${entry.pair}&interval=1h&limit=168`
+          `${BINANCE_BASE}/api/v3/klines?symbol=${entry.pair}&interval=1h&limit=168`
         );
         entry.series = (Array.isArray(rows) ? rows : [])
           .filter(r => Array.isArray(r) && Number(r[0]) > 0 && Number(r[4]) > 0)
@@ -275,30 +324,52 @@
    * 持仓里有 1 只还是 30 只股票，都只花一次请求。60 秒一轮：美股本来就没有
    * 秒级变化的必要，而且交易时段之外根本不动。
    */
-  async function pollEquities() {
-    const codes = [...state.values()].filter(entry => entry.equity && !entry.unsupported)
-      .map(entry => entry.symbol);
-    if (!codes.length) return;
-    try {
-      const data = await fetchJSON(`/api/prices?eq=${encodeURIComponent(codes.join(','))}`);
-      const prices = data?.prices || {};
-      for (const code of codes) {
-        const row = prices[code];
-        const price = Number(row?.price);
-        if (!(price > 0)) continue;
-        const entry = state.get(code);
-        if (!entry) continue;
-        entry.raw = price;
-        entry.live = true;
-        entry.at = Date.now();
-        entry.phase = row.phase || null;
-        recompute(entry);
-        emit(code);
-      }
-    } catch {
-      // 一轮失败不改任何价格：上一次的值继续显示，下一轮再试。
-      // 把价格清掉反而更糟 —— 界面会闪一下再回来。
+  /// 轮询那些没有推送的标的：美股（Binance Stocks 没有公开行情流）和 OKX
+  /// 的长尾币（为几个平台币再接一套 OKX 的 WS 协议不值得）。
+  ///
+  /// 按标的逐个取，而不是拉那张 0.9MB 的全量表：全量表本来是打算让 Worker 拉
+  /// 一次、边缘缓存后按需裁剪的，但 Worker 到不了 Binance。每个客户端自己拉
+  /// 0.9MB 在移动网络上不可接受，单标的一次约 30KB，持仓再多也比它省。
+  async function pollSlowSymbols() {
+    const targets = [...state.values()].filter(entry =>
+      !entry.unsupported && (entry.equity || entry.venue === 'okx')
+    );
+    if (!targets.length) return;
+    // 并发但有上限：持仓几十只时一次性全发出去会被限流。
+    for (let i = 0; i < targets.length; i += 6) {
+      const batch = targets.slice(i, i + 6);
+      await Promise.all(batch.map(entry =>
+        primeSymbol(entry.symbol, Array.isArray(entry.series) && entry.series.length > 0)
+          .then(() => { entry.live = true; })
+          // 一个标的失败不改它的价格：上一次的值继续显示，下一轮再试。
+          // 清掉反而更糟，界面会闪一下再回来。
+          .catch(() => {})
+      ));
     }
+  }
+
+  // 把美股的小时线套进 entry：最新价 + 北京日基准 + 序列。
+  //
+  // 北京 0 点正好是 UTC 16:00，而这些小时线就对齐在整点上，所以边界那根的
+  // **开盘价**就是北京 0 点的价格，比拿上一根的收盘价更准 —— 有那根就用它。
+  // 休市日（周末、节假日）0 点前没有成交，回退成最后收盘价、涨跌显示 0%。
+  // 对「北京今日」这个口径来说这是诚实的，不是缺陷。
+  function applyEquityBars(entry, bars, wantHistory) {
+    const series = bars
+      .filter(bar => Number(bar?.t) > 0 && Number(bar?.c) > 0)
+      .map(bar => [Number(bar.t), Number(bar.c)]);
+    if (!series.length) return;
+    entry.raw = series.at(-1)[1];
+    entry.at = Date.now();
+    const dayStart = beijingDayStartUnix() * 1000;
+    const boundary = bars.find(bar => Number(bar.t) === dayStart);
+    const open = Number(boundary?.o);
+    if (open > 0) entry.dayOpen = open;
+    else {
+      const prior = series.filter(point => point[0] <= dayStart);
+      entry.dayOpen = prior.length ? prior.at(-1)[1] : series[0][1];
+    }
+    if (wantHistory) entry.series = series;
   }
 
   function handleTick(raw) {
@@ -424,7 +495,7 @@
     }
     clearTimeout(hiddenTimer);
     hiddenTimer = null;
-    pollEquities();   // 回前台立刻补一轮，别让用户盯着一个旧价等 60 秒
+    pollSlowSymbols();   // 回前台立刻补一轮，别让用户盯着一个旧价等 60 秒
     if (socket?.readyState === WebSocket.OPEN) return;  // 没断过，数据是连续的
     // 断过就一律当它已死：补基准价（可能已经跨天了），再重连。
     retry = 0;
@@ -522,18 +593,24 @@
         }
         state.set(key, {
           symbol: key, equity: info.equity, pair: info.pair, quote: info.quote,
+          // venue 必须存进来：primeSymbol 靠它决定去 Binance 还是 OKX 取价。
+          // 漏了这个字段，OKX 的币会拿着 OKX 的对（OKB-USDT）去问 Binance，
+          // 而 Binance 对不认识的 symbol 连 CORS 头都不发，报的是 CORS 错误，
+          // 看起来像跨域问题，其实是路由错了。
+          venue: info.venue || 'binance',
           assetType: info.assetType, name: info.name, price: null, raw: NaN
         });
         if (info.equity) {
-          // 美股没有行情流，价格靠 pollEquities 那一轮统一拉。这里只补基准和序列。
+          // 美股没有行情流，靠 pollSlowSymbols 轮询。这里先补一次。
           await primeSymbol(key, wantHistory);
-          if (running) pollEquities();
+          if (running) pollSlowSymbols();
           return true;
         }
         pairIndex.set(info.pair, key);
         watched.add(info.pair);
         await primeSymbol(key, wantHistory);
         if (!running) return true;
+        if (info.venue === 'okx') return true;   // OKX 不订阅，靠轮询
         if (socket?.readyState === WebSocket.OPEN) socket.send(subscribeMessage([info.pair]));
         else connect();
         return true;
@@ -541,6 +618,55 @@
 
       admitting.set(key, task);
       try { return await task; } finally { admitting.delete(key); }
+    },
+
+    /// 取一次报价（订阅 + 补基准 + 返回当前状态）。
+    /// 调用方拿到的就是 get() 的那个 entry，所以之后它会被推送继续更新。
+    async fetchQuote(symbol, assetType, wantHistory = false) {
+      const key = String(symbol || '').toUpperCase().replace(/-USD$/, '');
+      await MarketStream.watch(key, wantHistory, assetType);
+      const entry = state.get(key);
+      if (!entry || entry.unsupported || !Number.isFinite(entry.price)) {
+        throw new Error(`${key} 暂不支持或取价失败`);
+      }
+      return entry;
+    },
+
+    /// 一年日线，给组合走势图的「月 / 年」档用。
+    /// 直连交易所 —— 和其余行情一样，不能经过 Worker。
+    async fetchYearHistory(symbol, assetType) {
+      await ensureCatalog();
+      const info = resolve(String(symbol || '').toUpperCase().replace(/-USD$/, ''), assetType);
+      if (!info) throw new Error('不在覆盖范围内');
+      let series = [];
+      if (info.equity) {
+        const data = await fetchJSON(
+          `${EQUITY_BASE}/kline/chart?symbol=${encodeURIComponent(info.symbol)}` +
+          `&timeframe=1D&limit=365&adjustmentMode=ADJUSTED`
+        );
+        series = (data?.data?.bars || [])
+          .filter(bar => Number(bar?.t) > 0 && Number(bar?.c) > 0)
+          .map(bar => [Number(bar.t), Number(bar.c)]);
+      } else if (info.venue === 'okx') {
+        const data = await fetchJSON(
+          `${OKX_BASE}/api/v5/market/candles?instId=${encodeURIComponent(info.pair)}&bar=1D&limit=300`
+        );
+        series = (data?.data || [])
+          .map(r => [Number(r[0]), Number(r[4])])
+          .filter(r => r[0] > 0 && r[1] > 0);
+      } else {
+        const rows = await fetchJSON(
+          `${BINANCE_BASE}/api/v3/klines?symbol=${info.pair}&interval=1d&limit=365`
+        );
+        series = (Array.isArray(rows) ? rows : [])
+          .filter(r => Array.isArray(r) && Number(r[0]) > 0 && Number(r[4]) > 0)
+          .map(r => [Number(r[0]), Number(r[4])]);
+      }
+      series.sort((a, b) => a[0] - b[0]);
+      if (series.length < 2) throw new Error('日线不足');
+      // USDT 计价的换算成美元，和实时价用同一个汇率，否则长短两段序列接不上。
+      const rate = info.quote === 'USDT' ? (Number(state.get('USDT')?.price) || 1) : 1;
+      return rate === 1 ? series : series.map(([t, p]) => [t, p * rate]);
     },
 
     start() {
@@ -551,8 +677,8 @@
       if (!document.hidden) connect();
       watchDayRollover();
       // 美股 60 秒一轮。页面在后台时跳过 —— 没人看的时候没必要打请求。
-      pollEquities();
-      equityTimer = setInterval(() => { if (!document.hidden) pollEquities(); }, 60000);
+      pollSlowSymbols();
+      equityTimer = setInterval(() => { if (!document.hidden) pollSlowSymbols(); }, 60000);
       document.addEventListener('visibilitychange', onVisibilityChange);
     },
 

@@ -117,6 +117,113 @@ final class EarnProductTests: XCTestCase {
         })
     }
 
+    func testPaidInterestExcludesAccrualUntilARealPayoutExists() throws {
+        let usd = LedgerAsset(code: "USD", kind: .fiat)
+        let start = Date(timeIntervalSince1970: 0)
+        let product = try EarnProduct(
+            id: "paid-only",
+            name: "Paid only",
+            asset: usd,
+            annualRatePercent: 36.5,
+            interestMode: .simple,
+            term: .flexible,
+            payoutFrequency: .daily,
+            startsAt: start
+        )
+        let opening = try LedgerEntry.openingBalance(
+            asset: usd,
+            quantity: 100,
+            account: .earn(productID: product.id),
+            occurredAt: start,
+            legacyHoldingID: "legacy",
+            id: "opening-paid-only"
+        )
+        let asOf = Date(timeIntervalSince1970: 10 * 86_400)
+
+        XCTAssertEqual(
+            try EarnInterestCalculator.accruedInterest(
+                product: product,
+                entries: [opening],
+                asOf: asOf
+            ),
+            1,
+            accuracy: 1e-9
+        )
+        XCTAssertEqual(
+            EarnInterestCalculator.paidInterest(
+                product: product,
+                entries: [opening],
+                asOf: asOf
+            ),
+            0,
+            accuracy: 1e-9
+        )
+    }
+
+    func testPaidInterestIncludesOnlyEffectiveUnreversedPayouts() throws {
+        let usd = LedgerAsset(code: "USD", kind: .fiat)
+        let start = Date(timeIntervalSince1970: 0)
+        let product = try EarnProduct(
+            id: "paid",
+            name: "Paid",
+            asset: usd,
+            annualRatePercent: 5,
+            interestMode: .simple,
+            term: .flexible,
+            payoutFrequency: .daily,
+            startsAt: start
+        )
+        let otherProduct = try EarnProduct(
+            id: "other-paid",
+            name: "Other",
+            asset: usd,
+            annualRatePercent: 5,
+            interestMode: .simple,
+            term: .flexible,
+            payoutFrequency: .daily,
+            startsAt: start
+        )
+        let first = try LedgerEntry.interestPayout(
+            product: product,
+            quantity: 1.25,
+            occurredAt: Date(timeIntervalSince1970: 100),
+            id: "first-paid"
+        )
+        let reversed = try LedgerEntry.interestPayout(
+            product: product,
+            quantity: 2,
+            occurredAt: Date(timeIntervalSince1970: 200),
+            id: "reversed-paid"
+        )
+        let reversal = try LedgerEntry.reversal(
+            of: reversed,
+            occurredAt: Date(timeIntervalSince1970: 300),
+            id: "paid-reversal"
+        )
+        let future = try LedgerEntry.interestPayout(
+            product: product,
+            quantity: 4,
+            occurredAt: Date(timeIntervalSince1970: 500),
+            id: "future-paid"
+        )
+        let other = try LedgerEntry.interestPayout(
+            product: otherProduct,
+            quantity: 8,
+            occurredAt: Date(timeIntervalSince1970: 100),
+            id: "other-product-paid"
+        )
+
+        XCTAssertEqual(
+            EarnInterestCalculator.paidInterest(
+                product: product,
+                entries: [first, reversed, reversal, future, other],
+                asOf: Date(timeIntervalSince1970: 400)
+            ),
+            1.25,
+            accuracy: 1e-9
+        )
+    }
+
     func testMonthlyPayoutStaysAnchoredToProductStart() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!

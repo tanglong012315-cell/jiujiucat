@@ -106,6 +106,37 @@ Last updated: 2026-09-07
 3. 稳定币真实估值改变了总资产的显示值，UI 上是否要给一处说明（Web 那边把
    「总利息」改成了「总盈亏」），iOS 侧还没做对应的文案区分。
 
+## ⛔ 行情必须客户端直连交易所，不能经过 Worker（2026-09-07 上线后实测）
+
+**Binance 对 Cloudflare Worker 的出口 IP 返回 403**（`api.binance.com` 和
+`www.binance.com` 两个域名都拦），**OKX 返回 429**。同一时刻浏览器和手机直连
+全部 200 —— 它们拦的是**数据中心 IP**，不是地区。
+
+用 `/api/probe` 实测（这个端点就是为此加的）：
+
+| 上游 | 从 Worker |
+|---|---|
+| Coinbase | ✅ 200 |
+| CoinMarketCap | ✅ 200 |
+| Binance api / bapi | ❌ 403 |
+| OKX | ⚠️ 429 |
+
+不是 Cloudflare 出口被普遍拦，是 Binance 专门拦。第一版把目录和报价都做成
+Worker 代理，上线即全线 502。**以后不要再把 Binance 放到 Worker 后面。**
+
+**现在的分工：**
+- 价格：客户端直连（`MarketEndpoints` 里那三个地址）
+- 目录：预生成的静态文件 `/catalog.json`（`scripts/build_catalog.py` 生成），
+  静态资源由 Cloudflare 直接分发，不经过 Worker
+- Worker 只剩 `/api/crypto-logos`（上游 CMC，不拦）和 `/api/probe`
+
+**加密多场所：** Binance 主 + OKX 补。Binance 不上架任何竞争对手的平台币 ——
+OKB / CRO / LEO 都没有，只有自家 BNB。两家都没有的（BGB / HT / KCS）就是不支持，
+诚实显示，不编价格。OKX 的标的只轮询不推送（再接一套 OKX 的 WS 协议不值得）。
+
+**目录会过时**：新上市的标的要重跑一次生成脚本。只影响搜索，不影响已有持仓
+取价（取价是按代号直连的）。
+
 ## Current milestone
 
 Milestone 6 productization is underway. The native launch experience and the Dynamic Type / dark-mode / Reduce Motion pass are complete and verified on a real simulator. VoiceOver walkthrough and localization remain open. Milestone 5 production holding and Profile synchronization stays verified in both directions.
@@ -4155,3 +4186,24 @@ Nvwa `Text/Secondary`；背景映射到动态 `BG/Main`。
 
 Exact next task: 设计侧确认是否把 `2285:355` 的两枚旧 Binance Nova/Mobile text style 正式改绑
 到 Nvwa/Inter token；产品页需要下拉交互时直接复用这三组组件，不要在 Feature 内重画。
+
+## Earn Total 改为实际已到账收益（2026-09-07）
+
+用户发现 Earn Holding 汇总条的 `Total (USD)` 在下一次 payout 前已经出现数值。原因是旧实现
+直接汇总 `accruedInterest`：起息后按时间连续计提，因此即使尚未生成派息流水也会增长。
+
+现按用户确认改为实际到账口径：`EarnInterestCalculator.paidInterest` 只统计当前产品有效的
+`.interest` 流水中流入用户账户的正向 posting；未派计提、未来日期流水、其他产品流水以及已被
+冲正的派息均不计入。`LedgerPortfolioViewModel.totalEarnPaidInterestUSD` 对当前 Earn 持仓的已到账
+收益统一换算为 USD，Holding 页 `Total (USD)` 和首页 Earn 汇总均使用该值。逐产品 Holding 行
+继续展示本周期实时应计利息，`Daily (USD)` 继续表示按当前本金/APY 估算的一天收益，两者未改。
+
+新增领域测试覆盖“有计提但没派息仍为 0”、有效派息累加、未来/其他产品/冲正派息排除；新增
+ViewModel 测试覆盖汇总值只在派息流水出现后从 0 变为实际到账金额。
+
+验证：`git diff --check` 通过；PawFolio SwiftPM 234 tests、0 failures；generic iOS Simulator
+`build-for-testing` 成功；iPhone 17 Pro Max 模拟器运行 `EarnProductTests` 与
+`LedgerPortfolioViewModelTests`，36 tests、0 failures。
+
+Exact next task: 真机进入 Earn → Holding，确认未派息产品的 `Total (USD)` 为 0；登记一次真实
+Payout 后确认 Total 增加对应 USD 折算金额，而每个 Holding 行仍显示当前周期的未派计提。

@@ -9,9 +9,9 @@ final class MarketCatalogTests: XCTestCase {
             "STX": .init(name: "Seagate", assetType: .equity)
         ],
         cryptos: [
-            "BTC": .init(pair: "BTCUSDT", name: "Bitcoin", quoteCurrency: "USDT"),
-            "USDT": .init(pair: "USDTUSD", name: "TetherUS", quoteCurrency: "USD"),
-            "STX": .init(pair: "STXUSDT", name: "Stacks", quoteCurrency: "USDT")
+            "BTC": .init(pair: "BTCUSDT", name: "Bitcoin", quoteCurrency: "USDT", venue: "binance"),
+            "USDT": .init(pair: "USDTUSD", name: "TetherUS", quoteCurrency: "USD", venue: "binance"),
+            "STX": .init(pair: "STXUSDT", name: "Stacks", quoteCurrency: "USDT", venue: "binance")
         ]
     )
 
@@ -85,45 +85,102 @@ final class MarketCatalogTests: XCTestCase {
 }
 
 final class MarketDataPayloadDecoderTests: XCTestCase {
-    func testDecodesCatalog() throws {
+    func testDecodesCatalogIncludingVenue() throws {
         let json = """
-        {"eq":{"VOO":["Vanguard S&P 500 ETF","ETF"]},"cx":{"BTC":["BTCUSDT","Bitcoin","USDT"]}}
+        {"eq":{"VOO":["Vanguard S&P 500 ETF","ETF"]},
+         "cx":{"BTC":["BTCUSDT","Bitcoin","USDT","binance"],
+               "OKB":["OKB-USDT","OKB","USDT","okx"]}}
         """.data(using: .utf8)!
         let catalog = try MarketDataPayloadDecoder.catalog(from: json)
         XCTAssertEqual(catalog.equities["VOO"]?.assetType, .etf)
-        XCTAssertEqual(catalog.cryptos["BTC"]?.pair, "BTCUSDT")
+        XCTAssertEqual(catalog.cryptos["BTC"]?.venue, "binance")
+        // Binance 不上架竞争对手的平台币，OKB 只能走 OKX。
+        XCTAssertEqual(catalog.cryptos["OKB"]?.venue, "okx")
     }
 
-    func testDecodesQuoteAndAppliesConversionRate() throws {
-        let json = """
-        {"price":100,"change":-1.5,"series":[[1000,90],[2000,100]]}
-        """.data(using: .utf8)!
+    /// 旧目录没有第 4 个字段，要默认成 binance，不能整条丢掉。
+    func testCatalogDefaultsVenueWhenMissing() throws {
+        let json = #"{"eq":{},"cx":{"ETH":["ETHUSDT","Ethereum","USDT"]}}"#.data(using: .utf8)!
+        let catalog = try MarketDataPayloadDecoder.catalog(from: json)
+        XCTAssertEqual(catalog.cryptos["ETH"]?.venue, "binance")
+    }
+
+    func testBinanceBarsDecodeStringNumbers() throws {
+        let json = #"[[1788710400000,"1.5","2","1","1.8",0],[1788714000000,"1.8","2","1","1.9",0]]"#
+            .data(using: .utf8)!
+        let bars = try MarketDataPayloadDecoder.binanceBars(from: json)
+        XCTAssertEqual(bars.count, 2)
+        XCTAssertEqual(bars.last?.close, 1.9)
+    }
+
+    /// OKX 的 K 线是**倒序**返回的，解码后必须转成正序，否则 series 会画反、
+    /// 「最后一根」会取到最老的那根。
+    func testOKXBarsAreSortedAscending() throws {
+        let json = #"{"data":[["2000","5","6","4","5.5"],["1000","3","4","2","3.5"]]}"#
+            .data(using: .utf8)!
+        let bars = try MarketDataPayloadDecoder.okxBars(from: json)
+        XCTAssertEqual(bars.map(\.time), [1000, 2000])
+        XCTAssertEqual(bars.last?.close, 5.5)
+    }
+
+    func testEquityBarsDecodeNestedShape() throws {
+        let json = #"{"data":{"bars":[{"t":1788710400000,"o":"700","h":"1","l":"1","c":"707.66"}]}}"#
+            .data(using: .utf8)!
+        let bars = try MarketDataPayloadDecoder.equityBars(from: json)
+        XCTAssertEqual(bars.first?.open, 700)
+        XCTAssertEqual(bars.first?.close, 707.66)
+    }
+
+    /// 北京 0 点是 UTC 16:00，正好落在整点小时线的边界上，所以基准取那根的
+    /// **开盘价**最准。
+    func testQuoteUsesBeijingMidnightBarOpenAsBasis() throws {
+        let dayStart: TimeInterval = 1_788_710_400_000   // 2026-09-07 00:00 北京
+        let bars = [
+            MarketDataPayloadDecoder.Bar(time: dayStart - 3_600_000, open: 90, close: 95),
+            MarketDataPayloadDecoder.Bar(time: dayStart, open: 100, close: 105),
+            MarketDataPayloadDecoder.Bar(time: dayStart + 3_600_000, open: 105, close: 110)
+        ]
         let quote = try MarketDataPayloadDecoder.quote(
-            from: json,
-            requestedSymbol: "BTC-USD",
-            conversionRate: 0.9998,
-            fetchedAtMilliseconds: 5_000
+            bars: bars, requestedSymbol: "VOO", conversionRate: 1,
+            fetchedAtMilliseconds: dayStart + 7_200_000
         )
-        XCTAssertEqual(quote.price, 99.98, accuracy: 1e-9)
-        // 涨跌幅由 Worker 在原生计价里算好，换算系数不能作用在它上面。
-        XCTAssertEqual(quote.changePercent, -1.5, accuracy: 1e-9)
-        XCTAssertEqual(quote.series.last?.price ?? 0, 99.98, accuracy: 1e-9)
+        XCTAssertEqual(quote.price, 110)
+        // 基准是边界那根的开盘价 100，不是上一根的收盘价 95。
+        XCTAssertEqual(quote.changePercent, 10, accuracy: 1e-9)
     }
 
-    /// Worker 算不出北京日基准时会给 null，这时涨跌显示 0，而不是抛错让整条
-    /// 报价作废 —— 价格本身仍然是有效信息。
-    func testMissingChangeFallsBackToZero() throws {
-        let json = #"{"price":10,"change":null,"series":[]}"#.data(using: .utf8)!
+    /// 休市日 0 点前没有成交，基准回退成最后收盘价 —— 涨跌 0%。
+    /// 对「北京今日」这个口径来说这是诚实的。
+    func testQuoteFallsBackToLastCloseWhenMarketWasClosed() throws {
+        let dayStart: TimeInterval = 1_788_710_400_000
+        let bars = [MarketDataPayloadDecoder.Bar(time: dayStart - 86_400_000, open: 700, close: 707.66)]
         let quote = try MarketDataPayloadDecoder.quote(
-            from: json, requestedSymbol: "AAPL", conversionRate: 1, fetchedAtMilliseconds: 0
+            bars: bars, requestedSymbol: "VOO", conversionRate: 1,
+            fetchedAtMilliseconds: dayStart + 3_600_000
         )
-        XCTAssertEqual(quote.changePercent, 0)
+        XCTAssertEqual(quote.price, 707.66)
+        XCTAssertEqual(quote.changePercent, 0, accuracy: 1e-9)
     }
 
-    func testRejectsNonPositivePrice() {
-        let json = #"{"price":0,"change":1,"series":[]}"#.data(using: .utf8)!
+    /// 换算只作用在价格和序列上，**不能**作用在涨跌幅：分子分母同乘一个数
+    /// 比值不变，乘了只会把 USDT 自己的抖动混成标的的涨跌。
+    func testConversionRateAppliesToPriceButNotChange() throws {
+        let dayStart: TimeInterval = 1_788_710_400_000
+        let bars = [
+            MarketDataPayloadDecoder.Bar(time: dayStart, open: 100, close: 100),
+            MarketDataPayloadDecoder.Bar(time: dayStart + 3_600_000, open: 100, close: 200)
+        ]
+        let quote = try MarketDataPayloadDecoder.quote(
+            bars: bars, requestedSymbol: "BTC-USD", conversionRate: 0.9998,
+            fetchedAtMilliseconds: dayStart + 7_200_000
+        )
+        XCTAssertEqual(quote.price, 199.96, accuracy: 1e-9)
+        XCTAssertEqual(quote.changePercent, 100, accuracy: 1e-9)
+    }
+
+    func testQuoteRejectsEmptyBars() {
         XCTAssertThrowsError(try MarketDataPayloadDecoder.quote(
-            from: json, requestedSymbol: "AAPL", conversionRate: 1, fetchedAtMilliseconds: 0
+            bars: [], requestedSymbol: "VOO", conversionRate: 1, fetchedAtMilliseconds: 0
         ))
     }
 }

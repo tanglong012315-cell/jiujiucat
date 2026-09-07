@@ -2,9 +2,14 @@ import Foundation
 
 /// 标的目录：代号 → 行情盘口。
 ///
-/// Worker 的 `/api/catalog` 把 Binance 的全量标的压成两张表下发（约 7900 只美股 +
-/// 400 多个加密），客户端缓存一天。搜索因此是**纯内存过滤**，不用每敲一个字母
-/// 打一次请求 —— 也就没有防抖和竞态。
+/// 目录是**预生成的静态文件** `/catalog.json`（约 7900 只美股 + 600 多个加密，
+/// gzip 后约 105KB），客户端缓存一天。搜索因此是**纯内存过滤**，不用每敲一个
+/// 字母打一次请求 —— 也就没有防抖和竞态。
+///
+/// ⛔ 为什么不是 Worker 端点：Binance 对 Cloudflare 出口 IP 返回 403（api 和
+/// bapi 两个域名都拦），OKX 返回 429，而浏览器和手机直连全部 200 —— 它们拦的
+/// 是数据中心 IP。静态资源由 Cloudflare 直接分发、根本不经过 Worker，绕开封锁。
+/// 生成脚本见 `scripts/build_catalog.py`。
 ///
 /// ⚠️ 美股走的是 Binance Stocks（真实股价，代号 EQ_VOO），不是现货那套代币化
 /// 股票（bStocks，代号 AAPLB）。后者是第三方发行的代币，和真实股价有 0.2~0.7%
@@ -16,11 +21,17 @@ struct MarketCatalog: Equatable, Sendable {
     }
 
     struct CryptoEntry: Equatable, Sendable {
-        /// 现货交易对，例如 BTCUSDT。
+        /// 现货交易对。Binance 是 BTCUSDT，OKX 是 OKB-USDT。
         let pair: String
         let name: String
         /// 计价货币：USD 或 USDT。USDT 计价的要再乘一道 USDT/USD 才是美元价。
         let quoteCurrency: String
+        /// 场所：binance 或 okx。
+        ///
+        /// 为什么需要第二家：Binance 不上架任何竞争对手的平台币 —— OKB / CRO /
+        /// LEO 都没有，只有自家 BNB。单一交易所必然有这类洞。两家都没有的
+        /// （BGB / HT / KCS 这些）就是不支持，取价时诚实显示，不编价格。
+        let venue: String
     }
 
     let equities: [String: EquityEntry]
@@ -41,10 +52,10 @@ struct MarketCatalog: Equatable, Sendable {
             "QQQ": EquityEntry(name: "Invesco QQQ Trust, Series 1", assetType: .etf)
         ],
         cryptos: [
-            "BTC": CryptoEntry(pair: "BTCUSDT", name: "Bitcoin", quoteCurrency: "USDT"),
-            "ETH": CryptoEntry(pair: "ETHUSDT", name: "Ethereum", quoteCurrency: "USDT"),
-            "USDT": CryptoEntry(pair: "USDTUSD", name: "TetherUS", quoteCurrency: "USD"),
-            "USDC": CryptoEntry(pair: "USDCUSD", name: "USDC", quoteCurrency: "USD")
+            "BTC": CryptoEntry(pair: "BTCUSDT", name: "Bitcoin", quoteCurrency: "USDT", venue: "binance"),
+            "ETH": CryptoEntry(pair: "ETHUSDT", name: "Ethereum", quoteCurrency: "USDT", venue: "binance"),
+            "USDT": CryptoEntry(pair: "USDTUSD", name: "TetherUS", quoteCurrency: "USD", venue: "binance"),
+            "USDC": CryptoEntry(pair: "USDCUSD", name: "USDC", quoteCurrency: "USD", venue: "binance")
         ]
     )
 }
@@ -58,6 +69,8 @@ struct MarketInstrument: Equatable, Sendable {
     let quoteCurrency: String
     let name: String
     let assetType: AssetType
+    /// 加密才有意义：binance / okx。美股固定走 Binance Stocks。
+    let venue: String
 }
 
 extension MarketCatalog {
@@ -98,7 +111,8 @@ extension MarketCatalog {
             pair: nil,
             quoteCurrency: "USD",
             name: equity.name,
-            assetType: equity.assetType
+            assetType: equity.assetType,
+            venue: "binance"
         )
     }
 
@@ -109,7 +123,8 @@ extension MarketCatalog {
             pair: crypto.pair,
             quoteCurrency: crypto.quoteCurrency,
             name: crypto.name,
-            assetType: .cryptocurrency
+            assetType: .cryptocurrency,
+            venue: crypto.venue
         )
     }
 
@@ -149,7 +164,7 @@ extension MarketCatalog {
                 quoteSymbol: "\(code)-USD",
                 name: entry.name,
                 assetType: .cryptocurrency,
-                exchange: "Crypto"
+                exchange: entry.venue == "okx" ? "OKX" : "Crypto"
             )))
         }
 
