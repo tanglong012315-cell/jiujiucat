@@ -27,13 +27,14 @@
       const theme = savedTheme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
       document.documentElement.dataset.theme = theme;
       document.documentElement.style.colorScheme = theme;
-      document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#1C1C1C' : '#FFFFFF';
+      // Keep browser chrome aligned with the Nvwa BG primitive before CSS loads.
+      document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#000000' : '#FFFFFF';
     })();
   </script>
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" />
-  <link rel="stylesheet" href="styles.css?v=125" />
+  <link rel="stylesheet" href="styles.css?v=128" />
 </head>
 <body>
   <div class="app-splash" id="app-splash" aria-hidden="true"></div>
@@ -579,6 +580,10 @@
           <span><strong>年化收益率（APR）</strong><small id="profit-annual-rate-detail">当前持仓设置</small></span>
           <b id="profit-annual-rate-value">0.00%</b>
         </div>
+        <div class="profit-breakdown-row" id="profit-peg-row" hidden>
+          <span><strong>稳定币现价</strong><small id="profit-peg-detail">USDT/USD 现货</small></span>
+          <b id="profit-peg-value">$1.0000</b>
+        </div>
         <div class="profit-breakdown-row" id="profit-daily-interest-row" hidden>
           <span><strong>每日预计利息</strong><small id="profit-daily-interest-detail">下次结算北京时间 16:00</small></span>
           <b id="profit-daily-interest-value">$0.00</b>
@@ -686,35 +691,6 @@
     </form>
   </div>
 
-  <div class="sheet-overlay cat-sheet-overlay" id="cat-sheet-overlay" hidden>
-    <div class="sheet-scrim" data-close-cat></div>
-    <section class="sheet-panel cat-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="cat-sheet-title">
-      <div class="sheet-grabber"></div>
-      <div class="sheet-head">
-        <h2 class="sheet-title" id="cat-sheet-title">我们家的猫</h2>
-        <button type="button" class="sheet-close-btn" id="cat-close-btn" aria-label="关闭">
-          <i class="ri-close-line" aria-hidden="true"></i>
-        </button>
-      </div>
-      <div class="sheet-body cat-sheet-body" data-dialog-scroll>
-        <p class="cat-sheet-note" id="cat-sheet-note">这是我们家的九只猫。点一只设成头像，长按看大图。</p>
-        <div class="cat-grid" id="cat-grid"></div>
-      </div>
-    </section>
-  </div>
-
-  <div class="photo-viewer" id="cat-photo-viewer" hidden>
-    <button type="button" class="photo-viewer-scrim" data-close-photo aria-label="关闭大图"></button>
-    <figure class="photo-viewer-frame">
-      <img id="cat-photo-viewer-img" src="" alt="" />
-      <figcaption>
-        <strong id="cat-photo-viewer-name"></strong>
-        <span id="cat-photo-viewer-desc"></span>
-        <span class="photo-viewer-meta" id="cat-photo-viewer-meta"></span>
-      </figcaption>
-    </figure>
-  </div>
-
   <div class="confirm-overlay" id="delete-confirm-overlay" hidden>
     <div class="sheet-scrim" data-close-confirm></div>
     <div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-confirm-title">
@@ -731,6 +707,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
   <script src="holding-sync.js?v=1"></script>
-  <script src="app.js?v=117"></script>
+  <script src="market-stream.js?v=1"></script>
+  <script src="app.js?v=122"></script>
 </body>
 </html>

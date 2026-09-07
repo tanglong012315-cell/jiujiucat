@@ -12,6 +12,12 @@ let chartPoints = [];
 let currentReturns = { daily: 0, monthly: 0, yearly: 0, chartTotal: 0 };
 const preferencesKey = 'retirement-calculator-preferences';
 const themeKey = 'retirement-calculator-theme';
+// CSS custom properties are the runtime source of truth. These exact Nvwa
+// primitive fallbacks cover the pre-style/meta and Canvas fallback paths.
+const NVWA_BACKGROUND_BY_THEME = Object.freeze({ light: '#FFFFFF', dark: '#000000' });
+const NVWA_GRAY_SECONDARY = '#868685';
+const nvwaBackground = (theme = document.documentElement.dataset.theme) =>
+  NVWA_BACKGROUND_BY_THEME[theme] || NVWA_BACKGROUND_BY_THEME.light;
 
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const cnyMoney = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -240,7 +246,7 @@ let marketRotationId = null;
 function applyTheme(theme, persist = false) {
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
-  document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#1C1C1C' : '#FFFFFF';
+  document.querySelector('meta[name="theme-color"]').content = nvwaBackground(theme);
   themeToggle.setAttribute('aria-label', theme === 'dark' ? '切换到浅色模式' : '切换到深色模式');
   if (persist) localStorage.setItem(themeKey, theme);
   requestAnimationFrame(() => {
@@ -330,6 +336,15 @@ function renderMarketSession(asset) {
   return MARKET_SESSIONS[key];
 }
 
+// 每个标的各自记最后一次 tick 的时间：Binance 挂了不该让 BTC 的轮询也醒过来。
+// 声明必须在 renderMarketTicker 之前 —— 首屏就会调用它，而 const 有 TDZ，
+// 定义在下面的初始化块里会直接抛 ReferenceError。
+const STREAM_TAKEOVER_MS = 90 * 1000;
+const streamSeenAt = new Map();
+function streamFresh(symbol) {
+  return Date.now() - (streamSeenAt.get(symbol) || 0) < STREAM_TAKEOVER_MS;
+}
+
 function renderMarketTicker(asset) {
   applyAssetLogo(document.querySelector('#market-icon'), asset.quoteSymbol, asset.symbol.slice(0, 1), asset.assetType, asset.name);
   document.querySelector('#market-name').textContent = asset.name;
@@ -359,8 +374,10 @@ function renderMarketTicker(asset) {
   const session = renderMarketSession(asset);
   const sessionText = session ? `，美股${session.full}` : '';
   const priceText = Number.isFinite(asset.price) ? btcMoney.format(asset.price) : '价格暂不可用';
-  document.querySelector('.btc-ticker').setAttribute('aria-label', `${asset.name} ${priceText}，${asset.basis}${accessibleChange}${sessionText}，点击查看下一个标的`);
-  document.querySelector('.btc-ticker').title = `${asset.name}/USD 实时行情；${asset.basis}涨跌幅${session ? `；美股${session.full}` : ''}`;
+  document.querySelector('.btc-ticker').setAttribute('aria-label',
+    `${asset.name} ${priceText}，${asset.basis}${accessibleChange}${sessionText}，点击查看下一个标的`);
+  document.querySelector('.btc-ticker').title =
+    `${asset.name}/USD 实时行情；${asset.basis}涨跌幅${session ? `；美股${session.full}` : ''}`;
 }
 
 // 走势序列统一存成 [时间戳(ms), 价格] 对。只存价格数组时没法按时间对齐 ——
@@ -423,46 +440,78 @@ function getBeijingDayStartUnix() {
   ) - 8 * 60 * 60 * 1000) / 1000);
 }
 
-async function updateBitcoinPrice() {
+// ── 报价（Binance，经 Worker 转发）─────────────────────────
+//
+// 这是**兜底**路径：WebSocket 推送断了、或首屏推送还没到时才走。它和推送用的
+// 是同一批盘口（见 market-stream.js），所以口径完全一致 —— 不会出现「降级之后
+// 数字跳一下」这种前后矛盾。
+//
+// 2026-09-07 从 Yahoo / TradingView / CoinGecko 三条链路整体切过来（用户决定）。
+// 那三条各有各的毛病：Yahoo 非官方会 403，TradingView 只能给「较前收盘」口径，
+// CoinGecko 免费接口按 IP 限流。现在只剩一个上游，口径也只剩一套。
+//
+// 美股走的是 Binance Stocks（真实股价，7928 个标的），不是现货那套代币化股票。
+// 两者是完全不同的产品，别搞混 —— 详见 src/index.js 顶部。
+async function fetchBinanceQuote(symbol, assetType, range = '5d') {
+  const info = window.MarketStream?.resolve(symbol, assetType);
+  // 覆盖不到就直接失败，不去猜一个标的。美股 7928 个 + 加密 400 多个已经覆盖
+  // 绝大多数情况，真漏了的宁可不显示价格，也不要显示一个来路不明的数。
+  if (!info) throw new Error(`${symbol} 不在 Binance 覆盖范围内`);
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const dayStart = getBeijingDayStartUnix();
-    const now = Math.floor(Date.now() / 1000);
-    const weekStart = now - 7 * 24 * 60 * 60;
-    const response = await fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=usd&from=${weekStart}&to=${now}`, { signal: controller.signal, cache: 'no-store' });
-    if (!response.ok) throw new Error('Bitcoin price request failed');
+    const response = await fetch(
+      `/api/quote?pair=${encodeURIComponent(info.pair)}&range=${range}`,
+      { signal: controller.signal, cache: 'no-store' }
+    );
+    if (!response.ok) throw new Error(`${symbol} quote request failed`);
     const data = await response.json();
-    const prices = Array.isArray(data?.prices) ? data.prices : [];
-    const series = prices
-      .filter(point => Number.isFinite(Number(point?.[0])) && Number(point?.[1]) > 0)
-      .map(point => [Number(point[0]), Number(point[1])])
+    const raw = Number(data?.price);
+    if (!Number.isFinite(raw) || raw <= 0) throw new Error(`Invalid ${symbol} price`);
+    // USDT 计价的盘口要乘 USDT/USD 才是美元价，和推送那条路用同一个换算。
+    // 涨跌幅不换算：分子分母同乘一个数比值不变，换算只会把汇率抖动混进去。
+    const rate = info.quote === 'USDT' ? (Number(window.MarketStream?.get('USDT')?.price) || 1) : 1;
+    const series = (Array.isArray(data?.series) ? data.series : [])
+      .filter(point => Array.isArray(point) && Number(point[0]) > 0 && Number(point[1]) > 0)
+      .map(point => [Number(point[0]), Number(point[1]) * rate])
       .slice(-SERIES_MAX_POINTS);
-    let openingPrice = NaN;
-    for (const point of prices) {
-      if (Number(point?.[0]) > dayStart * 1000) break;
-      if (Number.isFinite(Number(point?.[1]))) openingPrice = Number(point[1]);
-    }
-    const price = Number(prices.at(-1)?.[1]);
-    if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(openingPrice) || openingPrice <= 0) throw new Error('Invalid Bitcoin price');
-    const change = ((price - openingPrice) / openingPrice) * 100;
-    localStorage.setItem('retirement-calculator-btc', JSON.stringify({ price, change, series, dayStart, savedAt: Date.now() }));
-    setMarketData('BTC', price, change, false, '暂不可用', undefined, series);
-  } catch (error) {
-    try {
-      const cached = JSON.parse(localStorage.getItem('retirement-calculator-btc') || 'null');
-      if (cached?.price) {
-        const cachedChange = Number(cached.dayStart) === getBeijingDayStartUnix() ? Number(cached.change) : NaN;
-        setMarketData('BTC', Number(cached.price), cachedChange, true, '暂不可用', undefined, cached.series);
-      }
-      else setMarketData('BTC', NaN, NaN);
-    } catch (cacheError) {
-      setMarketData('BTC', NaN, NaN);
-    }
+    const change = Number(data?.change);
+    return { symbol, price: raw * rate, change: Number.isFinite(change) ? change : NaN, series };
   } finally {
     clearTimeout(timeout);
   }
 }
+
+// BTC 的缓存键是历史遗留的（早于其余两个标的），不能顺手统一 —— 改了等于把
+// 所有老用户的离线缓存丢掉。
+function tickerCacheKey(symbol) {
+  return symbol === 'BTC' ? 'retirement-calculator-btc' : `retirement-calculator-${symbol.toLowerCase()}`;
+}
+
+// 行情条标的的兜底刷新。缓存里存了当天的北京日起点，跨天后涨跌幅作废，
+// 只显示价格 +「最近价格」—— 避免把昨天的涨跌当成今天的展示出来。
+async function refreshTickerQuote(symbol) {
+  const asset = marketAssets.find(item => item.symbol === symbol);
+  try {
+    const quote = await fetchBinanceQuote(symbol, asset?.assetType);
+    saveStockQuote(symbol, quote.price, quote.change, '北京时间今日', quote.series);
+  } catch {
+    try {
+      const cached = JSON.parse(localStorage.getItem(tickerCacheKey(symbol)) || 'null');
+      if (cached?.price) {
+        const sameDay = Number(cached.dayStart) === getBeijingDayStartUnix();
+        setMarketData(symbol, Number(cached.price), sameDay ? Number(cached.change) : NaN,
+          true, '暂不可用', cached.basis, cached.series);
+      } else setMarketData(symbol, NaN, NaN);
+    } catch { setMarketData(symbol, NaN, NaN); }
+  }
+}
+
+async function updateBitcoinPrice() { return refreshTickerQuote('BTC'); }
+
+async function updateStockPrices() { await Promise.all(['MSTR', 'QQQ'].map(refreshTickerQuote)); }
+
 
 function saveStockQuote(symbol, price, change, basis = '北京时间今日', series = []) {
   localStorage.setItem(`retirement-calculator-${symbol.toLowerCase()}`, JSON.stringify({ price, change, series, basis, dayStart: getBeijingDayStartUnix(), savedAt: Date.now() }));
@@ -484,105 +533,6 @@ function restoreCachedStockPrices() {
     }
   }
 }
-
-// Beijing-day basis, matching the BTC ticker: change is measured from the last
-// trade at or before Beijing midnight. The API returns the latest five trading
-// days so the portfolio sparkline consistently represents one trading week.
-async function fetchBeijingQuote(symbol) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  try {
-    // 同源代理（见 src/index.js）。原来借道 corsproxy.io，但那个公共代理在公网域名
-    // 下被 Yahoo 稳定 403，害得涨跌基准一直降级成「较前收盘」。走自己的 Worker 就
-    // 没有 CORS 问题，也不看第三方限流的脸色。
-    // 注：本地用 http.server 预览时没有这个端点，会 404 → 抛错 → 自动走下面的
-    // TradingView 备用链路，所以本地开发依然能显示报价，只是基准是「较前收盘」。
-    const response = await fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`, { signal: controller.signal, cache: 'no-store' });
-    if (!response.ok) throw new Error(`${symbol} quote request failed`);
-    const data = await response.json();
-    const result = data?.chart?.result?.[0];
-    const price = Number(result?.meta?.regularMarketPrice);
-    const timestamps = Array.isArray(result?.timestamp) ? result.timestamp : [];
-    const closes = result?.indicators?.quote?.[0]?.close ?? [];
-    // Yahoo 的 timestamp 是秒，序列统一用毫秒。原来只留最后 80 根收盘价：
-    // 加密货币 24 小时连续成交，80 根 30 分钟线只有 40 小时，美股 80 根却横跨
-    // 整整 5 天 —— 两条序列叠在一起画的时候完全对不上。
-    const series = timestamps
-      .map((time, index) => [Number(time) * 1000, Number(closes[index])])
-      .filter(point => Number.isFinite(point[0]) && Number.isFinite(point[1]) && point[1] > 0)
-      .slice(-SERIES_MAX_POINTS);
-    const dayStart = getBeijingDayStartUnix();
-    let reference = NaN;
-    for (let i = 0; i < timestamps.length; i++) {
-      if (timestamps[i] > dayStart) break;
-      if (Number.isFinite(closes[i])) reference = closes[i];
-    }
-    // No bar before midnight in range (e.g. Sunday): price hasn't moved this
-    // Beijing day, so the flat last close is the honest reference.
-    if (!Number.isFinite(reference)) reference = price;
-    if (!Number.isFinite(price) || price <= 0 || reference <= 0) throw new Error(`Invalid ${symbol} data`);
-    return { symbol, price, change: ((price - reference) / reference) * 100, series };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-// Fallback only — TradingView can't give a Beijing-day basis, so its change is
-// vs previous close and the ticker relabels itself accordingly.
-const TRADINGVIEW_TICKERS = {
-  MSTR: 'NASDAQ:MSTR',
-  QQQ: 'NASDAQ:QQQ',
-  AAPL: 'NASDAQ:AAPL',
-  VOO: 'AMEX:VOO'
-};
-
-async function fetchTradingViewQuotes(symbols = ['MSTR', 'QQQ']) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  try {
-    const requests = symbols.map(symbol => ({ symbol, ticker: TRADINGVIEW_TICKERS[symbol] })).filter(item => item.ticker);
-    if (requests.length !== symbols.length) throw new Error('Unsupported TradingView symbol');
-    // No Content-Type header on purpose: application/json makes this a preflighted
-    // request, and TradingView's scanner rejects the preflight. Omitting it leaves a
-    // CORS-safelisted text/plain body, which the endpoint parses fine.
-    const response = await fetch('https://scanner.tradingview.com/america/scan', {
-      method: 'POST',
-      body: JSON.stringify({
-        symbols: { tickers: requests.map(item => item.ticker), query: { types: [] } },
-        columns: ['close', 'change']
-      }),
-      signal: controller.signal,
-      cache: 'no-store'
-    });
-    if (!response.ok) throw new Error('Stock price request failed');
-    const data = await response.json();
-    const rows = Array.isArray(data?.data) ? data.data : [];
-    return requests.map(({ symbol, ticker }) => {
-      const row = rows.find(item => item?.s === ticker);
-      const price = Number(row?.d?.[0]);
-      const change = Number(row?.d?.[1]);
-      if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(change)) throw new Error(`Invalid ${symbol} price`);
-      return { symbol, price, change };
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-async function updateStockPrices() {
-  try {
-    const quotes = await Promise.all([fetchBeijingQuote('MSTR'), fetchBeijingQuote('QQQ')]);
-    quotes.forEach(quote => saveStockQuote(quote.symbol, quote.price, quote.change, '北京时间今日', quote.series));
-  } catch (error) {
-    try {
-      const quotes = await fetchTradingViewQuotes();
-      quotes.forEach(quote => saveStockQuote(quote.symbol, quote.price, quote.change, '较前收盘'));
-    } catch (fallbackError) {
-      restoreCachedStockPrices();
-    }
-  }
-}
-
 function clockLabel(date = new Date()) {
   return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
@@ -1033,7 +983,7 @@ function drawChart() {
     ctx.stroke();
     ctx.restore();
 
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-1').trim() || '#fff';
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-1').trim() || nvwaBackground();
     ctx.strokeStyle = chartInk;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
@@ -1169,9 +1119,80 @@ updateExchangeRate();
 setInterval(updateExchangeRate, 15 * 60 * 1000);
 renderMarketTicker(marketAssets[0]);
 updateBitcoinPrice();
-setInterval(updateBitcoinPrice, 60 * 1000);
+
+// ── 行情数据层 ───────────────────────────────────────────
+// 三个行情条标的都从「60 秒轮询 Yahoo / CoinGecko」换成 Binance：
+// BTC 走现货 WebSocket 推送（秒级），MSTR / QQQ 走 Binance Stocks 的真实股价。
+// refreshTickerQuote 是兜底：推送断了或首屏还没到时接管，用的是同一批上游，
+// 所以口径一致，不会出现「降级之后数字跳一下」。
+//
+// 稳定币 USDT / USDC 也订上。这类持仓在 App 里一直是手填的名字、没有任何价格
+// （assetType 'STABLE'、exchange '手动'），现在有真实的美元现货成交价，
+// 持仓估值按它折算 —— 1 USDT 并不总是 1 美元。
+const STREAM_TICKER_SYMBOLS = ['BTC', 'MSTR', 'QQQ'];
+const STREAM_STABLECOINS = ['USDT', 'USDC'];
+
+if (window.MarketStream?.supported) {
+  // tick 按成交推送，活跃时一秒好几条。价格跟手是这次改造的目的，但
+  // setMarketData 会连带跑 renderMarketTicker / renderHoldings，每条都跑就是在
+  // 拿 DOM 开销换看不见的精度。500ms 合并一次：视觉上仍然是「活的」，开销只
+  // 有几分之一。合并保留最后一个值，不是丢弃。
+  const pending = new Map();
+  let flushTimer = null;
+  let cacheAt = 0;
+
+  const flush = () => {
+    flushTimer = null;
+    for (const [symbol, entry] of pending) {
+      setMarketData(symbol, entry.price, entry.change, false, '暂不可用', entry.basis, entry.series);
+    }
+    // 离线兜底仍然读这些 key，所以流在跑的时候也要把它们喂新。每秒写一次
+    // localStorage 是浪费（还会阻塞主线程），15 秒一次对「断网后看最近价格」
+    // 这个用途绰绰有余。
+    if (Date.now() - cacheAt > 15000) {
+      cacheAt = Date.now();
+      const dayStart = getBeijingDayStartUnix();
+      for (const [symbol, entry] of pending) {
+        try {
+          localStorage.setItem(
+            symbol === 'BTC' ? 'retirement-calculator-btc' : `retirement-calculator-${symbol.toLowerCase()}`,
+            JSON.stringify({
+              price: entry.price, change: entry.change, series: entry.series || [],
+              basis: entry.basis, dayStart, savedAt: cacheAt
+            })
+          );
+        } catch { /* 隐私模式下写不进去，不影响行情显示 */ }
+      }
+    }
+    pending.clear();
+  };
+
+  MarketStream.onTick((symbol, entry) => {
+    if (!STREAM_TICKER_SYMBOLS.includes(symbol)) return;
+    // 连接断开时模块也会 emit（live 变 false），那一条不能当成「流还新鲜」，
+    // 否则轮询永远不会接管，行情条就一直挂着一个不动的旧价格。
+    if (!entry.live || !Number.isFinite(entry.price)) return;
+    streamSeenAt.set(symbol, Date.now());
+    pending.set(symbol, entry);
+    if (!flushTimer) flushTimer = setTimeout(flush, 500);
+  });
+
+  STREAM_TICKER_SYMBOLS.forEach(symbol => {
+    const asset = marketAssets.find(item => item.symbol === symbol);
+    MarketStream.watch(symbol, true, asset?.assetType);
+  });
+  STREAM_STABLECOINS.forEach(symbol => MarketStream.watch(symbol, false, 'CRYPTOCURRENCY'));
+  MarketStream.start();
+}
+
+setInterval(() => {
+  // 推送活着就不回源：既避免两个来源互相覆盖出「价格跳回去」，也少打一次请求。
+  if (!streamFresh('BTC')) updateBitcoinPrice();
+  // 美股由 MarketStream 自己按 60 秒轮询（一次请求覆盖所有标的），这里只在
+  // 那条路彻底没数据时才补一刀。
+  if (!streamFresh('MSTR') || !streamFresh('QQQ')) updateStockPrices();
+}, 60 * 1000);
 updateStockPrices();
-setInterval(updateStockPrices, 60 * 1000);
 function syncMarketRotation() {
   if (reducedMotion.matches) {
     clearInterval(marketRotationId);
@@ -1237,30 +1258,31 @@ const DIVIDEND_FREQUENCY_CONTROL_LABELS = {
   quarterly: '每季度一次', monthly: '每月一次', semimonthly: '每月两次',
   semiannual: '每半年一次', annual: '每年一次', irregular: '不固定'
 };
-// 本地 http.server 没有 Worker 路由。这里放一组 Yahoo Finance 的有效代码作为
-// 开发预览后备；线上仍以 /api/search 的 Yahoo 实时搜索为准。
+// 目录端点要 Worker，本地 http.server 拿不到。这里放一小组常见标的作为开发
+// 预览后备；线上以 /api/catalog 的全量目录为准（7928 只美股 + 400 多个币）。
+// 加密代号不带 -USD 后缀 —— Binance 用的是裸代号，和 Yahoo 不同。
 const FALLBACK_ASSETS = [
-  ['AAPL', 'Apple Inc.', 'EQUITY', 'NASDAQ'],
-  ['MSFT', 'Microsoft Corporation', 'EQUITY', 'NASDAQ'],
-  ['NVDA', 'NVIDIA Corporation', 'EQUITY', 'NASDAQ'],
-  ['AMZN', 'Amazon.com, Inc.', 'EQUITY', 'NASDAQ'],
-  ['GOOGL', 'Alphabet Inc.', 'EQUITY', 'NASDAQ'],
-  ['META', 'Meta Platforms, Inc.', 'EQUITY', 'NASDAQ'],
-  ['TSLA', 'Tesla, Inc.', 'EQUITY', 'NASDAQ'],
-  ['MSTR', 'Strategy Inc.', 'EQUITY', 'NASDAQ'],
-  ['QQQ', 'Invesco QQQ Trust', 'ETF', 'NASDAQ'],
-  ['SPY', 'SPDR S&P 500 ETF Trust', 'ETF', 'NYSEArca'],
-  ['VOO', 'Vanguard S&P 500 ETF', 'ETF', 'NYSEArca'],
-  ['BTC-USD', 'Bitcoin USD', 'CRYPTOCURRENCY', 'CCC'],
-  ['ETH-USD', 'Ethereum USD', 'CRYPTOCURRENCY', 'CCC'],
-  ['SOL-USD', 'Solana USD', 'CRYPTOCURRENCY', 'CCC'],
-  ['BNB-USD', 'BNB USD', 'CRYPTOCURRENCY', 'CCC'],
-  ['XRP-USD', 'XRP USD', 'CRYPTOCURRENCY', 'CCC'],
-  ['DOGE-USD', 'Dogecoin USD', 'CRYPTOCURRENCY', 'CCC']
-].map(([quoteSymbol, name, assetType, exchange]) => ({
-  symbol: assetType === 'CRYPTOCURRENCY' ? quoteSymbol.replace(/-USD$/, '') : quoteSymbol,
-  quoteSymbol, name, assetType, exchange
+  ['AAPL', 'Apple Inc. Common Stock', 'EQUITY', '美股'],
+  ['MSFT', 'Microsoft Corporation', 'EQUITY', '美股'],
+  ['NVDA', 'NVIDIA Corporation', 'EQUITY', '美股'],
+  ['AMZN', 'Amazon.com, Inc.', 'EQUITY', '美股'],
+  ['GOOGL', 'Alphabet Inc.', 'EQUITY', '美股'],
+  ['META', 'Meta Platforms, Inc.', 'EQUITY', '美股'],
+  ['TSLA', 'Tesla, Inc.', 'EQUITY', '美股'],
+  ['MSTR', 'Strategy Inc Common Stock Class A', 'EQUITY', '美股'],
+  ['QQQ', 'Invesco QQQ Trust, Series 1', 'ETF', '美股'],
+  ['SPY', 'State Street SPDR S&P 500 ETF Trust', 'ETF', '美股'],
+  ['VOO', 'Vanguard S&P 500 ETF', 'ETF', '美股'],
+  ['BTC', 'Bitcoin', 'CRYPTOCURRENCY', 'Crypto'],
+  ['ETH', 'Ethereum', 'CRYPTOCURRENCY', 'Crypto'],
+  ['SOL', 'Solana', 'CRYPTOCURRENCY', 'Crypto'],
+  ['BNB', 'BNB', 'CRYPTOCURRENCY', 'Crypto'],
+  ['XRP', 'XRP', 'CRYPTOCURRENCY', 'Crypto'],
+  ['DOGE', 'Dogecoin', 'CRYPTOCURRENCY', 'Crypto']
+].map(([symbol, name, assetType, exchange]) => ({
+  symbol, quoteSymbol: symbol, name, assetType, exchange
 }));
+
 const RECOMMENDED_ASSETS = [
   { symbol: 'VOO', quoteSymbol: 'VOO', name: 'Vanguard S&P 500 ETF', assetType: 'ETF', exchange: 'NYSEArca' },
   { symbol: 'AAPL', quoteSymbol: 'AAPL', name: 'Apple Inc.', assetType: 'EQUITY', exchange: 'NASDAQ' },
@@ -1682,35 +1704,34 @@ function holdingDividendIncome(holding, timestamp = Date.now()) {
 }
 
 function resolveHoldingPrice(holding) {
-  if (holding.holdingKind === 'interest') return 1;
+  if (holding.holdingKind === 'interest') return stablePegPrice(holding.symbol) ?? 1;
   const known = marketAssets.find(asset => asset.symbol === holding.symbol);
   if (known && Number.isFinite(known.price)) return known.price;
+  // 推送优先：它比 holdingPrices 里那份 REST 快照新。
+  const streamed = window.MarketStream?.get(holding.symbol);
+  if (Number.isFinite(streamed?.price)) return streamed.price;
   const fetched = holdingPrices.get(holding.quoteSymbol || holding.symbol);
   if (fetched && Number.isFinite(fetched.price)) return fetched.price;
   return null;
 }
 
 async function fetchHoldingPrice(holding) {
-  if (typeof holding !== 'string' && holding.holdingKind === 'interest') return 1;
+  if (typeof holding !== 'string' && holding.holdingKind === 'interest') return stablePegPrice(holding.symbol) ?? 1;
   const symbol = typeof holding === 'string' ? holding : holding.symbol;
   const quoteSymbol = typeof holding === 'string' ? holding : (holding.quoteSymbol || holding.symbol);
   const known = marketAssets.find(asset => asset.symbol === symbol);
   if (GLOBAL_TICKER_SYMBOLS.has(symbol) && Number.isFinite(known?.price)) return known.price;
+  // 订上推送，这个标的之后就一直是实时的；首屏那次仍然走 REST 拿到即时值。
+  const assetType = typeof holding === 'string' ? undefined : holding.assetType;
+  window.MarketStream?.watch(symbol, false, assetType);
   let quote = null;
   try {
-    // 复用理财 ticker 用的同一个函数与同源代理（src/index.js）——那边的
-    // 白名单已经从固定两个代号放开成格式校验，这里不用另起一套抓取逻辑。
-    quote = await fetchBeijingQuote(quoteSymbol);
+    quote = await fetchBinanceQuote(symbol, assetType);
     holdingPrices.set(quoteSymbol, { price: quote.price, change: quote.change, series: quote.series });
   } catch {
-    // 静态预览没有 Worker 路由；美股/ETF 可退回 TradingView，Crypto 则等
-    // 全局行情或下一轮 Yahoo 请求，绝不捏造价格。
-    try {
-      [quote] = await fetchTradingViewQuotes([symbol]);
-      holdingPrices.set(quoteSymbol, { price: quote.price, change: quote.change, series: quote.series });
-    } catch {
-      quote = null;
-    }
+    // 覆盖不到或请求失败。绝不捏造价格 —— 持仓行会显示「获取最新价格后可计算」，
+    // 这比显示一个来路不明的数字诚实。
+    quote = null;
   }
   if (!document.querySelector('#portfolio-app').hidden) renderHoldings();
   return Number.isFinite(quote?.price) ? quote.price : null;
@@ -1727,6 +1748,19 @@ function refreshHoldingPrices() {
   });
 }
 
+// 稳定生息持仓的真实计价。
+//
+// 本金和利息都是以**币**记的（卖出市价持仓时生成的就是一笔 USDT 持仓），
+// 而 1 USDT 不等于 1 美元 —— 2026-09-07 实测 0.9998。要按美元算总资产，
+// 就得乘以真实现价。
+//
+// 取不到真实价时退回 1:1，也就是改造前的行为：长尾稳定币（USDG 这类）
+// 交易所没有盘口，流没连上时也拿不到。宁可不折算，也不要拿一个猜的汇率算钱。
+function stablePegPrice(symbol) {
+  const quote = window.MarketStream?.get(symbol);
+  return Number.isFinite(quote?.price) && quote.price > 0 ? quote.price : null;
+}
+
 function holdingMetrics(holding, timestamp = Date.now()) {
   const kind = HOLDING_KINDS.has(holding.holdingKind) ? holding.holdingKind : 'market';
   const interest = holdingAccruedInterest(holding, timestamp);
@@ -1734,11 +1768,18 @@ function holdingMetrics(holding, timestamp = Date.now()) {
 
   if (kind === 'interest') {
     const principal = Number(holding.principal) || 0;
-    const value = principal + interest;
+    const peg = stablePegPrice(holding.symbol);
+    const price = peg === null ? 1 : peg;
+    // 本金和利息都以币计价，一起按现价折成美元。
+    const value = (principal + interest) * price;
+    // 盈亏 = 市值 − 本金，和市价持仓用同一个恒等式（盈亏严格等于市值减成本）。
+    // 折算生效时这个数含两部分：利息，加上脱锚带来的损益。所以标签要跟着从
+    // 「利息」改成「盈亏」—— 见 holdingRowModel 里 pegged 的用法。
+    const profit = value - principal;
     return {
-      kind, quantity: principal, cost: principal, value, profit: interest,
-      pct: principal > 0 ? interest / principal * 100 : 0,
-      interest, hasValue: principal > 0
+      kind, price, quantity: principal, cost: principal, value, profit,
+      pct: principal > 0 ? profit / principal * 100 : 0,
+      interest, pegged: peg !== null, hasValue: principal > 0
     };
   }
 
@@ -1863,7 +1904,7 @@ function portfolioValueSeries(rangeKey = portfolioChart.range) {
       coverageFrom = Math.max(coverageFrom, history[0][0]);
       prices = resampleSeries(history, times);
     } else {
-      // 手动价格、TradingView 备用报价只有当前一个点：作为恒定基线参与组合，
+      // 手动价格、以及只拿到当前一个点的报价：作为恒定基线参与组合，
       // 而不是让任意一笔缺历史的持仓把整张图拉成直线。
       prices = times.map(() => price);
     }
@@ -1928,17 +1969,22 @@ function readCachedLongHistory(quoteSymbol) {
 
 async function fetchLongHistory(holding) {
   const quoteSymbol = holding.quoteSymbol || holding.symbol;
-  // 统一走自己的 Worker 代理（src/index.js）拉 Yahoo 日线：BTC-USD 这类加密代号
-  // Yahoo 一样认，不必再为加密货币维护一套 CoinGecko id 映射。
-  const response = await fetch(`/api/quote?symbol=${encodeURIComponent(quoteSymbol)}&range=1y`, { cache: 'no-store' });
+  // 统一走自己的 Worker 代理（src/index.js）。美股和加密的日线在那边是两个不同
+  // 的上游（bapi/equity 与现货 K 线），但返回的形状一样，这里不用分情况。
+  const info = window.MarketStream?.resolve(holding.symbol, holding.assetType);
+  if (!info) throw new Error('long history unsupported');
+  const query = info.equity
+    ? `eq=${encodeURIComponent(info.symbol)}`
+    : `pair=${encodeURIComponent(info.pair)}`;
+  const response = await fetch(`/api/quote?${query}&range=1y`, { cache: 'no-store' });
   if (!response.ok) throw new Error('long history request failed');
   const data = await response.json();
-  const result = data?.chart?.result?.[0];
-  const timestamps = Array.isArray(result?.timestamp) ? result.timestamp : [];
-  const closes = result?.indicators?.quote?.[0]?.close ?? [];
-  const series = timestamps
-    .map((time, index) => [Number(time) * 1000, Number(closes[index])])
-    .filter(point => Number.isFinite(point[0]) && Number.isFinite(point[1]) && point[1] > 0);
+  // USDT 计价的日线要换算成美元，和实时价用同一个汇率，否则长短两段序列会
+  // 差着一个 0.0x% 的台阶接不上。
+  const rate = info.quote === 'USDT' ? (Number(window.MarketStream?.get('USDT')?.price) || 1) : 1;
+  const series = (Array.isArray(data?.series) ? data.series : [])
+    .filter(point => Array.isArray(point) && Number(point[0]) > 0 && Number(point[1]) > 0)
+    .map(point => [Number(point[0]), Number(point[1]) * rate]);
   if (series.length < 2) return null;
   const record = { series, savedAt: Date.now() };
   longPriceHistory.set(quoteSymbol, record);
@@ -2005,7 +2051,7 @@ const portfolioChart = {
 function chartToneColor(tone) {
   const styles = getComputedStyle(document.documentElement);
   const token = tone === 'is-gain' ? '--gain' : tone === 'is-loss' ? '--loss' : '--flat';
-  return styles.getPropertyValue(token).trim() || '#6b6b6b';
+  return styles.getPropertyValue(token).trim() || NVWA_GRAY_SECONDARY;
 }
 
 // 画布按 devicePixelRatio 放大，回传 CSS 像素尺寸；所有绘制都用 CSS 像素坐标。
@@ -2172,7 +2218,7 @@ function drawPortfolioChartDetail() {
   ctx.stroke();
   ctx.restore();
 
-  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-1').trim() || '#fff';
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-1').trim() || nvwaBackground();
   ctx.strokeStyle = color;
   ctx.lineWidth = 2.5;
   ctx.beginPath();
@@ -2495,7 +2541,8 @@ function holdingRowModel(holding) {
     profit: metrics.profit,
     pct: metrics.pct,
     hasValue: metrics.hasValue,
-    profitLabel: metrics.kind === 'interest' ? '利息' : '盈亏',
+    // 折算生效时 profit 里还含脱锚损益，叫「利息」就是少说了一半。
+    profitLabel: metrics.kind === 'interest' && !metrics.pegged ? '利息' : '盈亏',
     typeTag: metrics.kind === 'interest'
       ? (holding.interestMode === 'compound' ? '复利' : '单利')
       : null,
@@ -2640,7 +2687,7 @@ function mergedHoldingModel(group) {
     profit: totalProfit,
     pct: totalCost > 0 && Number.isFinite(totalProfit) ? totalProfit / totalCost * 100 : 0,
     hasValue: Number.isFinite(totalValue),
-    profitLabel: allStable ? '利息' : '盈亏',
+    profitLabel: allStable && !metrics.some(item => item.pegged) ? '利息' : '盈亏',
     // 合并组里计息方式可能不一致，那就别谎报成其中一种。
     // 合并的几笔计息方式不一致时不给标签 —— 挑一个是谎报，写「稳定生息」又是
     // 一句不含信息的废话。展开后每一笔各自标着自己的方式。
@@ -2893,6 +2940,8 @@ function openProfitSheet(items, action) {
   const dividend = metrics.reduce((sum, metric) => sum + (Number(metric.dividend) || 0), 0);
   const interest = metrics.reduce((sum, metric) => sum + (Number(metric.interest) || 0), 0);
   const stableOnly = metrics.length > 0 && metrics.every(metric => metric.kind === 'interest');
+  // 只要有一笔真的按现价折算了，标题和说明就不能再只说「利息」。
+  const stablePegged = stableOnly && metrics.some(metric => metric.pegged);
   const hasTotalProfit = metrics.every(metric => Number.isFinite(metric.profit));
   const totalProfit = hasTotalProfit ? metrics.reduce((sum, metric) => sum + metric.profit, 0) : NaN;
   const totalCost = metrics.reduce((sum, metric) => sum + (Number(metric.cost) || 0), 0);
@@ -2909,7 +2958,7 @@ function openProfitSheet(items, action) {
     ? `${symbol} · ${holdingsForBreakdown.length} 笔持仓`
     : symbol;
   setProfitValue(document.querySelector('#profit-sheet-total'), totalProfit);
-  document.querySelector('#profit-sheet-total-label').textContent = stableOnly ? '总利息' : '总盈亏';
+  document.querySelector('#profit-sheet-total-label').textContent = stableOnly && !stablePegged ? '总利息' : '总盈亏';
   setProfitValue(document.querySelector('#profit-market-value'), hasHoldingProfit ? holdingProfit : NaN);
   setProfitValue(document.querySelector('#profit-dividend-value'), dividend);
   setProfitValue(document.querySelector('#profit-interest-value'), interest);
@@ -2960,6 +3009,24 @@ function openProfitSheet(items, action) {
     ? '多笔持仓按本金加权'
     : '当前持仓设置';
 
+  // 稳定币的真实美元现货价。这类持仓过去是纯手填的，App 里没有价格这个概念 ——
+  // 现在订到了 Coinbase 的 USDT-USD 之类，把脱锚幅度显示出来。
+  // 只在「这一组都是生息持仓、且标的唯一、且在订阅覆盖范围内」时显示：
+  // 覆盖不到的长尾稳定币（USDG 这类）宁可整行不显示，也不要拿 1.0000 冒充。
+  const pegRow = document.querySelector('#profit-peg-row');
+  const pegSymbols = new Set(holdingsForBreakdown.map(holding => holding.symbol));
+  const pegQuote = stableOnly && pegSymbols.size === 1
+    ? window.MarketStream?.get([...pegSymbols][0])
+    : null;
+  pegRow.hidden = !Number.isFinite(pegQuote?.price);
+  if (!pegRow.hidden) {
+    const deviation = (pegQuote.price - 1) * 100;
+    document.querySelector('#profit-peg-value').textContent = `$${pegQuote.price.toFixed(4)}`;
+    // 脱锚方向要带符号：折价和溢价对持有人的意义相反，只写绝对值等于没说。
+    document.querySelector('#profit-peg-detail').textContent =
+      `${[...pegSymbols][0]}/USD 现货 · 较锚定 ${deviation >= 0 ? '+' : ''}${deviation.toFixed(2)}%`;
+  }
+
   const eventCard = document.querySelector('#profit-event-card');
   const latestRecord = dividendHoldings.length === 1 ? latestDividendRecord(dividendHoldings[0]) : null;
   eventCard.hidden = !latestRecord;
@@ -2988,7 +3055,7 @@ function openProfitSheet(items, action) {
   document.querySelector('#profit-value-value').textContent =
     Number.isFinite(totalValue) ? money.format(totalValue) : '$—';
   document.querySelector('#profit-value-detail').textContent = stableOnly
-    ? '本金加已发放利息'
+    ? (stablePegged ? '本金加利息，按现价折算' : '本金加已发放利息')
     : Number.isFinite(totalValue) ? '按最新价计算' : '获取最新价格后可计算';
 
   // 每份成本多笔合并时是按份数加权的均价，标签也跟着改，免得看成「其中某一笔
@@ -3630,7 +3697,18 @@ function createSearchState(title, detail, art = 'search') {
   return state;
 }
 
-function renderAssetSearchState(title = '输入代码或名称，按回车开始搜索', detail = '支持 Yahoo Finance 上的股票、ETF 和 Crypto', art = 'search') {
+// loading 那张是 280 KB 的 APNG（跑步循环），比其他状态图重两个数量级。它只在
+// 「正在搜索」那一瞬出现，等到那时才开始下载多半来不及 —— 弹层一打开就先抓下来，
+// 到搜索结果回来时它已经在缓存里了。减少动态偏好下 CSS 用的是静帧，不必预取。
+let loadingArtPrefetched = false;
+function prefetchLoadingArt() {
+  if (loadingArtPrefetched) return;
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  loadingArtPrefetched = true;
+  new Image().src = 'illustrations/loading-anim.png';
+}
+
+function renderAssetSearchState(title = '输入代码或名称，按回车开始搜索', detail = '支持美股、ETF 和 Crypto', art = 'search') {
   document.querySelector('#asset-search-content').replaceChildren(createSearchState(title, detail, art));
 }
 
@@ -3691,13 +3769,12 @@ async function searchAssets(query) {
   assetSearchController?.abort();
   assetSearchController = new AbortController();
   try {
-    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, {
-      signal: assetSearchController.signal,
-      cache: 'no-store'
-    });
-    if (!response.ok) throw new Error('asset search unavailable');
-    const data = await response.json();
-    return Array.isArray(data?.results) ? data.results.map(normalizeAsset).filter(Boolean) : [];
+    // 目录在本地（Worker 拉一次 Binance 全量、压成约 16KB，前端缓存一天），
+    // 所以搜索是纯内存过滤：不用每敲一个字母打一次请求，也就没有防抖和竞态。
+    await window.MarketStream?.ready();
+    const results = window.MarketStream?.search(query) || [];
+    if (!results.length) return fallbackAssetSearch(query);
+    return results.map(normalizeAsset).filter(Boolean);
   } catch (error) {
     if (error.name === 'AbortError') throw error;
     return fallbackAssetSearch(query);
@@ -3711,6 +3788,7 @@ function openAssetSearch() {
   const input = document.querySelector('#asset-search-input');
   input.value = selectedHoldingAsset?.symbol || '';
   renderAssetSearchState();
+  prefetchLoadingArt();
   openOverlay(document.querySelector('#asset-search-overlay'));
   input.focus();
   input.select();
@@ -3800,7 +3878,7 @@ document.querySelector('#asset-search-form').addEventListener('submit', async ev
   const submit = event.currentTarget.querySelector('.asset-search-submit');
   submit.disabled = true;
   submit.textContent = '搜索中';
-  renderAssetSearchState('正在搜索', `正在 Yahoo Finance 中查找“${query}”`, 'loading');
+  renderAssetSearchState('正在搜索', `正在查找“${query}”`, 'loading');
   try {
     const results = await searchAssets(query);
     if (input.value.trim() === lastSubmittedAssetQuery) renderAssetResults(results, query);
@@ -4178,8 +4256,6 @@ mergeHoldingsInput.addEventListener('change', () => {
 document.addEventListener('keydown', event => {
   if (event.key !== 'Escape') return;
   if (!document.querySelector('#delete-confirm-overlay').hidden) return closeDeleteConfirm();
-  if (!document.querySelector('#cat-photo-viewer').hidden) return closeCatPhoto();
-  if (!document.querySelector('#cat-sheet-overlay').hidden) return closeCatSheet();
   if (!document.querySelector('#profile-sheet-overlay').hidden) return closeProfileSheet();
   if (!document.querySelector('#dividend-frequency-overlay').hidden) return closeDividendFrequencySheet();
   if (!document.querySelector('#asset-search-overlay').hidden) return closeAssetSearch();
@@ -4272,69 +4348,28 @@ function faceAvatar(value) {
 // 分支现在只为它一个存在。
 const GUEST_AVATAR_ICON = 'ri-user-smile-line';
 // 未登录时的占位：中性灰，和任何一个已选头像都不一样，一眼能看出「还没设置」。
-const GUEST_AVATAR_COLOR = '#8A8A8F';
+const GUEST_AVATAR_COLOR = NVWA_GRAY_SECONDARY;
 
-// 猫。头像除了上面那 12 个图标，也可以是其中一只 —— 存成 'cat:<id>'。
-// **file 为 null 表示照片还没到**：那一格只画一个带色边框的空位，不可选，
-// 免得存进一个加载不出来的头像。图片放在 public/ 下，名字填进 file 即可。
-// 顺序是主人定的：Puffy 是元老，BoBo 最小，排最后。
-// 照片统一压到 800×800 的 JPEG（原图是 1200 的 PNG，九张加起来 16MB，
-// 压完 1.2MB）—— 格子最大也就 300px 左右，大图 520px，800 足够，
-// **以后换图记得也过一遍这道压缩**。
-// sex: 'female' | 'male'，名字后面跟一个小图标。全部经主人确认过：介绍里能读出
-// 来的（教母/萌妹/公主是母，种公/少爷是公）之外，NoNo 和 ZheZhe 是公、
-// Liz 和 CoCo 是母。
-// birth: 'YYYY-MM-DD'；只知道年份就写 'YYYY'，不知道就 null —— 三种情况在
-// catAgeText 里分别给出「几岁」「哪年生」「年龄未知」，不要为了凑格式编日期。
-const CAT_AVATARS = [
-  { id: 'puffy', name: 'Puffy', desc: '元老教母', sex: 'female', birth: '2017-09-17', file: 'cats/puffy.jpg' },
-  { id: 'nono', name: 'NoNo', desc: '不喜欢同性', sex: 'male', birth: '2022-05-17', file: 'cats/nono.jpg' },
-  { id: 'jiujiu', name: 'JiuJiu', desc: '大眼萌妹', sex: 'female', birth: '2022-10-03', file: 'cats/jiujiu.jpg' },
-  { id: 'liz', name: 'Liz', desc: '别名 Mini', sex: 'female', birth: '2023-10-15', file: 'cats/liz.jpg' },
-  { id: 'pudding', name: 'Pudding', desc: '娘娘腔，种公', sex: 'male', birth: '2023-03-02', file: 'cats/pudding.jpg' },
-  { id: 'zhezhe', name: 'ZheZhe', desc: '疯P', sex: 'male', birth: '2025', file: 'cats/zhezhe.jpg' },
-  { id: 'coco', name: 'CoCo', desc: '脾气暴躁', sex: 'female', birth: '2024-01-15', file: 'cats/coco.jpg' },
-  { id: 'momo', name: 'MoMo', desc: '小公主', sex: 'female', birth: '2025-11-09', file: 'cats/momo.jpg' },
-  { id: 'bobo', name: 'BoBo', desc: '小少爷', sex: 'male', birth: '2025-11-09', file: 'cats/bobo.jpg' }
-];
-
-// 不满一岁按月说、一两岁带上月份、再大就只说岁 —— 小猫差一个月是另一个样子，
-// 八岁的猫差一个月没人在意。
-function catAgeText(birth) {
-  if (!birth) return '年龄未知';
-  const [year, month, day] = String(birth).split('-').map(Number);
-  if (!Number.isFinite(month)) return `${year} 年生`;
-  const now = new Date();
-  let months = (now.getFullYear() - year) * 12 + (now.getMonth() + 1 - month);
-  if (now.getDate() < day) months -= 1;
-  if (months < 0) return `${year}.${String(month).padStart(2, '0')} 生`;
-  const years = Math.floor(months / 12);
-  const rest = months % 12;
-  if (years < 1) return `${months} 个月大`;
-  if (years < 2) return rest ? `${years} 岁 ${rest} 个月` : `${years} 岁`;
-  return `${years} 岁`;
-}
-
-function catBirthText(birth) {
-  if (!birth) return '';
-  const [year, month, day] = String(birth).split('-');
-  return month && day ? `${year}.${month}.${day} 生` : '';
-}
-const CAT_SEX = {
-  female: { icon: 'ri-women-line', label: '母猫' },
-  male: { icon: 'ri-men-line', label: '公猫' }
-};
 const CAT_AVATAR_PREFIX = 'cat:';
-const CATS_BY_ID = new Map(CAT_AVATARS.map(cat => [cat.id, cat]));
+// 猫咪彩蛋已经下线，只保留旧头像值到图片的兼容映射，避免已保存的 `cat:<id>` 失效。
+const LEGACY_CAT_AVATAR_FILES = Object.freeze({
+  puffy: 'cats/puffy.jpg',
+  nono: 'cats/nono.jpg',
+  jiujiu: 'cats/jiujiu.jpg',
+  liz: 'cats/liz.jpg',
+  pudding: 'cats/pudding.jpg',
+  zhezhe: 'cats/zhezhe.jpg',
+  coco: 'cats/coco.jpg',
+  momo: 'cats/momo.jpg',
+  bobo: 'cats/bobo.jpg'
+});
 
-// 只认「照片已经就位」的猫：值是从云端读回来的，不能拿它去拼一个不存在的图片。
 function catAvatar(value) {
   if (typeof value !== 'string' || !value.startsWith(CAT_AVATAR_PREFIX)) return null;
-  const cat = CATS_BY_ID.get(value.slice(CAT_AVATAR_PREFIX.length));
-  return cat?.file ? cat : null;
+  const file = LEGACY_CAT_AVATAR_FILES[value.slice(CAT_AVATAR_PREFIX.length)];
+  return file ? { file } : null;
 }
-// 头像有两种形态：图片（九张猫脸表情，或猫墙上的一只猫）和图标（只剩未登录的
-// 灰色占位在用）。顶栏、资料弹层的选项、猫弹层都走这一个函数。
+// 头像有两种形态：图片（九张猫脸表情或历史猫头像）和未登录占位图标。
 function applyProfileAvatar(element, avatar, color) {
   const photo = faceAvatar(avatar) || catAvatar(avatar);
   element.classList.toggle('is-photo', !!photo);
@@ -4492,183 +4527,11 @@ function closeProfileSheet(restoreFocus = true) {
   }, 220);
 }
 
-// 单击开个人资料，双击看猫。
-//
-// 自己数 click 次数，不用原生的 dblclick 事件：触屏上 dblclick 各家实现不一
-// （iOS 上双击优先被当成缩放手势，很多时候根本不发这个事件），只靠它会出现
-// 「怎么双击都出不来」。click 在触屏和鼠标上都稳定触发，数两次就行。
-// 窗口给到 320ms —— 260ms 对不少人的双击来说偏紧，第一下的动作已经跑掉了。
-// 配套还需要 CSS 的 touch-action: manipulation，否则移动端的双击缩放会把
-// 第二下吞掉。
-const HEADER_DOUBLE_CLICK_MS = 320;
-let headerAccountClickTimer = null;
-let headerAccountClicks = 0;
 const headerAccountBtn = document.querySelector('#header-account-btn');
-headerAccountBtn.addEventListener('click', () => {
-  headerAccountClicks += 1;
-  if (headerAccountClicks === 1) {
-    headerAccountClickTimer = setTimeout(() => {
-      headerAccountClicks = 0;
-      openProfileSheet();
-    }, HEADER_DOUBLE_CLICK_MS);
-    return;
-  }
-  clearTimeout(headerAccountClickTimer);
-  headerAccountClicks = 0;
-  openCatSheet();
-});
+headerAccountBtn.addEventListener('click', openProfileSheet);
 document.querySelector('#profile-close-btn').addEventListener('click', () => closeProfileSheet());
 [...document.querySelectorAll('[data-close-profile]')]
   .forEach(el => el.addEventListener('click', () => closeProfileSheet()));
-
-// ── 猫（双击顶栏头像）─────────────────────────────────────────────────
-let catSheetTrigger = null;
-let catSheetCloseTimer = null;
-
-function renderCatGrid() {
-  const grid = document.querySelector('#cat-grid');
-  grid.replaceChildren(...CAT_AVATARS.map(cat => {
-    const value = `${CAT_AVATAR_PREFIX}${cat.id}`;
-    const cell = document.createElement('button');
-    cell.type = 'button';
-    cell.className = 'cat-cell';
-    cell.dataset.cat = cat.id;
-    cell.setAttribute('aria-pressed', String(profile.avatar === value));
-    // 照片还没到的格子只是占位，不给点 —— 存进去会得到一个加载不出来的头像。
-    cell.disabled = !cat.file;
-    cell.setAttribute('aria-label', cat.file ? `把头像换成 ${cat.name}` : '这只猫的照片还没上传');
-
-    const photo = document.createElement('span');
-    photo.className = 'cat-photo';
-    if (cat.file) photo.style.backgroundImage = `url("${cat.file}")`;
-
-    // 九宫格里只放名字和一句介绍。性别和年龄留到长按的大图里 —— 一格 90px 宽，
-    // 名字后面再挂个图标就开始换行了。
-    const name = document.createElement('span');
-    name.className = 'cat-name';
-    name.textContent = cat.name;
-
-    // 一句话介绍，五六个字。还没写的显示成一条灰条占位，位置先留着。
-    const desc = document.createElement('span');
-    desc.className = 'cat-desc';
-    desc.textContent = cat.desc || '';
-
-    cell.append(photo, name, desc);
-    if (cat.file) bindCatCellGestures(cell, cat);
-    return cell;
-  }));
-}
-
-// 短按设头像、长按看大图。两个手势挂在同一个元素上，长按触发后要把随之而来
-// 的那次 click 吃掉，否则手一松就顺带把头像也换了。
-const CAT_LONG_PRESS_MS = 500;
-
-function bindCatCellGestures(cell, cat) {
-  let pressTimer = null;
-  let longPressed = false;
-  const cancel = () => clearTimeout(pressTimer);
-
-  cell.addEventListener('pointerdown', () => {
-    longPressed = false;
-    clearTimeout(pressTimer);
-    pressTimer = setTimeout(() => {
-      longPressed = true;
-      openCatPhoto(cat);
-    }, CAT_LONG_PRESS_MS);
-  });
-  ['pointerup', 'pointerleave', 'pointercancel'].forEach(type => cell.addEventListener(type, cancel));
-  // 移动端长按图片会弹系统菜单（保存图片/拷贝），把它挡掉。
-  cell.addEventListener('contextmenu', event => event.preventDefault());
-  cell.addEventListener('click', event => {
-    if (!longPressed) return chooseCatAvatar(cat);
-    event.preventDefault();
-    longPressed = false;
-  });
-}
-
-let catPhotoTrigger = null;
-let catPhotoCloseTimer = null;
-
-function openCatPhoto(cat) {
-  clearTimeout(catPhotoCloseTimer);
-  catPhotoTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  const image = document.querySelector('#cat-photo-viewer-img');
-  image.src = cat.file;
-  image.alt = cat.name ? `${cat.name}的照片` : '猫的照片';
-  const viewerName = document.querySelector('#cat-photo-viewer-name');
-  const sex = CAT_SEX[cat.sex];
-  viewerName.replaceChildren(cat.name);
-  if (sex) {
-    const mark = document.createElement('i');
-    // 图标本身不带语义，读屏要能读出「母猫/公猫」。
-    mark.className = `${sex.icon} cat-sex is-${cat.sex}`;
-    mark.setAttribute('role', 'img');
-    mark.setAttribute('aria-label', sex.label);
-    viewerName.append(mark);
-  }
-  document.querySelector('#cat-photo-viewer-meta').textContent =
-    [catAgeText(cat.birth), catBirthText(cat.birth)].filter(Boolean).join(' · ');
-  document.querySelector('#cat-photo-viewer-desc').textContent = cat.desc || '';
-  openOverlay(document.querySelector('#cat-photo-viewer'));
-  document.querySelector('.photo-viewer-scrim').focus();
-}
-
-function closeCatPhoto(restoreFocus = true) {
-  const overlay = document.querySelector('#cat-photo-viewer');
-  overlay.classList.remove('is-open');
-  const trigger = catPhotoTrigger;
-  catPhotoCloseTimer = setTimeout(() => {
-    overlay.hidden = true;
-    if (restoreFocus && trigger?.isConnected) trigger.focus();
-    catPhotoTrigger = null;
-  }, 220);
-}
-
-[...document.querySelectorAll('[data-close-photo]')]
-  .forEach(el => el.addEventListener('click', () => closeCatPhoto()));
-
-async function chooseCatAvatar(cat) {
-  // 头像属于账号资料，没登录就没地方存 —— 和资料弹层里那条规则保持一致。
-  if (!currentUser) return showToast('登录后可以把猫设成头像');
-  profile = normalizeProfile({
-    name: profile.name,
-    avatar: `${CAT_AVATAR_PREFIX}${cat.id}`,
-    updatedAt: Date.now()
-  });
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-  profileDraftAvatar = profile.avatar;
-  renderAccountBar();
-  renderCatGrid();
-  showToast(`头像已换成 ${cat.name}`);
-  try {
-    await pushCloudProfile();
-  } catch {
-    showToast('头像已存在本机，云端同步失败');
-  }
-}
-
-function openCatSheet() {
-  clearTimeout(catSheetCloseTimer);
-  catSheetTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  renderCatGrid();
-  openOverlay(document.querySelector('#cat-sheet-overlay'));
-  document.querySelector('#cat-close-btn').focus();
-}
-
-function closeCatSheet(restoreFocus = true) {
-  const overlay = document.querySelector('#cat-sheet-overlay');
-  overlay.classList.remove('is-open');
-  const trigger = catSheetTrigger;
-  catSheetCloseTimer = setTimeout(() => {
-    overlay.hidden = true;
-    if (restoreFocus && trigger?.isConnected) trigger.focus();
-    catSheetTrigger = null;
-  }, 220);
-}
-
-document.querySelector('#cat-close-btn').addEventListener('click', () => closeCatSheet());
-[...document.querySelectorAll('[data-close-cat]')]
-  .forEach(el => el.addEventListener('click', () => closeCatSheet()));
 
 document.querySelector('#profile-form').addEventListener('submit', async event => {
   event.preventDefault();
